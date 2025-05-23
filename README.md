@@ -1,5 +1,5 @@
 <p align="left">
-  <img src="docs/assets/logo.png" alt="Claude Code Go SDK" height="90">
+  <img src="docs/assets/logo.svg" alt="Claude Code Go SDK" height="90">
 </p>
 
 # Claude Code Go SDK
