@@ -58,6 +58,8 @@ type RunOptions struct {
 	MaxTurns int
 	// Verbose enables verbose logging
 	Verbose bool
+	// Model specifies the model to use
+	Model string
 }
 
 // ClaudeResult represents the structured result from Claude Code
@@ -343,6 +345,10 @@ func buildArgs(prompt string, opts *RunOptions) []string {
 
 	if opts.Verbose {
 		args = append(args, "--verbose")
+	}
+
+	if opts.Model != "" {
+		args = append(args, "--model", opts.Model)
 	}
 
 	return args

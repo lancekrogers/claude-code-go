@@ -186,6 +186,9 @@ func (c *DangerousClient) runWithDangerousFlags(prompt string, opts *claude.RunO
 	if opts.Verbose || c.mcpDebug {
 		args = append(args, "--verbose")
 	}
+	if opts.Model != "" {
+		args = append(args, "--model", opts.Model)
+	}
 
 	// Add dangerous flags
 	if skipPermissions {

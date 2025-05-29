@@ -39,7 +39,6 @@ func mockExecCommandContext(t *testing.T, expectedArgs []string, output string, 
 	}
 }
 
-
 // TestHelperProcess isn't a real test - it's used to mock exec.Command
 func TestHelperProcess(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
@@ -243,6 +242,7 @@ func TestBuildArgs(t *testing.T) {
 				ResumeID:        "session123",
 				MaxTurns:        5,
 				Verbose:         true,
+				Model:           "claude-3-5-sonnet-20240620",
 			},
 			expected: []string{
 				"-p", "Complete test",
@@ -256,6 +256,7 @@ func TestBuildArgs(t *testing.T) {
 				"--resume", "session123",
 				"--max-turns", "5",
 				"--verbose",
+				"--model", "claude-3-5-sonnet-20240620",
 			},
 		},
 		{
@@ -347,7 +348,7 @@ func TestRunWithMCP(t *testing.T) {
 
 	client := &ClaudeClient{BinPath: "claude"}
 	result, err := client.RunWithMCP("Test MCP", "/path/to/config.json", []string{"tool1", "tool2"})
-	
+
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -368,7 +369,7 @@ func TestRunWithMCPCtx(t *testing.T) {
 	client := &ClaudeClient{BinPath: "claude"}
 	ctx := context.Background()
 	result, err := client.RunWithMCPCtx(ctx, "Test MCP Ctx", "/path/to/config.json", []string{"tool1"})
-	
+
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -387,7 +388,7 @@ func TestRunWithSystemPrompt(t *testing.T) {
 
 	client := &ClaudeClient{BinPath: "claude"}
 	result, err := client.RunWithSystemPrompt("Test prompt", "Custom system prompt", nil)
-	
+
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -407,7 +408,7 @@ func TestRunWithSystemPromptCtx(t *testing.T) {
 	client := &ClaudeClient{BinPath: "claude"}
 	ctx := context.Background()
 	result, err := client.RunWithSystemPromptCtx(ctx, "Test prompt", "Custom system prompt", &RunOptions{Format: JSONOutput})
-	
+
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -427,7 +428,7 @@ func TestContinueConversation(t *testing.T) {
 
 	client := &ClaudeClient{BinPath: "claude"}
 	result, err := client.ContinueConversation("Continue")
-	
+
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -451,7 +452,7 @@ func TestContinueConversationCtx(t *testing.T) {
 	client := &ClaudeClient{BinPath: "claude"}
 	ctx := context.Background()
 	result, err := client.ContinueConversationCtx(ctx, "Continue ctx")
-	
+
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -471,7 +472,7 @@ func TestResumeConversation(t *testing.T) {
 
 	client := &ClaudeClient{BinPath: "claude"}
 	result, err := client.ResumeConversation("Resume", "resume123")
-	
+
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -495,7 +496,7 @@ func TestResumeConversationCtx(t *testing.T) {
 	client := &ClaudeClient{BinPath: "claude"}
 	ctx := context.Background()
 	result, err := client.ResumeConversationCtx(ctx, "Resume ctx", "resume123")
-	
+
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -507,7 +508,7 @@ func TestResumeConversationCtx(t *testing.T) {
 // Test error handling scenarios
 func TestRunPromptCtx_MCPValidationErrors(t *testing.T) {
 	client := &ClaudeClient{BinPath: "claude"}
-	
+
 	// Test malformed MCP tool in AllowedTools
 	_, err := client.RunPromptCtx(context.Background(), "test", &RunOptions{
 		AllowedTools: []string{"mcp__badtool"},
@@ -515,7 +516,7 @@ func TestRunPromptCtx_MCPValidationErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for malformed MCP tool in AllowedTools, got nil")
 	}
-	
+
 	// Test malformed MCP tool in DisallowedTools
 	_, err = client.RunPromptCtx(context.Background(), "test", &RunOptions{
 		DisallowedTools: []string{"mcp__anotherbadtool"},
@@ -536,7 +537,7 @@ func TestRunPromptCtx_JSONParsingError(t *testing.T) {
 
 	client := &ClaudeClient{BinPath: "claude"}
 	_, err := client.RunPromptCtx(context.Background(), "JSON test", &RunOptions{Format: JSONOutput})
-	
+
 	if err == nil {
 		t.Fatal("Expected JSON parsing error, got nil")
 	}
@@ -556,7 +557,7 @@ func TestRunPromptCtx_CommandFailure(t *testing.T) {
 
 	client := &ClaudeClient{BinPath: "claude"}
 	_, err := client.RunPromptCtx(context.Background(), "Fail test", &RunOptions{})
-	
+
 	if err == nil {
 		t.Fatal("Expected command failure error, got nil")
 	}
@@ -577,7 +578,7 @@ func TestRunFromStdinCtx_JSONParsingError(t *testing.T) {
 	client := &ClaudeClient{BinPath: "claude"}
 	stdin := bytes.NewBufferString("test input")
 	_, err := client.RunFromStdinCtx(context.Background(), stdin, "", &RunOptions{Format: JSONOutput})
-	
+
 	if err == nil {
 		t.Fatal("Expected JSON parsing error, got nil")
 	}
@@ -604,7 +605,7 @@ func TestRunFromStdinCtx_CommandFailure(t *testing.T) {
 	client := &ClaudeClient{BinPath: "claude"}
 	stdin := bytes.NewBufferString("test input")
 	_, err := client.RunFromStdinCtx(context.Background(), stdin, "", &RunOptions{})
-	
+
 	if err == nil {
 		t.Fatal("Expected command failure error, got nil")
 	}
@@ -617,7 +618,7 @@ func TestBuildArgs_EdgeCases(t *testing.T) {
 	if len(args) != len(expected) || args[0] != "-p" || args[1] != "--output-format" {
 		t.Errorf("Expected %v for empty prompt, got %v", expected, args)
 	}
-	
+
 	// Test ResumeID takes precedence over Continue
 	args = buildArgs("test", &RunOptions{
 		ResumeID: "session123",
@@ -644,7 +645,7 @@ func TestBuildArgs_EdgeCases(t *testing.T) {
 	if foundContinue {
 		t.Error("Expected --continue to be absent when ResumeID is set")
 	}
-	
+
 	// Test MaxTurns = 0 should not add --max-turns
 	args = buildArgs("test", &RunOptions{MaxTurns: 0})
 	for _, arg := range args {
