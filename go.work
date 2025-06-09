@@ -4,3 +4,4 @@ use .
 use ./examples/demo/basic
 use ./examples/demo/streaming
 use ./examples/dangerous_usage
+use ./examples/enhanced_features

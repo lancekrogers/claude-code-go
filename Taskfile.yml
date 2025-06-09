@@ -81,6 +81,7 @@ tasks:
       - task: build-demo-streaming
       - task: build-demo-basic
       - task: build-dangerous-example
+      - task: build-enhanced-example
       - echo "✅ Example builds completed"
 
   # Individual example build targets for development
@@ -144,6 +145,17 @@ tasks:
         go mod tidy
         go build -o ../../{{.BIN_DIR}}/dangerous-example .
       - echo "✅ Dangerous example built successfully"
+
+  build-enhanced-example:
+    desc: "Build enhanced features example"
+    cmds:
+      - echo "🔨 Building enhanced features example..."
+      - mkdir -p {{.BIN_DIR}}
+      - |
+        cd examples/enhanced_features
+        go mod tidy
+        go build -o ../../{{.BIN_DIR}}/enhanced-example .
+      - echo "✅ Enhanced features example built successfully"
 
   test-all:
     desc: "Run all tests"
@@ -272,6 +284,22 @@ tasks:
       - echo ""
       - "{{.BIN_DIR}}/dangerous-example"
 
+  run-enhanced:
+    desc: "Run enhanced features example showcasing 100% CLI support"
+    deps: [build-enhanced-example]
+    cmds:
+      - echo "🚀 Running Enhanced Features Example"
+      - echo "==================================="
+      - |
+        echo "This example demonstrates:"
+        echo "  - Enhanced tool permissions: Bash(git log:*)"
+        echo "  - Structured error handling with retry logic"
+        echo "  - Model aliases (sonnet, opus, haiku)"
+        echo "  - Configuration file support"
+        echo "  - All CLI flags (--help, --version, --theme, etc.)"
+      - echo ""
+      - "{{.BIN_DIR}}/enhanced-example"
+
   coverage:
     desc: "Generate test coverage report"
     cmds:
@@ -301,6 +329,8 @@ tasks:
       - echo "   • {{.BIN_DIR}}/basic-example - Basic usage examples"
       - echo "   • {{.BIN_DIR}}/advanced-example - Advanced MCP examples"
       - echo "   • {{.BIN_DIR}}/testing-example - Testing utilities"
+      - echo "   • {{.BIN_DIR}}/enhanced-example - Enhanced features (100% CLI support)"
+      - echo "   • {{.BIN_DIR}}/dangerous-example - Dangerous features (dev only)"
       - echo ""
       - echo "📊 Reports:"
       - echo "   • Coverage at {{.COVERAGE_DIR}}/coverage.html"
