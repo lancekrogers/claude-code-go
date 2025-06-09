@@ -166,6 +166,7 @@ func (e *ClaudeError) RetryDelay() int {
 }
 
 // ParseError analyzes stderr output and exit code to create a structured ClaudeError
+// This is exported for use by the dangerous package
 func ParseError(stderr string, exitCode int) *ClaudeError {
 	stderr = strings.TrimSpace(stderr)
 	lowerStderr := strings.ToLower(stderr)
@@ -371,6 +372,7 @@ func extractRetryAfter(stderr string) int {
 }
 
 // NewClaudeError creates a new ClaudeError with the specified type and message
+// This is exported for use by the dangerous package
 func NewClaudeError(errorType ErrorType, message string) *ClaudeError {
 	return &ClaudeError{
 		Type:    errorType,

@@ -271,7 +271,7 @@ func TestBuildArgs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			args := buildArgs(tt.prompt, tt.opts)
+			args := BuildArgs(tt.prompt, tt.opts)
 
 			if len(args) != len(tt.expected) {
 				t.Errorf("Expected %d arguments, got %d", len(tt.expected), len(args))
@@ -622,14 +622,14 @@ func TestRunFromStdinCtx_CommandFailure(t *testing.T) {
 
 func TestBuildArgs_EdgeCases(t *testing.T) {
 	// Test empty prompt
-	args := buildArgs("", &RunOptions{Format: TextOutput})
+	args := BuildArgs("", &RunOptions{Format: TextOutput})
 	expected := []string{"-p", "--output-format", "text"}
 	if len(args) != len(expected) || args[0] != "-p" || args[1] != "--output-format" {
 		t.Errorf("Expected %v for empty prompt, got %v", expected, args)
 	}
 
 	// Test ResumeID takes precedence over Continue
-	args = buildArgs("test", &RunOptions{
+	args = BuildArgs("test", &RunOptions{
 		ResumeID: "session123",
 		Continue: true,
 	})
@@ -656,11 +656,86 @@ func TestBuildArgs_EdgeCases(t *testing.T) {
 	}
 
 	// Test MaxTurns = 0 should not add --max-turns
-	args = buildArgs("test", &RunOptions{MaxTurns: 0})
+	args = BuildArgs("test", &RunOptions{MaxTurns: 0})
 	for _, arg := range args {
 		if arg == "--max-turns" {
 			t.Error("Expected --max-turns to be absent when MaxTurns is 0")
 		}
+	}
+}
+
+func TestBuildArgs_NewFlags(t *testing.T) {
+	tests := []struct {
+		name     string
+		opts     *RunOptions
+		expected []string
+	}{
+		{
+			name: "Config file flag",
+			opts: &RunOptions{
+				ConfigFile: "/path/to/config.json",
+			},
+			expected: []string{"-p", "test", "--config", "/path/to/config.json"},
+		},
+		{
+			name: "Help flag",
+			opts: &RunOptions{
+				Help: true,
+			},
+			expected: []string{"-p", "test", "--help"},
+		},
+		{
+			name: "Version flag",
+			opts: &RunOptions{
+				Version: true,
+			},
+			expected: []string{"-p", "test", "--version"},
+		},
+		{
+			name: "Disable autoupdate flag",
+			opts: &RunOptions{
+				DisableAutoUpdate: true,
+			},
+			expected: []string{"-p", "test", "--disable-autoupdate"},
+		},
+		{
+			name: "Theme flag",
+			opts: &RunOptions{
+				Theme: "dark",
+			},
+			expected: []string{"-p", "test", "--theme", "dark"},
+		},
+		{
+			name: "All new flags combined",
+			opts: &RunOptions{
+				ConfigFile:        "/config.json",
+				Help:              true,
+				Version:           true,
+				DisableAutoUpdate: true,
+				Theme:             "light",
+			},
+			expected: []string{"-p", "test", "--config", "/config.json", "--help", "--version", "--disable-autoupdate", "--theme", "light"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := BuildArgs("test", tt.opts)
+			
+			// Check all expected args are present
+			for _, exp := range tt.expected {
+				found := false
+				for _, arg := range args {
+					if arg == exp {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected argument %q not found in %v", exp, args)
+				}
+			}
+		})
 	}
 }
 

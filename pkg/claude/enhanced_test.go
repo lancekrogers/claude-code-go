@@ -191,14 +191,6 @@ func TestBuildArgs_EnhancedFeatures(t *testing.T) {
 			want: []string{"-p", "test", "--model", "sonnet"},
 		},
 		{
-			name:   "Dangerous skip permissions flag",
-			prompt: "test",
-			opts: &RunOptions{
-				DangerouslySkipPermissions: true,
-			},
-			want: []string{"-p", "test", "--dangerously-skip-permissions"},
-		},
-		{
 			name:   "Enhanced tool permissions",
 			prompt: "test",
 			opts: &RunOptions{
@@ -213,7 +205,7 @@ func TestBuildArgs_EnhancedFeatures(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildArgs(tt.prompt, tt.opts)
+			got := BuildArgs(tt.prompt, tt.opts)
 			
 			// Check that all expected args are present
 			for _, expectedArg := range tt.want {

@@ -1,6 +1,8 @@
 package dangerous
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -77,7 +79,27 @@ func (c *DangerousClient) BYPASS_ALL_PERMISSIONS(prompt string, opts *claude.Run
 	fmt.Fprintf(os.Stderr, "🚨 WARNING: Executing Claude with ALL PERMISSIONS BYPASSED 🚨\n")
 	fmt.Fprintf(os.Stderr, "This removes all safety controls and allows unrestricted access.\n")
 
-	return c.runWithDangerousFlags(prompt, &dangerousOpts, true, false)
+	return c.runWithDangerousFlags(context.Background(), prompt, &dangerousOpts, true, false)
+}
+
+// BYPASS_ALL_PERMISSIONS_CTX is the context-aware version of BYPASS_ALL_PERMISSIONS
+func (c *DangerousClient) BYPASS_ALL_PERMISSIONS_CTX(ctx context.Context, prompt string, opts *claude.RunOptions) (*claude.ClaudeResult, error) {
+	if !c.securityGate.confirmed {
+		return nil, fmt.Errorf("security gate not confirmed")
+	}
+
+	if opts == nil {
+		opts = &claude.RunOptions{}
+	}
+
+	// Create a copy to avoid modifying the original
+	dangerousOpts := *opts
+
+	// Execute with warning
+	fmt.Fprintf(os.Stderr, "🚨 WARNING: Executing Claude with ALL PERMISSIONS BYPASSED 🚨\n")
+	fmt.Fprintf(os.Stderr, "This removes all safety controls and allows unrestricted access.\n")
+
+	return c.runWithDangerousFlags(ctx, prompt, &dangerousOpts, true, false)
 }
 
 // SET_ENVIRONMENT_VARIABLES injects environment variables into Claude process
@@ -126,6 +148,11 @@ func (c *DangerousClient) ENABLE_MCP_DEBUG() error {
 // DANGEROUS_RunWithEnvironment combines environment injection with execution
 // WARNING: This method combines multiple security risks
 func (c *DangerousClient) DANGEROUS_RunWithEnvironment(prompt string, opts *claude.RunOptions, envVars map[string]string) (*claude.ClaudeResult, error) {
+	return c.DANGEROUS_RunWithEnvironmentCtx(context.Background(), prompt, opts, envVars)
+}
+
+// DANGEROUS_RunWithEnvironmentCtx is the context-aware version
+func (c *DangerousClient) DANGEROUS_RunWithEnvironmentCtx(ctx context.Context, prompt string, opts *claude.RunOptions, envVars map[string]string) (*claude.ClaudeResult, error) {
 	if !c.securityGate.confirmed {
 		return nil, fmt.Errorf("security gate not confirmed")
 	}
@@ -136,70 +163,37 @@ func (c *DangerousClient) DANGEROUS_RunWithEnvironment(prompt string, opts *clau
 	}
 
 	// Execute with custom environment
-	return c.runWithDangerousFlags(prompt, opts, false, true)
+	return c.runWithDangerousFlags(ctx, prompt, opts, false, true)
 }
 
 // runWithDangerousFlags executes Claude with dangerous flags enabled
-func (c *DangerousClient) runWithDangerousFlags(prompt string, opts *claude.RunOptions, skipPermissions bool, useCustomEnv bool) (*claude.ClaudeResult, error) {
+func (c *DangerousClient) runWithDangerousFlags(ctx context.Context, prompt string, opts *claude.RunOptions, skipPermissions bool, useCustomEnv bool) (*claude.ClaudeResult, error) {
 	if opts == nil {
 		opts = &claude.RunOptions{}
 	}
 
-	// Build base arguments
-	args := []string{"-p"}
-
-	// Add prompt if not empty
-	if prompt != "" {
-		args = append(args, prompt)
+	// Validate and preprocess options using enhanced features
+	if err := claude.PreprocessOptions(opts); err != nil {
+		return nil, fmt.Errorf("dangerous options validation failed: %w", err)
 	}
 
-	// Add standard options
-	if opts.Format != "" {
-		args = append(args, "--output-format", string(opts.Format))
-	}
-	if opts.SystemPrompt != "" {
-		args = append(args, "--system-prompt", opts.SystemPrompt)
-	}
-	if opts.AppendPrompt != "" {
-		args = append(args, "--append-system-prompt", opts.AppendPrompt)
-	}
-	if opts.MCPConfigPath != "" {
-		args = append(args, "--mcp-config", opts.MCPConfigPath)
-	}
-	if len(opts.AllowedTools) > 0 {
-		args = append(args, "--allowedTools", strings.Join(opts.AllowedTools, ","))
-	}
-	if len(opts.DisallowedTools) > 0 {
-		args = append(args, "--disallowedTools", strings.Join(opts.DisallowedTools, ","))
-	}
-	if opts.PermissionTool != "" {
-		args = append(args, "--permission-prompt-tool", opts.PermissionTool)
-	}
-	if opts.ResumeID != "" {
-		args = append(args, "--resume", opts.ResumeID)
-	} else if opts.Continue {
-		args = append(args, "--continue")
-	}
-	if opts.MaxTurns > 0 {
-		args = append(args, "--max-turns", fmt.Sprintf("%d", opts.MaxTurns))
-	}
-	if opts.Verbose || c.mcpDebug {
-		args = append(args, "--verbose")
-	}
-	if opts.Model != "" {
-		args = append(args, "--model", opts.Model)
-	}
+	// Build arguments using the main package's enhanced BuildArgs
+	args := claude.BuildArgs(prompt, opts)
 
-	// Add dangerous flags
+	// Add dangerous-specific flags after the standard args
 	if skipPermissions {
 		args = append(args, "--dangerously-skip-permissions")
 	}
 	if c.mcpDebug {
 		args = append(args, "--mcp-debug")
+		// Ensure verbose is enabled for debug
+		if !opts.Verbose {
+			args = append(args, "--verbose")
+		}
 	}
 
-	// Create command
-	cmd := exec.Command(c.ClaudeClient.BinPath, args...)
+	// Create command with context support
+	cmd := exec.CommandContext(ctx, c.ClaudeClient.BinPath, args...)
 
 	// Set custom environment if requested
 	if useCustomEnv && len(c.envVars) > 0 {
@@ -212,15 +206,38 @@ func (c *DangerousClient) runWithDangerousFlags(prompt string, opts *claude.RunO
 		fmt.Fprintf(os.Stderr, "🌍 ENV: Using custom environment with %d additional variables\n", len(c.envVars))
 	}
 
-	// Execute command and handle response similar to main claude package
-	output, err := cmd.Output()
+	// Execute command with enhanced error handling
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
 	if err != nil {
-		return nil, fmt.Errorf("dangerous claude command failed: %w", err)
+		// Use enhanced error parsing from main package
+		var exitCode int
+		if exitError, ok := err.(*exec.ExitError); ok {
+			exitCode = exitError.ExitCode()
+		} else {
+			exitCode = 1
+		}
+		
+		claudeErr := claude.ParseError(stderr.String(), exitCode)
+		claudeErr.Original = err
+		return nil, fmt.Errorf("dangerous claude command failed: %w", claudeErr)
 	}
 
-	// For now, return simple result (could be enhanced to parse JSON like main package)
+	// Parse response based on format
+	if opts.Format == claude.JSONOutput {
+		var result claude.ClaudeResult
+		if err := json.Unmarshal([]byte(stdout.String()), &result); err != nil {
+			return nil, claude.NewClaudeError(claude.ErrorValidation, fmt.Sprintf("failed to parse JSON response: %v", err))
+		}
+		return &result, nil
+	}
+
+	// For text output, return the raw text
 	return &claude.ClaudeResult{
-		Result:  string(output),
+		Result:  stdout.String(),
 		IsError: false,
 	}, nil
 }

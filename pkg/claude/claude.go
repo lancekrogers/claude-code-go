@@ -68,12 +68,18 @@ type RunOptions struct {
 	// Enhanced options for 100% CLI support
 	// ModelAlias specifies model using alias ("sonnet", "opus", "haiku")
 	ModelAlias string
-	// DangerouslySkipPermissions skips all permission prompts (use with caution)
-	DangerouslySkipPermissions bool
 	// Timeout specifies the maximum duration for command execution
 	Timeout time.Duration
 	// ConfigFile specifies path to Claude configuration file
 	ConfigFile string
+	// Help shows help information
+	Help bool
+	// Version shows version information
+	Version bool
+	// DisableAutoUpdate disables automatic updates
+	DisableAutoUpdate bool
+	// Theme specifies the UI theme
+	Theme string
 	
 	// Parsed tool permissions (computed from AllowedTools/DisallowedTools)
 	// This field is populated automatically and should not be set directly
@@ -237,7 +243,7 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 		defer cancel()
 	}
 
-	args := buildArgs(prompt, opts)
+	args := BuildArgs(prompt, opts)
 
 	cmd := execCommand(ctx, c.BinPath, args...)
 	var stdout, stderr bytes.Buffer
@@ -290,7 +296,7 @@ func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *Ru
 	// Claude CLI requires --verbose when using --output-format=stream-json with --print
 	streamOpts.Verbose = true
 
-	args := buildArgs(prompt, &streamOpts)
+	args := BuildArgs(prompt, &streamOpts)
 
 	go func() {
 		defer close(messageCh)
@@ -394,7 +400,7 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 		defer cancel()
 	}
 
-	args := buildArgs(prompt, opts)
+	args := BuildArgs(prompt, opts)
 
 	cmd := execCommand(ctx, c.BinPath, args...)
 	cmd.Stdin = stdin
@@ -432,8 +438,9 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 	}, nil
 }
 
-// buildArgs constructs the command-line arguments for Claude Code
-func buildArgs(prompt string, opts *RunOptions) []string {
+// BuildArgs constructs the command-line arguments for Claude Code
+// This is exported for use by the dangerous package
+func BuildArgs(prompt string, opts *RunOptions) []string {
 	args := []string{"-p"}
 
 	// If prompt is empty, don't add it to args (useful when reading from stdin)
@@ -490,9 +497,29 @@ func buildArgs(prompt string, opts *RunOptions) []string {
 		args = append(args, "--model", opts.Model)
 	}
 
-	// Enhanced CLI flags for 100% support
-	if opts.DangerouslySkipPermissions {
-		args = append(args, "--dangerously-skip-permissions")
+	// Configuration file
+	if opts.ConfigFile != "" {
+		args = append(args, "--config", opts.ConfigFile)
+	}
+
+	// Help flag
+	if opts.Help {
+		args = append(args, "--help")
+	}
+
+	// Version flag
+	if opts.Version {
+		args = append(args, "--version")
+	}
+
+	// Disable autoupdate
+	if opts.DisableAutoUpdate {
+		args = append(args, "--disable-autoupdate")
+	}
+
+	// Theme
+	if opts.Theme != "" {
+		args = append(args, "--theme", opts.Theme)
 	}
 
 	return args
