@@ -561,8 +561,17 @@ func TestRunPromptCtx_CommandFailure(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected command failure error, got nil")
 	}
-	if !strings.Contains(err.Error(), "claude command failed") {
-		t.Errorf("Expected command failure error message, got: %v", err)
+	
+	// Check that we get a ClaudeError
+	if claudeErr, ok := err.(*ClaudeError); ok {
+		if claudeErr.Type != ErrorCommand {
+			t.Errorf("Expected ErrorCommand type, got: %v", claudeErr.Type)
+		}
+	} else {
+		// For backward compatibility, also accept the old error format
+		if !strings.Contains(err.Error(), "command failed") && !strings.Contains(err.Error(), "claude command failed") {
+			t.Errorf("Expected command failure error message, got: %v", err)
+		}
 	}
 }
 

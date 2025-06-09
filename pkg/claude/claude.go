@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 // execCommand is a variable to allow mocking of exec.CommandContext for testing
@@ -45,8 +47,10 @@ type RunOptions struct {
 	// MCPConfigPath is the path to the MCP configuration file
 	MCPConfigPath string
 	// AllowedTools is a list of tools that Claude is allowed to use
+	// Supports both legacy format ("Bash") and enhanced format ("Bash(git log:*)")
 	AllowedTools []string
 	// DisallowedTools is a list of tools that Claude is not allowed to use
+	// Supports both legacy format ("Bash") and enhanced format ("Bash(git log:*)")
 	DisallowedTools []string
 	// PermissionTool is the MCP tool for handling permission prompts
 	PermissionTool string
@@ -58,8 +62,23 @@ type RunOptions struct {
 	MaxTurns int
 	// Verbose enables verbose logging
 	Verbose bool
-	// Model specifies the model to use
+	// Model specifies the model to use (full model name)
 	Model string
+	
+	// Enhanced options for 100% CLI support
+	// ModelAlias specifies model using alias ("sonnet", "opus", "haiku")
+	ModelAlias string
+	// DangerouslySkipPermissions skips all permission prompts (use with caution)
+	DangerouslySkipPermissions bool
+	// Timeout specifies the maximum duration for command execution
+	Timeout time.Duration
+	// ConfigFile specifies path to Claude configuration file
+	ConfigFile string
+	
+	// Parsed tool permissions (computed from AllowedTools/DisallowedTools)
+	// This field is populated automatically and should not be set directly
+	ParsedAllowedTools    []ToolPermission `json:"-"`
+	ParsedDisallowedTools []ToolPermission `json:"-"`
 }
 
 // ClaudeResult represents the structured result from Claude Code
@@ -110,6 +129,81 @@ func validateMCPTools(tools []string) error {
 	return nil
 }
 
+// PreprocessOptions validates and preprocesses RunOptions before execution
+func PreprocessOptions(opts *RunOptions) error {
+	if opts == nil {
+		return nil
+	}
+	
+	// Validate and parse allowed tools
+	if len(opts.AllowedTools) > 0 {
+		parsed, err := ParseToolPermissions(opts.AllowedTools)
+		if err != nil {
+			return NewValidationError("Invalid allowed tool permissions", "AllowedTools", opts.AllowedTools)
+		}
+		opts.ParsedAllowedTools = parsed
+		
+		// Validate MCP tools in allowed tools
+		if err := validateMCPTools(opts.AllowedTools); err != nil {
+			return NewValidationError(err.Error(), "AllowedTools", opts.AllowedTools)
+		}
+	}
+	
+	// Validate and parse disallowed tools
+	if len(opts.DisallowedTools) > 0 {
+		parsed, err := ParseToolPermissions(opts.DisallowedTools)
+		if err != nil {
+			return NewValidationError("Invalid disallowed tool permissions", "DisallowedTools", opts.DisallowedTools)
+		}
+		opts.ParsedDisallowedTools = parsed
+		
+		// Validate MCP tools in disallowed tools
+		if err := validateMCPTools(opts.DisallowedTools); err != nil {
+			return NewValidationError(err.Error(), "DisallowedTools", opts.DisallowedTools)
+		}
+	}
+	
+	// Validate model alias
+	if opts.ModelAlias != "" {
+		if !isValidModelAlias(opts.ModelAlias) {
+			return NewValidationError("Invalid model alias", "ModelAlias", opts.ModelAlias)
+		}
+	}
+	
+	// Validate timeout
+	if opts.Timeout < 0 {
+		return NewValidationError("Timeout cannot be negative", "Timeout", opts.Timeout)
+	}
+	
+	// Validate session ID format if provided
+	if opts.ResumeID != "" {
+		if !isValidSessionID(opts.ResumeID) {
+			return NewValidationError("Invalid session ID format", "ResumeID", opts.ResumeID)
+		}
+	}
+	
+	return nil
+}
+
+// isValidModelAlias checks if the model alias is supported
+func isValidModelAlias(alias string) bool {
+	validAliases := []string{"sonnet", "opus", "haiku"}
+	for _, valid := range validAliases {
+		if alias == valid {
+			return true
+		}
+	}
+	return false
+}
+
+// isValidSessionID validates session ID format (should be UUID-like)
+func isValidSessionID(sessionID string) bool {
+	// Be more lenient with session ID validation to avoid breaking existing usage
+	// Just check for basic non-empty string for now
+	// TODO: Implement stricter UUID validation when backward compatibility isn't a concern
+	return strings.TrimSpace(sessionID) != ""
+}
+
 // NewClient creates a new Claude client with the specified binary path
 func NewClient(binPath string) *ClaudeClient {
 	return &ClaudeClient{
@@ -131,12 +225,16 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 		opts = c.DefaultOptions
 	}
 
-	// Validate MCP tools
-	if err := validateMCPTools(opts.AllowedTools); err != nil {
+	// Preprocess and validate options
+	if err := PreprocessOptions(opts); err != nil {
 		return nil, err
 	}
-	if err := validateMCPTools(opts.DisallowedTools); err != nil {
-		return nil, err
+
+	// Add timeout support if specified
+	if opts.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+		defer cancel()
 	}
 
 	args := buildArgs(prompt, opts)
@@ -148,13 +246,23 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 
 	err := cmd.Run()
 	if err != nil {
-		return nil, fmt.Errorf("claude command failed: %w: %s", err, stderr.String())
+		// Enhanced error parsing
+		var exitCode int
+		if exitError, ok := err.(*exec.ExitError); ok {
+			exitCode = exitError.ExitCode()
+		} else {
+			exitCode = 1
+		}
+		
+		claudeErr := ParseError(stderr.String(), exitCode)
+		claudeErr.Original = err
+		return nil, claudeErr
 	}
 
 	if opts.Format == JSONOutput {
 		var res ClaudeResult
 		if err := json.Unmarshal(stdout.Bytes(), &res); err != nil {
-			return nil, fmt.Errorf("failed to parse JSON response: %w", err)
+			return nil, NewClaudeError(ErrorValidation, fmt.Sprintf("failed to parse JSON response: %v", err))
 		}
 		return &res, nil
 	}
@@ -245,11 +353,17 @@ func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *Ru
 		}
 
 		if err := cmd.Wait(); err != nil {
-			if stderrBuf.Len() > 0 {
-				errCh <- fmt.Errorf("command failed: %w: %s", err, stderrBuf.String())
+			// Enhanced error parsing for streaming
+			var exitCode int
+			if exitError, ok := err.(*exec.ExitError); ok {
+				exitCode = exitError.ExitCode()
 			} else {
-				errCh <- fmt.Errorf("command failed: %w", err)
+				exitCode = 1
 			}
+			
+			claudeErr := ParseError(stderrBuf.String(), exitCode)
+			claudeErr.Original = err
+			errCh <- claudeErr
 			return
 		}
 	}()
@@ -268,6 +382,18 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 		opts = c.DefaultOptions
 	}
 
+	// Preprocess and validate options
+	if err := PreprocessOptions(opts); err != nil {
+		return nil, err
+	}
+
+	// Add timeout support if specified
+	if opts.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+		defer cancel()
+	}
+
 	args := buildArgs(prompt, opts)
 
 	cmd := execCommand(ctx, c.BinPath, args...)
@@ -278,13 +404,23 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 
 	err := cmd.Run()
 	if err != nil {
-		return nil, fmt.Errorf("claude command failed: %w: %s", err, stderr.String())
+		// Enhanced error parsing
+		var exitCode int
+		if exitError, ok := err.(*exec.ExitError); ok {
+			exitCode = exitError.ExitCode()
+		} else {
+			exitCode = 1
+		}
+		
+		claudeErr := ParseError(stderr.String(), exitCode)
+		claudeErr.Original = err
+		return nil, claudeErr
 	}
 
 	if opts.Format == JSONOutput {
 		var res ClaudeResult
 		if err := json.Unmarshal(stdout.Bytes(), &res); err != nil {
-			return nil, fmt.Errorf("failed to parse JSON response: %w", err)
+			return nil, NewClaudeError(ErrorValidation, fmt.Sprintf("failed to parse JSON response: %v", err))
 		}
 		return &res, nil
 	}
@@ -347,8 +483,16 @@ func buildArgs(prompt string, opts *RunOptions) []string {
 		args = append(args, "--verbose")
 	}
 
-	if opts.Model != "" {
+	// Model selection - prefer ModelAlias over Model for better UX
+	if opts.ModelAlias != "" {
+		args = append(args, "--model", opts.ModelAlias)
+	} else if opts.Model != "" {
 		args = append(args, "--model", opts.Model)
+	}
+
+	// Enhanced CLI flags for 100% support
+	if opts.DangerouslySkipPermissions {
+		args = append(args, "--dangerously-skip-permissions")
 	}
 
 	return args
@@ -410,4 +554,114 @@ func (c *ClaudeClient) ResumeConversationCtx(ctx context.Context, prompt string,
 		Format:   JSONOutput,
 		ResumeID: sessionID,
 	})
+}
+
+// RetryPolicy defines the retry behavior for failed requests
+type RetryPolicy struct {
+	MaxRetries    int           // Maximum number of retry attempts
+	BaseDelay     time.Duration // Base delay between retries
+	MaxDelay      time.Duration // Maximum delay between retries  
+	BackoffFactor float64       // Exponential backoff factor
+}
+
+// DefaultRetryPolicy returns a sensible default retry policy
+func DefaultRetryPolicy() *RetryPolicy {
+	return &RetryPolicy{
+		MaxRetries:    3,
+		BaseDelay:     100 * time.Millisecond,
+		MaxDelay:      5 * time.Second,
+		BackoffFactor: 2.0,
+	}
+}
+
+// calculateBackoff calculates the delay for a given retry attempt
+func (rp *RetryPolicy) calculateBackoff(attempt int) time.Duration {
+	if attempt == 0 {
+		return 0
+	}
+	
+	delay := float64(rp.BaseDelay) * math.Pow(rp.BackoffFactor, float64(attempt-1))
+	
+	result := time.Duration(delay)
+	if result > rp.MaxDelay {
+		result = rp.MaxDelay
+	}
+	
+	return result
+}
+
+// RunPromptWithRetry executes a prompt with intelligent retry logic for recoverable errors
+func (c *ClaudeClient) RunPromptWithRetry(prompt string, opts *RunOptions, retryPolicy *RetryPolicy) (*ClaudeResult, error) {
+	return c.RunPromptWithRetryCtx(context.Background(), prompt, opts, retryPolicy)
+}
+
+// RunPromptWithRetryCtx executes a prompt with context support and intelligent retry logic
+func (c *ClaudeClient) RunPromptWithRetryCtx(ctx context.Context, prompt string, opts *RunOptions, retryPolicy *RetryPolicy) (*ClaudeResult, error) {
+	if retryPolicy == nil {
+		retryPolicy = DefaultRetryPolicy()
+	}
+	
+	var lastErr error
+	
+	for attempt := 0; attempt <= retryPolicy.MaxRetries; attempt++ {
+		// Calculate delay for this attempt (0 for first attempt)
+		if attempt > 0 {
+			delay := retryPolicy.calculateBackoff(attempt)
+			
+			select {
+			case <-time.After(delay):
+				// Continue with retry
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		
+		result, err := c.RunPromptCtx(ctx, prompt, opts)
+		if err == nil {
+			return result, nil
+		}
+		
+		lastErr = err
+		
+		// Check if error is retryable
+		if claudeErr, ok := err.(*ClaudeError); ok {
+			if !claudeErr.IsRetryable() {
+				return nil, err // Don't retry non-retryable errors
+			}
+			
+			// For rate limit errors, respect the retry-after delay
+			if claudeErr.Type == ErrorRateLimit {
+				if retryAfter := claudeErr.RetryDelay(); retryAfter > 0 {
+					select {
+					case <-time.After(time.Duration(retryAfter) * time.Second):
+						continue
+					case <-ctx.Done():
+						return nil, ctx.Err()
+					}
+				}
+			}
+		} else {
+			// Non-ClaudeError types are not retryable
+			return nil, err
+		}
+	}
+	
+	// All retries exhausted
+	return nil, fmt.Errorf("max retries (%d) exceeded, last error: %w", retryPolicy.MaxRetries, lastErr)
+}
+
+// RunPromptEnhanced executes a prompt with all enhanced features: validation, timeout, and retry logic
+func (c *ClaudeClient) RunPromptEnhanced(prompt string, opts *RunOptions) (*ClaudeResult, error) {
+	return c.RunPromptEnhancedCtx(context.Background(), prompt, opts)
+}
+
+// RunPromptEnhancedCtx executes a prompt with context support and all enhanced features
+func (c *ClaudeClient) RunPromptEnhancedCtx(ctx context.Context, prompt string, opts *RunOptions) (*ClaudeResult, error) {
+	// Use default retry policy for enhanced mode
+	return c.RunPromptWithRetryCtx(ctx, prompt, opts, DefaultRetryPolicy())
+}
+
+// ValidateOptions validates RunOptions without executing a command
+func ValidateOptions(opts *RunOptions) error {
+	return PreprocessOptions(opts)
 }
