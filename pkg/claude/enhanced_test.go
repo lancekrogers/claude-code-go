@@ -61,13 +61,13 @@ func TestPreprocessOptions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := PreprocessOptions(tt.opts)
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("Expected error but got none")
 					return
 				}
-				
+
 				if claudeErr, ok := err.(*ClaudeError); ok {
 					if claudeErr.Type != tt.errorType {
 						t.Errorf("Expected error type %v, got %v", tt.errorType, claudeErr.Type)
@@ -156,19 +156,19 @@ func TestRetryPolicy_calculateBackoff(t *testing.T) {
 
 func TestDefaultRetryPolicy(t *testing.T) {
 	policy := DefaultRetryPolicy()
-	
+
 	if policy.MaxRetries != 3 {
 		t.Errorf("Expected MaxRetries = 3, got %d", policy.MaxRetries)
 	}
-	
+
 	if policy.BaseDelay != 100*time.Millisecond {
 		t.Errorf("Expected BaseDelay = 100ms, got %v", policy.BaseDelay)
 	}
-	
+
 	if policy.MaxDelay != 5*time.Second {
 		t.Errorf("Expected MaxDelay = 5s, got %v", policy.MaxDelay)
 	}
-	
+
 	if policy.BackoffFactor != 2.0 {
 		t.Errorf("Expected BackoffFactor = 2.0, got %f", policy.BackoffFactor)
 	}
@@ -206,7 +206,7 @@ func TestBuildArgs_EnhancedFeatures(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := BuildArgs(tt.prompt, tt.opts)
-			
+
 			// Check that all expected args are present
 			for _, expectedArg := range tt.want {
 				found := false
@@ -229,12 +229,12 @@ func TestValidateOptions(t *testing.T) {
 	opts := &RunOptions{
 		AllowedTools: []string{"InvalidTool()"},
 	}
-	
+
 	err := ValidateOptions(opts)
 	if err == nil {
 		t.Error("Expected validation error but got none")
 	}
-	
+
 	if claudeErr, ok := err.(*ClaudeError); ok {
 		if claudeErr.Type != ErrorValidation {
 			t.Errorf("Expected ErrorValidation, got %v", claudeErr.Type)
@@ -253,8 +253,8 @@ func TestRunPromptEnhanced_Integration(t *testing.T) {
 	}()
 
 	// Mock successful command execution
-	jsonOutput := `{"type":"result","result":"Enhanced test passed","cost_usd":0.001,"duration_ms":500,"num_turns":1,"session_id":"test-123"}`
-	
+	jsonOutput := `{"type":"result","result":"Enhanced test passed","total_cost_usd":0.001,"duration_ms":500,"num_turns":1,"session_id":"test-123"}`
+
 	// Use the existing mock pattern - expect specific args for enhanced features
 	expectedArgs := []string{"-p", "Test enhanced features", "--output-format", "json", "--allowedTools", "Bash(git log:*),Read", "--model", "sonnet"}
 	execCommand = mockExecCommandContext(t, expectedArgs, jsonOutput, 0)

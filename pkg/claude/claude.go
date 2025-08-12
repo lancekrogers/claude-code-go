@@ -64,7 +64,7 @@ type RunOptions struct {
 	Verbose bool
 	// Model specifies the model to use (full model name)
 	Model string
-	
+
 	// Enhanced options for 100% CLI support
 	// ModelAlias specifies model using alias ("sonnet", "opus", "haiku")
 	ModelAlias string
@@ -80,7 +80,7 @@ type RunOptions struct {
 	DisableAutoUpdate bool
 	// Theme specifies the UI theme
 	Theme string
-	
+
 	// Parsed tool permissions (computed from AllowedTools/DisallowedTools)
 	// This field is populated automatically and should not be set directly
 	ParsedAllowedTools    []ToolPermission `json:"-"`
@@ -92,7 +92,7 @@ type ClaudeResult struct {
 	Type          string  `json:"type"`
 	Subtype       string  `json:"subtype,omitempty"`
 	Result        string  `json:"result,omitempty"`
-	CostUSD       float64 `json:"cost_usd"`
+	CostUSD       float64 `json:"total_cost_usd"`
 	DurationMS    int64   `json:"duration_ms"`
 	DurationAPIMS int64   `json:"duration_api_ms"`
 	IsError       bool    `json:"is_error"`
@@ -107,7 +107,7 @@ type Message struct {
 	Message   json.RawMessage `json:"message,omitempty"`
 	SessionID string          `json:"session_id"`
 	// Additional fields for system/result messages
-	CostUSD       float64  `json:"cost_usd,omitempty"`
+	CostUSD       float64  `json:"total_cost_usd,omitempty"`
 	DurationMS    int64    `json:"duration_ms,omitempty"`
 	DurationAPIMS int64    `json:"duration_api_ms,omitempty"`
 	IsError       bool     `json:"is_error,omitempty"`
@@ -140,7 +140,7 @@ func PreprocessOptions(opts *RunOptions) error {
 	if opts == nil {
 		return nil
 	}
-	
+
 	// Validate and parse allowed tools
 	if len(opts.AllowedTools) > 0 {
 		parsed, err := ParseToolPermissions(opts.AllowedTools)
@@ -148,13 +148,13 @@ func PreprocessOptions(opts *RunOptions) error {
 			return NewValidationError("Invalid allowed tool permissions", "AllowedTools", opts.AllowedTools)
 		}
 		opts.ParsedAllowedTools = parsed
-		
+
 		// Validate MCP tools in allowed tools
 		if err := validateMCPTools(opts.AllowedTools); err != nil {
 			return NewValidationError(err.Error(), "AllowedTools", opts.AllowedTools)
 		}
 	}
-	
+
 	// Validate and parse disallowed tools
 	if len(opts.DisallowedTools) > 0 {
 		parsed, err := ParseToolPermissions(opts.DisallowedTools)
@@ -162,32 +162,32 @@ func PreprocessOptions(opts *RunOptions) error {
 			return NewValidationError("Invalid disallowed tool permissions", "DisallowedTools", opts.DisallowedTools)
 		}
 		opts.ParsedDisallowedTools = parsed
-		
+
 		// Validate MCP tools in disallowed tools
 		if err := validateMCPTools(opts.DisallowedTools); err != nil {
 			return NewValidationError(err.Error(), "DisallowedTools", opts.DisallowedTools)
 		}
 	}
-	
+
 	// Validate model alias
 	if opts.ModelAlias != "" {
 		if !isValidModelAlias(opts.ModelAlias) {
 			return NewValidationError("Invalid model alias", "ModelAlias", opts.ModelAlias)
 		}
 	}
-	
+
 	// Validate timeout
 	if opts.Timeout < 0 {
 		return NewValidationError("Timeout cannot be negative", "Timeout", opts.Timeout)
 	}
-	
+
 	// Validate session ID format if provided
 	if opts.ResumeID != "" {
 		if !isValidSessionID(opts.ResumeID) {
 			return NewValidationError("Invalid session ID format", "ResumeID", opts.ResumeID)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -259,7 +259,7 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 		} else {
 			exitCode = 1
 		}
-		
+
 		claudeErr := ParseError(stderr.String(), exitCode)
 		claudeErr.Original = err
 		return nil, claudeErr
@@ -366,7 +366,7 @@ func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *Ru
 			} else {
 				exitCode = 1
 			}
-			
+
 			claudeErr := ParseError(stderrBuf.String(), exitCode)
 			claudeErr.Original = err
 			errCh <- claudeErr
@@ -417,7 +417,7 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 		} else {
 			exitCode = 1
 		}
-		
+
 		claudeErr := ParseError(stderr.String(), exitCode)
 		claudeErr.Original = err
 		return nil, claudeErr
@@ -587,7 +587,7 @@ func (c *ClaudeClient) ResumeConversationCtx(ctx context.Context, prompt string,
 type RetryPolicy struct {
 	MaxRetries    int           // Maximum number of retry attempts
 	BaseDelay     time.Duration // Base delay between retries
-	MaxDelay      time.Duration // Maximum delay between retries  
+	MaxDelay      time.Duration // Maximum delay between retries
 	BackoffFactor float64       // Exponential backoff factor
 }
 
@@ -606,14 +606,14 @@ func (rp *RetryPolicy) calculateBackoff(attempt int) time.Duration {
 	if attempt == 0 {
 		return 0
 	}
-	
+
 	delay := float64(rp.BaseDelay) * math.Pow(rp.BackoffFactor, float64(attempt-1))
-	
+
 	result := time.Duration(delay)
 	if result > rp.MaxDelay {
 		result = rp.MaxDelay
 	}
-	
+
 	return result
 }
 
@@ -627,14 +627,14 @@ func (c *ClaudeClient) RunPromptWithRetryCtx(ctx context.Context, prompt string,
 	if retryPolicy == nil {
 		retryPolicy = DefaultRetryPolicy()
 	}
-	
+
 	var lastErr error
-	
+
 	for attempt := 0; attempt <= retryPolicy.MaxRetries; attempt++ {
 		// Calculate delay for this attempt (0 for first attempt)
 		if attempt > 0 {
 			delay := retryPolicy.calculateBackoff(attempt)
-			
+
 			select {
 			case <-time.After(delay):
 				// Continue with retry
@@ -642,20 +642,20 @@ func (c *ClaudeClient) RunPromptWithRetryCtx(ctx context.Context, prompt string,
 				return nil, ctx.Err()
 			}
 		}
-		
+
 		result, err := c.RunPromptCtx(ctx, prompt, opts)
 		if err == nil {
 			return result, nil
 		}
-		
+
 		lastErr = err
-		
+
 		// Check if error is retryable
 		if claudeErr, ok := err.(*ClaudeError); ok {
 			if !claudeErr.IsRetryable() {
 				return nil, err // Don't retry non-retryable errors
 			}
-			
+
 			// For rate limit errors, respect the retry-after delay
 			if claudeErr.Type == ErrorRateLimit {
 				if retryAfter := claudeErr.RetryDelay(); retryAfter > 0 {
@@ -672,7 +672,7 @@ func (c *ClaudeClient) RunPromptWithRetryCtx(ctx context.Context, prompt string,
 			return nil, err
 		}
 	}
-	
+
 	// All retries exhausted
 	return nil, fmt.Errorf("max retries (%d) exceeded, last error: %w", retryPolicy.MaxRetries, lastErr)
 }

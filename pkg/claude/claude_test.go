@@ -77,7 +77,7 @@ func TestRunPrompt(t *testing.T) {
 	}
 
 	// Test with JSON output
-	jsonOutput := `{"type":"result","subtype":"success","cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":1,"result":"JSON response","session_id":"abc123"}`
+	jsonOutput := `{"type":"result","subtype":"success","total_cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":1,"result":"JSON response","session_id":"abc123"}`
 	execCommand = mockExecCommandContext(t, []string{"-p", "JSON test", "--output-format", "json"}, jsonOutput, 0)
 
 	result, err = client.RunPrompt("JSON test", &RunOptions{Format: JSONOutput})
@@ -129,7 +129,7 @@ func main() {
 	time.Sleep(100 * time.Millisecond)
 	fmt.Println(` + "`" + `{"type":"assistant","message":{},"session_id":"test-session","result":"Hello there!"}` + "`" + `)
 	time.Sleep(100 * time.Millisecond)
-	fmt.Println(` + "`" + `{"type":"result","subtype":"success","cost_usd":0.002,"duration_ms":300,"duration_api_ms":250,"is_error":false,"num_turns":1,"result":"Final result","session_id":"test-session"}` + "`" + `)
+	fmt.Println(` + "`" + `{"type":"result","subtype":"success","total_cost_usd":0.002,"duration_ms":300,"duration_api_ms":250,"is_error":false,"num_turns":1,"result":"Final result","session_id":"test-session"}` + "`" + `)
 }
 `
 	if err := os.WriteFile(mockScript, []byte(scriptContent), 0755); err != nil {
@@ -343,7 +343,7 @@ func TestRunWithMCP(t *testing.T) {
 		execCommand = originalExecCommand
 	}()
 
-	jsonOutput := `{"type":"result","subtype":"success","cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":1,"result":"MCP response","session_id":"abc123"}`
+	jsonOutput := `{"type":"result","subtype":"success","total_cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":1,"result":"MCP response","session_id":"abc123"}`
 	execCommand = mockExecCommandContext(t, []string{"-p", "Test MCP", "--output-format", "json", "--mcp-config", "/path/to/config.json", "--allowedTools", "tool1,tool2"}, jsonOutput, 0)
 
 	client := &ClaudeClient{BinPath: "claude"}
@@ -363,7 +363,7 @@ func TestRunWithMCPCtx(t *testing.T) {
 		execCommand = originalExecCommand
 	}()
 
-	jsonOutput := `{"type":"result","subtype":"success","cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":1,"result":"MCP context response","session_id":"abc123"}`
+	jsonOutput := `{"type":"result","subtype":"success","total_cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":1,"result":"MCP context response","session_id":"abc123"}`
 	execCommand = mockExecCommandContext(t, []string{"-p", "Test MCP Ctx", "--output-format", "json", "--mcp-config", "/path/to/config.json", "--allowedTools", "tool1"}, jsonOutput, 0)
 
 	client := &ClaudeClient{BinPath: "claude"}
@@ -423,7 +423,7 @@ func TestContinueConversation(t *testing.T) {
 		execCommand = originalExecCommand
 	}()
 
-	jsonOutput := `{"type":"result","subtype":"success","cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":2,"result":"Continued response","session_id":"continue123"}`
+	jsonOutput := `{"type":"result","subtype":"success","total_cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":2,"result":"Continued response","session_id":"continue123"}`
 	execCommand = mockExecCommandContext(t, []string{"-p", "Continue", "--output-format", "json", "--continue"}, jsonOutput, 0)
 
 	client := &ClaudeClient{BinPath: "claude"}
@@ -446,7 +446,7 @@ func TestContinueConversationCtx(t *testing.T) {
 		execCommand = originalExecCommand
 	}()
 
-	jsonOutput := `{"type":"result","subtype":"success","cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":3,"result":"Continued ctx response","session_id":"continue123"}`
+	jsonOutput := `{"type":"result","subtype":"success","total_cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":3,"result":"Continued ctx response","session_id":"continue123"}`
 	execCommand = mockExecCommandContext(t, []string{"-p", "Continue ctx", "--output-format", "json", "--continue"}, jsonOutput, 0)
 
 	client := &ClaudeClient{BinPath: "claude"}
@@ -467,7 +467,7 @@ func TestResumeConversation(t *testing.T) {
 		execCommand = originalExecCommand
 	}()
 
-	jsonOutput := `{"type":"result","subtype":"success","cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":1,"result":"Resumed response","session_id":"resume123"}`
+	jsonOutput := `{"type":"result","subtype":"success","total_cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":1,"result":"Resumed response","session_id":"resume123"}`
 	execCommand = mockExecCommandContext(t, []string{"-p", "Resume", "--output-format", "json", "--resume", "resume123"}, jsonOutput, 0)
 
 	client := &ClaudeClient{BinPath: "claude"}
@@ -490,7 +490,7 @@ func TestResumeConversationCtx(t *testing.T) {
 		execCommand = originalExecCommand
 	}()
 
-	jsonOutput := `{"type":"result","subtype":"success","cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":1,"result":"Resumed ctx response","session_id":"resume123"}`
+	jsonOutput := `{"type":"result","subtype":"success","total_cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":1,"result":"Resumed ctx response","session_id":"resume123"}`
 	execCommand = mockExecCommandContext(t, []string{"-p", "Resume ctx", "--output-format", "json", "--resume", "resume123"}, jsonOutput, 0)
 
 	client := &ClaudeClient{BinPath: "claude"}
@@ -561,7 +561,7 @@ func TestRunPromptCtx_CommandFailure(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected command failure error, got nil")
 	}
-	
+
 	// Check that we get a ClaudeError
 	if claudeErr, ok := err.(*ClaudeError); ok {
 		if claudeErr.Type != ErrorCommand {
@@ -721,7 +721,7 @@ func TestBuildArgs_NewFlags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			args := BuildArgs("test", tt.opts)
-			
+
 			// Check all expected args are present
 			for _, exp := range tt.expected {
 				found := false

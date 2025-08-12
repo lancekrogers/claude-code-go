@@ -46,23 +46,23 @@ func handleClaude(w http.ResponseWriter, r *http.Request) {
 	// Parse the request to understand what kind of response to send
 	body := make([]byte, r.ContentLength)
 	r.Body.Read(body)
-	
+
 	// Simple request parsing - in real implementation this would be more sophisticated
 	requestStr := string(body)
 	args := strings.Fields(requestStr)
-	
+
 	// Determine response type based on arguments
 	var outputFormat string
 	var isStreaming bool
-	
+
 	for i, arg := range args {
 		if arg == "--output-format" && i+1 < len(args) {
 			outputFormat = args[i+1]
 		}
 	}
-	
+
 	isStreaming = outputFormat == "stream-json"
-	
+
 	if isStreaming {
 		handleStreamingResponse(w, r, args)
 	} else {
@@ -73,14 +73,14 @@ func handleClaude(w http.ResponseWriter, r *http.Request) {
 func handleRegularResponse(w http.ResponseWriter, r *http.Request, args []string, format string) {
 	// Extract prompt from args
 	prompt := extractPrompt(args)
-	
+
 	if format == "json" {
 		w.Header().Set("Content-Type", "application/json")
 		response := map[string]interface{}{
 			"type":            "result",
 			"subtype":         "success",
 			"result":          generateMockResponse(prompt),
-			"cost_usd":        0.001,
+			"total_cost_usd":  0.001,
 			"duration_ms":     1500,
 			"duration_api_ms": 1200,
 			"is_error":        false,
@@ -98,17 +98,17 @@ func handleRegularResponse(w http.ResponseWriter, r *http.Request, args []string
 func handleStreamingResponse(w http.ResponseWriter, r *http.Request, args []string) {
 	prompt := extractPrompt(args)
 	sessionID := "mock-stream-" + fmt.Sprintf("%d", time.Now().Unix())
-	
+
 	w.Header().Set("Content-Type", "application/x-ndjson")
 	w.Header().Set("Transfer-Encoding", "chunked")
-	
+
 	// Create a flusher to send data immediately
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Send system init message
 	initMsg := map[string]interface{}{
 		"type":        "system",
@@ -119,9 +119,9 @@ func handleStreamingResponse(w http.ResponseWriter, r *http.Request, args []stri
 	}
 	json.NewEncoder(w).Encode(initMsg)
 	flusher.Flush()
-	
+
 	time.Sleep(100 * time.Millisecond)
-	
+
 	// Send assistant message
 	response := generateMockResponse(prompt)
 	assistantMsg := map[string]interface{}{
@@ -132,14 +132,14 @@ func handleStreamingResponse(w http.ResponseWriter, r *http.Request, args []stri
 	}
 	json.NewEncoder(w).Encode(assistantMsg)
 	flusher.Flush()
-	
+
 	time.Sleep(100 * time.Millisecond)
-	
+
 	// Send final result
 	resultMsg := map[string]interface{}{
 		"type":            "result",
 		"subtype":         "success",
-		"cost_usd":        0.002,
+		"total_cost_usd":  0.002,
 		"duration_ms":     2000,
 		"duration_api_ms": 1800,
 		"is_error":        false,
@@ -174,28 +174,28 @@ func extractPrompt(args []string) string {
 
 func generateMockResponse(prompt string) string {
 	prompt = strings.ToLower(prompt)
-	
+
 	// Generate contextual responses based on prompt content
 	if strings.Contains(prompt, "hello") || strings.Contains(prompt, "say") {
 		return "Hello! I'm a mock Claude assistant. How can I help you today?"
 	}
-	
+
 	if strings.Contains(prompt, "2+2") || strings.Contains(prompt, "math") {
 		return "The answer is 4. This is a mock response from the test server."
 	}
-	
+
 	if strings.Contains(prompt, "count") {
 		return "1, 2, 3, 4, 5. This is a mock counting response."
 	}
-	
+
 	if strings.Contains(prompt, "code") || strings.Contains(prompt, "function") {
 		return "```go\nfunc mockFunction() {\n    // This is a mock code response\n    fmt.Println(\"Mock function\")\n}\n```"
 	}
-	
+
 	if strings.Contains(prompt, "story") {
 		return "Once upon a time, in a mock testing environment, there was a simulated Claude assistant that helped developers test their applications..."
 	}
-	
+
 	// Default response
 	return fmt.Sprintf("This is a mock response to your prompt: '%s'. The mock server is working correctly!", prompt)
 }
