@@ -98,6 +98,8 @@ type ClaudeResult struct {
 	IsError       bool    `json:"is_error"`
 	NumTurns      int     `json:"num_turns"`
 	SessionID     string  `json:"session_id"`
+	// Messages contains the full conversation history when verbose mode is enabled
+	Messages      []Message `json:"messages,omitempty"`
 }
 
 // Message represents a message from Claude Code in streaming mode
@@ -266,11 +268,7 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 	}
 
 	if opts.Format == JSONOutput {
-		var res ClaudeResult
-		if err := json.Unmarshal(stdout.Bytes(), &res); err != nil {
-			return nil, NewClaudeError(ErrorValidation, fmt.Sprintf("failed to parse JSON response: %v", err))
-		}
-		return &res, nil
+		return parseJSONResponse(stdout.Bytes())
 	}
 
 	// For text output, just return the raw text
@@ -424,11 +422,7 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 	}
 
 	if opts.Format == JSONOutput {
-		var res ClaudeResult
-		if err := json.Unmarshal(stdout.Bytes(), &res); err != nil {
-			return nil, NewClaudeError(ErrorValidation, fmt.Sprintf("failed to parse JSON response: %v", err))
-		}
-		return &res, nil
+		return parseJSONResponse(stdout.Bytes())
 	}
 
 	// For text output, just return the raw text
@@ -436,6 +430,71 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 		Result:  stdout.String(),
 		IsError: false,
 	}, nil
+}
+
+// parseJSONResponse handles both single object and array JSON responses from Claude Code
+func parseJSONResponse(data []byte) (*ClaudeResult, error) {
+	// Check if response is an array (verbose mode) or single object
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		return nil, NewClaudeError(ErrorValidation, "empty JSON response")
+	}
+
+	if trimmed[0] == '[' {
+		// Array response - verbose mode
+		var messages []Message
+		if err := json.Unmarshal(trimmed, &messages); err != nil {
+			return nil, NewClaudeError(ErrorValidation, fmt.Sprintf("failed to parse JSON array response: %v", err))
+		}
+
+		// Find the final result message
+		var finalResult *ClaudeResult
+		for _, msg := range messages {
+			if msg.Type == "result" {
+				finalResult = &ClaudeResult{
+					Type:          msg.Type,
+					Subtype:       msg.Subtype,
+					Result:        msg.Result,
+					CostUSD:       msg.CostUSD,
+					DurationMS:    msg.DurationMS,
+					DurationAPIMS: msg.DurationAPIMS,
+					IsError:       msg.IsError,
+					NumTurns:      msg.NumTurns,
+					SessionID:     msg.SessionID,
+					Messages:      messages,
+				}
+				break
+			}
+		}
+
+		if finalResult == nil {
+			return nil, NewClaudeError(ErrorValidation, "no result message found in verbose response")
+		}
+
+		return finalResult, nil
+	} else {
+		// Single object response - normal mode
+		var res ClaudeResult
+		if err := json.Unmarshal(trimmed, &res); err != nil {
+			return nil, NewClaudeError(ErrorValidation, fmt.Sprintf("failed to parse JSON response: %v", err))
+		}
+		
+		// Create a single message from the result for consistency
+		singleMessage := Message{
+			Type:          res.Type,
+			Subtype:       res.Subtype,
+			Result:        res.Result,
+			CostUSD:       res.CostUSD,
+			DurationMS:    res.DurationMS,
+			DurationAPIMS: res.DurationAPIMS,
+			IsError:       res.IsError,
+			NumTurns:      res.NumTurns,
+			SessionID:     res.SessionID,
+		}
+		res.Messages = []Message{singleMessage}
+		
+		return &res, nil
+	}
 }
 
 // BuildArgs constructs the command-line arguments for Claude Code

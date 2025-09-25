@@ -19,9 +19,9 @@ RESET := \033[0m
 
 # Phony targets (not files)
 .PHONY: all build build-lib examples build-examples build-basic build-advanced build-testing
-.PHONY: build-demo build-demo-streaming build-demo-basic build-dangerous-example
+.PHONY: build-demo build-demo-streaming build-demo-basic build-demo-verbose build-dangerous-example
 .PHONY: test test-lib test-dangerous test-integration test-integration-real test-local coverage
-.PHONY: demo demo-streaming demo-basic run-dangerous check-go check-claude
+.PHONY: demo demo-streaming demo-basic demo-verbose run-dangerous check-go check-claude
 .PHONY: clean help banner
 
 ##@ Build Targets
@@ -60,6 +60,12 @@ build-demo-basic: ## Build the basic demo
 	@mkdir -p $(BIN_DIR)
 	@cd examples/demo/basic && go mod tidy && go build -o ../../../$(BIN_DIR)/demo-basic ./cmd/demo
 	@echo "$(GREEN)✅ Basic demo built successfully$(RESET)"
+
+build-demo-verbose: ## Build the verbose demo
+	@echo "$(BLUE)🔨 Building verbose demo...$(RESET)"
+	@mkdir -p $(BIN_DIR)
+	@go build -o $(BIN_DIR)/demo-verbose ./examples/basic_verbose
+	@echo "$(GREEN)✅ Verbose demo built successfully$(RESET)"
 
 build-dangerous-example: ## Build dangerous usage example
 	@echo "$(BLUE)🔨 Building dangerous example...$(RESET)"
@@ -214,6 +220,16 @@ demo-basic: build-demo-basic check-go check-claude ## Run the basic demo
 	@echo ""
 	@$(BIN_DIR)/demo-basic
 
+demo-verbose: build-demo-verbose check-go check-claude ## Run the verbose demo showing Messages functionality
+	@echo "$(BLUE)🚀 Claude Code Go SDK Demo (Verbose Messages)$(RESET)"
+	@echo "$(BLUE)============================================$(RESET)"
+	@echo ""
+	@echo "$(BLUE)🎯 Demonstrating verbose mode and Messages field...$(RESET)"
+	@echo "$(YELLOW)   Shows both normal and verbose message handling$(RESET)"
+	@echo "$(YELLOW)   Displays conversation history and message details$(RESET)"
+	@echo ""
+	@$(BIN_DIR)/demo-verbose
+
 run-dangerous: build-dangerous-example check-dangerous ## Run dangerous features example (development only)
 	@echo "$(YELLOW)🚨 Running Dangerous Features Example$(RESET)"
 	@echo "$(YELLOW)=====================================$(RESET)"
@@ -291,6 +307,7 @@ help: ## Display this help message
 	@echo ""
 	@echo "$(YELLOW)Examples:$(RESET)"
 	@echo "  $(BLUE)make build$(RESET)                    Build the SDK and examples"
+	@echo "  $(BLUE)make demo-verbose$(RESET)             Run verbose messages demo"
 	@echo "  $(BLUE)CLAUDE_ENABLE_DANGEROUS=\"i-accept-all-risks\" make run-dangerous$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Alternative:$(RESET) You can also use $(BLUE)task <command>$(RESET) (see Taskfile.yml)"

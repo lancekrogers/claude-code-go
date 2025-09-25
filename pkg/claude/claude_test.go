@@ -97,6 +97,15 @@ func TestRunPrompt(t *testing.T) {
 		t.Errorf("Expected cost %f, got %f", 0.001, result.CostUSD)
 	}
 
+	// Verify Messages field is populated (new functionality)
+	if result.Messages == nil {
+		t.Error("Expected Messages field to be populated, got nil")
+	} else if len(result.Messages) != 1 {
+		t.Errorf("Expected Messages to have 1 element, got %d", len(result.Messages))
+	} else if result.Messages[0].Result != "JSON response" {
+		t.Errorf("Expected Messages[0].Result to be 'JSON response', got %q", result.Messages[0].Result)
+	}
+
 	// Test error handling
 	execCommand = mockExecCommandContext(t, []string{"-p", "Error test"}, "", 1)
 
@@ -746,4 +755,219 @@ func TestHelperProcessError(t *testing.T) {
 	}
 	defer os.Exit(1)
 	os.Stderr.Write([]byte("command failed with error"))
+}
+
+// Test Messages field population in normal mode
+func TestRunPrompt_NormalModeMessages(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	jsonOutput := `{"type":"result","subtype":"success","total_cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":1,"result":"Normal response","session_id":"abc123"}`
+	execCommand = mockExecCommandContext(t, []string{"-p", "Normal test", "--output-format", "json"}, jsonOutput, 0)
+
+	client := &ClaudeClient{BinPath: "claude"}
+	result, err := client.RunPrompt("Normal test", &RunOptions{Format: JSONOutput})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Verify Messages field is populated with single message
+	if result.Messages == nil {
+		t.Fatal("Expected Messages to be populated, got nil")
+	}
+	if len(result.Messages) != 1 {
+		t.Fatalf("Expected Messages to have 1 element, got %d", len(result.Messages))
+	}
+
+	// Verify the single message matches the result
+	msg := result.Messages[0]
+	if msg.Type != "result" {
+		t.Errorf("Expected message type 'result', got %q", msg.Type)
+	}
+	if msg.Result != "Normal response" {
+		t.Errorf("Expected message result 'Normal response', got %q", msg.Result)
+	}
+	if msg.SessionID != "abc123" {
+		t.Errorf("Expected message session ID 'abc123', got %q", msg.SessionID)
+	}
+	if msg.CostUSD != 0.001 {
+		t.Errorf("Expected message cost 0.001, got %f", msg.CostUSD)
+	}
+}
+
+// Test Messages field population in verbose mode
+func TestRunPrompt_VerboseModeMessages(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	// Array JSON response like in verbose mode (simplified version of test.json)
+	verboseOutput := `[
+		{
+			"type": "system",
+			"subtype": "init",
+			"session_id": "test-session-123",
+			"tools": ["Bash", "Read"]
+		},
+		{
+			"type": "assistant",
+			"message": {"role": "assistant", "content": [{"type": "text", "text": "Assistant response"}]},
+			"session_id": "test-session-123"
+		},
+		{
+			"type": "result",
+			"subtype": "success",
+			"is_error": false,
+			"duration_ms": 5000,
+			"duration_api_ms": 4500,
+			"num_turns": 2,
+			"result": "Final verbose result",
+			"session_id": "test-session-123",
+			"total_cost_usd": 0.05
+		}
+	]`
+
+	execCommand = mockExecCommandContext(t, []string{"-p", "Verbose test", "--output-format", "json", "--verbose"}, verboseOutput, 0)
+
+	client := &ClaudeClient{BinPath: "claude"}
+	result, err := client.RunPrompt("Verbose test", &RunOptions{Format: JSONOutput, Verbose: true})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Verify Messages field is populated with all messages from array
+	if result.Messages == nil {
+		t.Fatal("Expected Messages to be populated, got nil")
+	}
+	if len(result.Messages) != 3 {
+		t.Fatalf("Expected Messages to have 3 elements, got %d", len(result.Messages))
+	}
+
+	// Verify result data is from the final "result" message
+	if result.Result != "Final verbose result" {
+		t.Errorf("Expected result 'Final verbose result', got %q", result.Result)
+	}
+	if result.CostUSD != 0.05 {
+		t.Errorf("Expected cost 0.05, got %f", result.CostUSD)
+	}
+	if result.NumTurns != 2 {
+		t.Errorf("Expected 2 turns, got %d", result.NumTurns)
+	}
+
+	// Verify individual messages in the array
+	if result.Messages[0].Type != "system" || result.Messages[0].Subtype != "init" {
+		t.Errorf("Expected first message to be system/init, got %s/%s", result.Messages[0].Type, result.Messages[0].Subtype)
+	}
+	if result.Messages[1].Type != "assistant" {
+		t.Errorf("Expected second message to be assistant, got %s", result.Messages[1].Type)
+	}
+	if result.Messages[2].Type != "result" || result.Messages[2].Result != "Final verbose result" {
+		t.Errorf("Expected third message to be result with 'Final verbose result', got %s with %q", result.Messages[2].Type, result.Messages[2].Result)
+	}
+}
+
+// Test parseJSONResponse function directly
+func TestParseJSONResponse(t *testing.T) {
+	t.Run("Single object response", func(t *testing.T) {
+		singleObjectJSON := `{"type":"result","subtype":"success","total_cost_usd":0.001,"duration_ms":1234,"duration_api_ms":1000,"is_error":false,"num_turns":1,"result":"Single response","session_id":"single123"}`
+		
+		result, err := parseJSONResponse([]byte(singleObjectJSON))
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		// Verify basic result fields
+		if result.Result != "Single response" {
+			t.Errorf("Expected result 'Single response', got %q", result.Result)
+		}
+		if result.SessionID != "single123" {
+			t.Errorf("Expected session ID 'single123', got %q", result.SessionID)
+		}
+
+		// Verify Messages field contains single message
+		if result.Messages == nil {
+			t.Fatal("Expected Messages to be populated, got nil")
+		}
+		if len(result.Messages) != 1 {
+			t.Fatalf("Expected Messages to have 1 element, got %d", len(result.Messages))
+		}
+		if result.Messages[0].Result != "Single response" {
+			t.Errorf("Expected message result 'Single response', got %q", result.Messages[0].Result)
+		}
+	})
+
+	t.Run("Array response", func(t *testing.T) {
+		arrayJSON := `[
+			{"type":"system","subtype":"init","session_id":"array123"},
+			{"type":"assistant","session_id":"array123"},
+			{"type":"result","subtype":"success","total_cost_usd":0.002,"duration_ms":2000,"duration_api_ms":1800,"is_error":false,"num_turns":1,"result":"Array response","session_id":"array123"}
+		]`
+		
+		result, err := parseJSONResponse([]byte(arrayJSON))
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		// Verify result data comes from final "result" message
+		if result.Result != "Array response" {
+			t.Errorf("Expected result 'Array response', got %q", result.Result)
+		}
+		if result.SessionID != "array123" {
+			t.Errorf("Expected session ID 'array123', got %q", result.SessionID)
+		}
+		if result.CostUSD != 0.002 {
+			t.Errorf("Expected cost 0.002, got %f", result.CostUSD)
+		}
+
+		// Verify Messages field contains all messages
+		if result.Messages == nil {
+			t.Fatal("Expected Messages to be populated, got nil")
+		}
+		if len(result.Messages) != 3 {
+			t.Fatalf("Expected Messages to have 3 elements, got %d", len(result.Messages))
+		}
+		if result.Messages[0].Type != "system" {
+			t.Errorf("Expected first message type 'system', got %q", result.Messages[0].Type)
+		}
+		if result.Messages[2].Type != "result" {
+			t.Errorf("Expected third message type 'result', got %q", result.Messages[2].Type)
+		}
+	})
+
+	t.Run("Array response without result message", func(t *testing.T) {
+		invalidArrayJSON := `[
+			{"type":"system","subtype":"init","session_id":"invalid123"},
+			{"type":"assistant","session_id":"invalid123"}
+		]`
+		
+		_, err := parseJSONResponse([]byte(invalidArrayJSON))
+		if err == nil {
+			t.Fatal("Expected error for array without result message, got nil")
+		}
+		if !strings.Contains(err.Error(), "no result message found") {
+			t.Errorf("Expected 'no result message found' error, got: %v", err)
+		}
+	})
+
+	t.Run("Invalid JSON", func(t *testing.T) {
+		invalidJSON := `{"invalid": json}`
+		
+		_, err := parseJSONResponse([]byte(invalidJSON))
+		if err == nil {
+			t.Fatal("Expected error for invalid JSON, got nil")
+		}
+	})
+
+	t.Run("Empty input", func(t *testing.T) {
+		_, err := parseJSONResponse([]byte(""))
+		if err == nil {
+			t.Fatal("Expected error for empty input, got nil")
+		}
+		if !strings.Contains(err.Error(), "empty JSON response") {
+			t.Errorf("Expected 'empty JSON response' error, got: %v", err)
+		}
+	})
 }
