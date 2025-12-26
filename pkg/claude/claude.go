@@ -80,6 +80,32 @@ type RunOptions struct {
 	DisableAutoUpdate bool
 	// Theme specifies the UI theme
 	Theme string
+	// IncludePartialMessages enables streaming of partial message chunks as they arrive
+	// Only works with --print and --output-format=stream-json
+	IncludePartialMessages bool
+
+	// PermissionMode controls default permission handling
+	// "default" - standard checks, "acceptEdits" - auto-approve edits, "bypassPermissions" - skip all
+	PermissionMode PermissionMode
+	// PermissionCallback is called before each tool use to determine permission
+	// If nil, default behavior based on PermissionMode is used
+	PermissionCallback PermissionCallback `json:"-"`
+
+	// MaxBudgetUSD sets the maximum spending limit in USD
+	// Execution stops if this limit is exceeded
+	MaxBudgetUSD float64
+	// BudgetTracker tracks cumulative spending across sessions
+	// If nil, a new tracker is created for each execution
+	BudgetTracker *BudgetTracker `json:"-"`
+
+	// Agents defines specialized sub-agents that can be invoked by the main agent
+	// Each agent has its own description, prompt, allowed tools, and model
+	// The main agent uses descriptions to decide which subagent to invoke
+	Agents map[string]*SubagentConfig `json:"-"`
+
+	// PluginManager manages plugins that hook into the execution lifecycle
+	// Plugins can intercept tool calls, messages, and completion events
+	PluginManager *PluginManager `json:"-"`
 
 	// Parsed tool permissions (computed from AllowedTools/DisallowedTools)
 	// This field is populated automatically and should not be set directly
@@ -188,6 +214,18 @@ func PreprocessOptions(opts *RunOptions) error {
 		}
 	}
 
+	// Validate subagent configurations
+	if len(opts.Agents) > 0 {
+		for name, config := range opts.Agents {
+			if config == nil {
+				return NewValidationError("Subagent config cannot be nil", "Agents", name)
+			}
+			if err := config.Validate(); err != nil {
+				return NewValidationError(fmt.Sprintf("Invalid subagent '%s': %v", name, err), "Agents", name)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -266,11 +304,11 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 	}
 
 	if opts.Format == JSONOutput {
-		var res ClaudeResult
-		if err := json.Unmarshal(stdout.Bytes(), &res); err != nil {
-			return nil, NewClaudeError(ErrorValidation, fmt.Sprintf("failed to parse JSON response: %v", err))
+		result, err := parseJSONResponse(stdout.Bytes())
+		if err != nil {
+			return nil, err
 		}
-		return &res, nil
+		return result, nil
 	}
 
 	// For text output, just return the raw text
@@ -278,6 +316,40 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 		Result:  stdout.String(),
 		IsError: false,
 	}, nil
+}
+
+// parseJSONResponse handles both array and single-object JSON formats from Claude CLI
+func parseJSONResponse(data []byte) (*ClaudeResult, error) {
+	// Claude CLI now returns a JSON array of messages
+	// We need to find the "result" type message
+	var messages []Message
+	if err := json.Unmarshal(data, &messages); err != nil {
+		// Try single object for backwards compatibility
+		var res ClaudeResult
+		if err2 := json.Unmarshal(data, &res); err2 != nil {
+			return nil, NewClaudeError(ErrorValidation, fmt.Sprintf("failed to parse JSON response: %v", err))
+		}
+		return &res, nil
+	}
+
+	// Find the result message in the array
+	for _, msg := range messages {
+		if msg.Type == "result" {
+			return &ClaudeResult{
+				Type:          msg.Type,
+				Subtype:       msg.Subtype,
+				Result:        msg.Result,
+				CostUSD:       msg.CostUSD,
+				DurationMS:    msg.DurationMS,
+				DurationAPIMS: msg.DurationAPIMS,
+				IsError:       msg.IsError,
+				NumTurns:      msg.NumTurns,
+				SessionID:     msg.SessionID,
+			}, nil
+		}
+	}
+
+	return nil, NewClaudeError(ErrorValidation, "no result message found in JSON response")
 }
 
 // StreamPrompt executes a prompt with Claude Code and streams the results through a channel
@@ -424,11 +496,11 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 	}
 
 	if opts.Format == JSONOutput {
-		var res ClaudeResult
-		if err := json.Unmarshal(stdout.Bytes(), &res); err != nil {
-			return nil, NewClaudeError(ErrorValidation, fmt.Sprintf("failed to parse JSON response: %v", err))
+		result, err := parseJSONResponse(stdout.Bytes())
+		if err != nil {
+			return nil, err
 		}
-		return &res, nil
+		return result, nil
 	}
 
 	// For text output, just return the raw text

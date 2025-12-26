@@ -1,10 +1,188 @@
 package claude
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
 )
+
+// PermissionBehavior defines how to handle a tool permission request
+type PermissionBehavior string
+
+const (
+	// PermissionAllow allows the tool to execute
+	PermissionAllow PermissionBehavior = "allow"
+	// PermissionDeny blocks the tool from executing
+	PermissionDeny PermissionBehavior = "deny"
+	// PermissionAsk prompts the user for confirmation
+	PermissionAsk PermissionBehavior = "ask"
+)
+
+// PermissionResult is returned by the permission callback
+type PermissionResult struct {
+	// Behavior specifies whether to allow, deny, or ask for the tool
+	Behavior PermissionBehavior `json:"behavior"`
+	// Message is an optional message explaining the decision (used for deny/ask)
+	Message string `json:"message,omitempty"`
+}
+
+// ToolInput represents the input parameters for a tool call
+// Fields are populated based on the tool type
+type ToolInput struct {
+	// Command is the command to execute (for Bash tool)
+	Command string `json:"command,omitempty"`
+	// FilePath is the file path (for Read/Write/Edit tools)
+	FilePath string `json:"file_path,omitempty"`
+	// Pattern is the search pattern (for Glob/Grep tools)
+	Pattern string `json:"pattern,omitempty"`
+	// Content is the content to write (for Write tool)
+	Content string `json:"content,omitempty"`
+	// OldString is the text to replace (for Edit tool)
+	OldString string `json:"old_string,omitempty"`
+	// NewString is the replacement text (for Edit tool)
+	NewString string `json:"new_string,omitempty"`
+	// Raw contains the full input as a map for custom processing
+	Raw map[string]interface{} `json:"raw,omitempty"`
+}
+
+// PermissionCallback is called when Claude wants to use a tool
+// It receives the tool name and input, and returns a decision
+type PermissionCallback func(ctx context.Context, toolName string, input ToolInput) (PermissionResult, error)
+
+// PermissionMode controls default permission handling
+type PermissionMode string
+
+const (
+	// PermissionModeDefault uses standard permission checks
+	PermissionModeDefault PermissionMode = "default"
+	// PermissionModeAcceptEdits auto-approves file edit operations
+	PermissionModeAcceptEdits PermissionMode = "acceptEdits"
+	// PermissionModeBypassPermissions skips all permission checks (use with caution)
+	PermissionModeBypassPermissions PermissionMode = "bypassPermissions"
+)
+
+// Allow returns a PermissionResult that allows the tool
+func Allow() PermissionResult {
+	return PermissionResult{Behavior: PermissionAllow}
+}
+
+// Deny returns a PermissionResult that denies the tool with an optional message
+func Deny(message string) PermissionResult {
+	return PermissionResult{Behavior: PermissionDeny, Message: message}
+}
+
+// Ask returns a PermissionResult that prompts for confirmation
+func Ask(message string) PermissionResult {
+	return PermissionResult{Behavior: PermissionAsk, Message: message}
+}
+
+// ReadOnlyCallback returns a permission callback that allows only read-only tools
+func ReadOnlyCallback() PermissionCallback {
+	return func(ctx context.Context, toolName string, input ToolInput) (PermissionResult, error) {
+		readOnlyTools := map[string]bool{
+			"Read": true,
+			"Grep": true,
+			"Glob": true,
+		}
+		if readOnlyTools[toolName] {
+			return Allow(), nil
+		}
+		return Deny("Only read-only operations are allowed"), nil
+	}
+}
+
+// SafeBashCallback returns a permission callback that blocks dangerous bash commands
+func SafeBashCallback(blockedPatterns []string) PermissionCallback {
+	if len(blockedPatterns) == 0 {
+		// Default blocked patterns
+		blockedPatterns = []string{
+			"rm -rf",
+			"rm -r",
+			"> /dev/",
+			"dd if=",
+			"mkfs",
+			":(){:|:&};:",
+			"chmod -R 777",
+			"curl | sh",
+			"wget | sh",
+		}
+	}
+	return func(ctx context.Context, toolName string, input ToolInput) (PermissionResult, error) {
+		if toolName != "Bash" {
+			return Allow(), nil
+		}
+		for _, pattern := range blockedPatterns {
+			if strings.Contains(input.Command, pattern) {
+				return Deny(fmt.Sprintf("Blocked dangerous command pattern: %s", pattern)), nil
+			}
+		}
+		return Allow(), nil
+	}
+}
+
+// FilePathCallback returns a permission callback that restricts file operations to allowed paths
+func FilePathCallback(allowedPaths []string, deniedPaths []string) PermissionCallback {
+	return func(ctx context.Context, toolName string, input ToolInput) (PermissionResult, error) {
+		fileTools := map[string]bool{
+			"Read":  true,
+			"Write": true,
+			"Edit":  true,
+		}
+		if !fileTools[toolName] {
+			return Allow(), nil
+		}
+
+		filePath := input.FilePath
+		if filePath == "" {
+			return Allow(), nil
+		}
+
+		// Check denied paths first
+		for _, denied := range deniedPaths {
+			if strings.HasPrefix(filePath, denied) {
+				return Deny(fmt.Sprintf("Access to path %s is denied", denied)), nil
+			}
+		}
+
+		// If allowed paths are specified, check them
+		if len(allowedPaths) > 0 {
+			allowed := false
+			for _, path := range allowedPaths {
+				if strings.HasPrefix(filePath, path) {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				return Deny(fmt.Sprintf("File path %s is not in allowed paths", filePath)), nil
+			}
+		}
+
+		return Allow(), nil
+	}
+}
+
+// ChainCallbacks chains multiple permission callbacks together
+// All callbacks must allow for the tool to be allowed
+// The first deny or ask result is returned
+func ChainCallbacks(callbacks ...PermissionCallback) PermissionCallback {
+	return func(ctx context.Context, toolName string, input ToolInput) (PermissionResult, error) {
+		for _, cb := range callbacks {
+			if cb == nil {
+				continue
+			}
+			result, err := cb(ctx, toolName, input)
+			if err != nil {
+				return PermissionResult{}, err
+			}
+			if result.Behavior != PermissionAllow {
+				return result, nil
+			}
+		}
+		return Allow(), nil
+	}
+}
 
 // ToolPermission represents a parsed tool permission with optional command and pattern constraints
 type ToolPermission struct {
