@@ -21,7 +21,7 @@ func main() {
 
 	// Create client pointing to mock server (if available)
 	mockClient := claude.NewClient("http://localhost:8080/claude")
-	
+
 	// Test basic functionality
 	if isMockServerRunning() {
 		testBasicFunctionality(mockClient, "Mock Server")
@@ -34,7 +34,7 @@ func main() {
 
 	// Example 2: Testing with real Claude CLI (if available)
 	fmt.Println("Example 2: Testing with Real Claude CLI")
-	
+
 	if isClaudeCLIAvailable() {
 		realClient := claude.NewClient("claude")
 		testBasicFunctionality(realClient, "Real Claude CLI")
@@ -123,7 +123,7 @@ func testConvenienceMethods() {
 	// Test method existence (they won't actually work without Claude)
 	methods := []string{
 		"RunWithSystemPrompt",
-		"RunWithMCP", 
+		"RunWithMCP",
 		"ContinueConversation",
 		"ResumeConversation",
 	}
@@ -177,8 +177,7 @@ func isClaudeCLIAvailable() bool {
 
 func isExecError(err error) bool {
 	// Check if error is related to executable not found
-	return err != nil && (
-		err.Error() == "claude command failed: exec: \"claude\": executable file not found in $PATH: " ||
+	return err != nil && (err.Error() == "claude command failed: exec: \"claude\": executable file not found in $PATH: " ||
 		err.Error() == "exec: \"claude\": executable file not found in $PATH")
 }
 

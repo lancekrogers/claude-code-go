@@ -404,7 +404,7 @@ func truncateString(s string, maxLen int) string {
 var secretPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)(api[_-]?key|token|password|secret|credential)[=:]\s*\S+`),
 	regexp.MustCompile(`(?i)bearer\s+\S+`),
-	regexp.MustCompile(`sk-[a-zA-Z0-9]{20,}`),                       // OpenAI-style keys
+	regexp.MustCompile(`sk-[a-zA-Z0-9]{20,}`),                        // OpenAI-style keys
 	regexp.MustCompile(`(?i)(aws[_-]?secret|aws[_-]?key)[=:]\s*\S+`), // AWS keys
 	regexp.MustCompile(`ghp_[a-zA-Z0-9]{36}`),                        // GitHub personal access tokens
 	regexp.MustCompile(`gho_[a-zA-Z0-9]{36}`),                        // GitHub OAuth tokens

@@ -112,19 +112,19 @@ func TestParseToolPermission(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := ParseToolPermission(tt.permission)
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("ParseToolPermission() expected error but got none")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("ParseToolPermission() unexpected error: %v", err)
 				return
 			}
-			
+
 			if got.Tool != tt.want.Tool {
 				t.Errorf("ParseToolPermission() Tool = %v, want %v", got.Tool, tt.want.Tool)
 			}
@@ -160,7 +160,7 @@ func TestParseToolPermissions(t *testing.T) {
 			wantCount:   4,
 		},
 		{
-			name: "Empty slice",
+			name:        "Empty slice",
 			permissions: []string{},
 			expectError: false,
 			wantCount:   0,
@@ -180,19 +180,19 @@ func TestParseToolPermissions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := ParseToolPermissions(tt.permissions)
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("ParseToolPermissions() expected error but got none")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("ParseToolPermissions() unexpected error: %v", err)
 				return
 			}
-			
+
 			if len(got) != tt.wantCount {
 				t.Errorf("ParseToolPermissions() count = %v, want %v", len(got), tt.wantCount)
 			}
@@ -226,7 +226,7 @@ func TestToolPermission_Methods(t *testing.T) {
 				{"HasPattern", nil, false},
 				{"MatchesTool", []string{"Bash"}, true},
 				{"MatchesTool", []string{"Write"}, false},
-				{"MatchesCommand", []string{"git log"}, true}, // No constraint means allow all
+				{"MatchesCommand", []string{"git log"}, true},     // No constraint means allow all
 				{"MatchesPattern", []string{"src/file.go"}, true}, // No constraint means allow all
 			},
 		},
@@ -278,7 +278,7 @@ func TestToolPermission_Methods(t *testing.T) {
 						t.Errorf("Unknown test method: %s", tc.method)
 						return
 					}
-					
+
 					if got != tc.expected {
 						t.Errorf("%s() = %v, want %v", tc.method, got, tc.expected)
 					}
@@ -310,7 +310,7 @@ func TestToolPermission_PatternMatching(t *testing.T) {
 			perm := &ToolPermission{Pattern: tt.pattern}
 			got := perm.MatchesPattern(tt.testPath)
 			if got != tt.want {
-				t.Errorf("MatchesPattern(%q) with pattern %q = %v, want %v", 
+				t.Errorf("MatchesPattern(%q) with pattern %q = %v, want %v",
 					tt.testPath, tt.pattern, got, tt.want)
 			}
 		})

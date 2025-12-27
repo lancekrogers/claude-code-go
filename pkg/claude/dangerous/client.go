@@ -220,7 +220,7 @@ func (c *DangerousClient) runWithDangerousFlags(ctx context.Context, prompt stri
 		} else {
 			exitCode = 1
 		}
-		
+
 		claudeErr := claude.ParseError(stderr.String(), exitCode)
 		claudeErr.Original = err
 		return nil, fmt.Errorf("dangerous claude command failed: %w", claudeErr)

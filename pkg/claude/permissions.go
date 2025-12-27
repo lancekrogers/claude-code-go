@@ -315,36 +315,36 @@ func (tp *ToolPermission) MatchesPattern(path string) bool {
 	if !tp.HasPattern() {
 		return true // No pattern constraint means all patterns allowed
 	}
-	
+
 	// Simple glob-like matching for now
 	// TODO: Implement full glob pattern matching if needed
 	if tp.Pattern == "*" {
 		return true
 	}
-	
+
 	// Check for exact match first
 	if tp.Pattern == path {
 		return true
 	}
-	
+
 	// Check for prefix match with double wildcard
 	if strings.HasSuffix(tp.Pattern, "**") {
 		prefix := strings.TrimSuffix(tp.Pattern, "**")
 		return strings.HasPrefix(path, prefix)
 	}
-	
+
 	// Check for prefix match with single wildcard
 	if strings.HasSuffix(tp.Pattern, "*") {
 		prefix := strings.TrimSuffix(tp.Pattern, "*")
 		return strings.HasPrefix(path, prefix)
 	}
-	
+
 	// Check for suffix match (e.g., "*.go" matches "main.go")
 	if strings.HasPrefix(tp.Pattern, "*") {
 		suffix := strings.TrimPrefix(tp.Pattern, "*")
 		return strings.HasSuffix(path, suffix)
 	}
-	
+
 	return false
 }
 

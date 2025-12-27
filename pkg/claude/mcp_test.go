@@ -392,14 +392,14 @@ func TestMCPConfig_WriteFile(t *testing.T) {
 func TestMCPConfig_Merge(t *testing.T) {
 	config1 := &MCPConfig{
 		MCPServers: map[string]MCPServerConfig{
-			"api1": {URL: "https://api1.example.com", Type: MCPServerTypeHTTP},
+			"api1":   {URL: "https://api1.example.com", Type: MCPServerTypeHTTP},
 			"shared": {URL: "https://shared.v1.com", Type: MCPServerTypeHTTP},
 		},
 	}
 
 	config2 := &MCPConfig{
 		MCPServers: map[string]MCPServerConfig{
-			"api2": {URL: "https://api2.example.com", Type: MCPServerTypeHTTP},
+			"api2":   {URL: "https://api2.example.com", Type: MCPServerTypeHTTP},
 			"shared": {URL: "https://shared.v2.com", Type: MCPServerTypeHTTP}, // Override
 		},
 	}

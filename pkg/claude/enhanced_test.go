@@ -167,8 +167,8 @@ func TestRetryPolicy_calculateBackoffWithJitter(t *testing.T) {
 		for i := 0; i < 100; i++ {
 			got := policy.calculateBackoffWithJitter(1)
 			baseDelay := 100 * time.Millisecond
-			minDelay := time.Duration(float64(baseDelay) * 0.8)  // -20%
-			maxDelay := time.Duration(float64(baseDelay) * 1.2)  // +20%
+			minDelay := time.Duration(float64(baseDelay) * 0.8) // -20%
+			maxDelay := time.Duration(float64(baseDelay) * 1.2) // +20%
 
 			if got < minDelay || got > maxDelay {
 				t.Errorf("calculateBackoffWithJitter(1) = %v, want between %v and %v", got, minDelay, maxDelay)

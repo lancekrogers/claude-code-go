@@ -58,9 +58,9 @@ func TestErrorType_IsRetryable(t *testing.T) {
 
 func TestClaudeError_Error(t *testing.T) {
 	tests := []struct {
-		name  string
-		err   *ClaudeError
-		want  string
+		name string
+		err  *ClaudeError
+		want string
 	}{
 		{
 			name: "Error with code",
@@ -297,19 +297,19 @@ func TestParseError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ParseError(tt.stderr, tt.exitCode)
-			
+
 			if err.Type != tt.wantType {
 				t.Errorf("ParseError() Type = %v, want %v", err.Type, tt.wantType)
 			}
-			
+
 			if err.Message != tt.wantMsg {
 				t.Errorf("ParseError() Message = %v, want %v", err.Message, tt.wantMsg)
 			}
-			
+
 			if err.Code != tt.exitCode {
 				t.Errorf("ParseError() Code = %v, want %v", err.Code, tt.exitCode)
 			}
-			
+
 			// Check that stderr is preserved in details
 			if stderr, exists := err.Details["stderr"]; exists {
 				if stderr != tt.stderr {
@@ -369,15 +369,15 @@ func TestExtractRetryAfter(t *testing.T) {
 
 func TestNewClaudeError(t *testing.T) {
 	err := NewClaudeError(ErrorValidation, "Test error")
-	
+
 	if err.Type != ErrorValidation {
 		t.Errorf("NewClaudeError() Type = %v, want %v", err.Type, ErrorValidation)
 	}
-	
+
 	if err.Message != "Test error" {
 		t.Errorf("NewClaudeError() Message = %v, want %v", err.Message, "Test error")
 	}
-	
+
 	if err.Details == nil {
 		t.Error("NewClaudeError() Details should be initialized")
 	}
@@ -385,19 +385,19 @@ func TestNewClaudeError(t *testing.T) {
 
 func TestNewValidationError(t *testing.T) {
 	err := NewValidationError("Invalid field", "test_field", "invalid_value")
-	
+
 	if err.Type != ErrorValidation {
 		t.Errorf("NewValidationError() Type = %v, want %v", err.Type, ErrorValidation)
 	}
-	
+
 	if err.Message != "Invalid field" {
 		t.Errorf("NewValidationError() Message = %v, want %v", err.Message, "Invalid field")
 	}
-	
+
 	if field, exists := err.Details["field"]; !exists || field != "test_field" {
 		t.Errorf("NewValidationError() field detail = %v, want %v", field, "test_field")
 	}
-	
+
 	if value, exists := err.Details["value"]; !exists || value != "invalid_value" {
 		t.Errorf("NewValidationError() value detail = %v, want %v", value, "invalid_value")
 	}
@@ -447,7 +447,7 @@ func TestClaudeError_isMCPConnectionError(t *testing.T) {
 				Type:    ErrorMCP,
 				Message: tt.message,
 			}
-			
+
 			if got := err.isMCPConnectionError(); got != tt.want {
 				t.Errorf("isMCPConnectionError() = %v, want %v", got, tt.want)
 			}

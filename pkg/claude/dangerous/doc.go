@@ -21,12 +21,12 @@
 //	// JUSTIFICATION: Automated testing requires permission bypass
 //	// RISK ASSESSMENT: Running in isolated test environment
 //	// MITIGATION: Input validated, output logged
-//	
+//
 //	client, err := dangerous.NewDangerousClient("claude")
 //	if err != nil {
 //	    return err
 //	}
-//	
+//
 //	result, err := client.BYPASS_ALL_PERMISSIONS("test prompt", nil)
 //
 // See SECURITY_SENSITIVE_FEATURES.md for detailed implementation rationale.

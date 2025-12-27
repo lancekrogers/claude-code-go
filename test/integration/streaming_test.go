@@ -115,4 +115,3 @@ func TestStreamingWithContext(t *testing.T) {
 
 	t.Logf("Received %d messages before timeout", receivedMessages)
 }
-
