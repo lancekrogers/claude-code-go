@@ -797,7 +797,7 @@ func TestMCPConfig_ToJSON_EdgeCases(t *testing.T) {
 		config := &MCPConfig{
 			MCPServers: map[string]MCPServerConfig{
 				"server with spaces": {URL: "https://example.com", Type: MCPServerTypeHTTP},
-				"server\twith\ttabs":  {URL: "https://example2.com", Type: MCPServerTypeHTTP},
+				"server\twith\ttabs": {URL: "https://example2.com", Type: MCPServerTypeHTTP},
 			},
 		}
 
