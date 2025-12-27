@@ -3,6 +3,7 @@ package claude
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -311,41 +312,67 @@ func (tp *ToolPermission) MatchesCommand(command string) bool {
 
 // MatchesPattern returns true if the given path/pattern matches this permission's pattern constraint
 // If no pattern constraint is specified, returns true (allows all patterns)
+// Supports standard glob patterns (*, ?, [...]) via filepath.Match, plus ** for recursive matching
 func (tp *ToolPermission) MatchesPattern(path string) bool {
 	if !tp.HasPattern() {
 		return true // No pattern constraint means all patterns allowed
 	}
 
-	// Simple glob-like matching for now
-	// TODO: Implement full glob pattern matching if needed
+	// Universal wildcard
 	if tp.Pattern == "*" {
 		return true
 	}
 
-	// Check for exact match first
-	if tp.Pattern == path {
-		return true
+	// Handle ** for recursive directory matching (not supported by filepath.Match)
+	// Pattern like "/path/**" matches "/path/foo", "/path/foo/bar", etc.
+	// Pattern like "/path/**/*.go" matches "/path/foo/bar.go", etc.
+	if strings.Contains(tp.Pattern, "**") {
+		// Split pattern at ** and check prefix/suffix matching
+		parts := strings.SplitN(tp.Pattern, "**", 2)
+		if len(parts) == 2 {
+			prefix := parts[0]
+			suffix := parts[1]
+
+			// Path must start with prefix
+			if !strings.HasPrefix(path, prefix) {
+				return false
+			}
+
+			// If no suffix after **, just check prefix
+			if suffix == "" {
+				return true
+			}
+
+			// Get the remaining path after the prefix
+			remaining := strings.TrimPrefix(path, prefix)
+
+			// If suffix starts with /, trim it for matching
+			suffix = strings.TrimPrefix(suffix, "/")
+
+			// If suffix contains glob characters, use filepath.Match on the basename
+			if strings.ContainsAny(suffix, "*?[") {
+				// Match the suffix pattern against the base name of the path
+				base := filepath.Base(path)
+				matched, err := filepath.Match(suffix, base)
+				if err != nil {
+					return false
+				}
+				return matched
+			}
+
+			// Otherwise do simple suffix check
+			return strings.HasSuffix(remaining, suffix) || strings.HasSuffix(path, suffix)
+		}
 	}
 
-	// Check for prefix match with double wildcard
-	if strings.HasSuffix(tp.Pattern, "**") {
-		prefix := strings.TrimSuffix(tp.Pattern, "**")
-		return strings.HasPrefix(path, prefix)
+	// Use filepath.Match for standard glob patterns (*, ?, [...])
+	matched, err := filepath.Match(tp.Pattern, path)
+	if err != nil {
+		// Invalid pattern falls back to exact match
+		return tp.Pattern == path
 	}
 
-	// Check for prefix match with single wildcard
-	if strings.HasSuffix(tp.Pattern, "*") {
-		prefix := strings.TrimSuffix(tp.Pattern, "*")
-		return strings.HasPrefix(path, prefix)
-	}
-
-	// Check for suffix match (e.g., "*.go" matches "main.go")
-	if strings.HasPrefix(tp.Pattern, "*") {
-		suffix := strings.TrimPrefix(tp.Pattern, "*")
-		return strings.HasSuffix(path, suffix)
-	}
-
-	return false
+	return matched
 }
 
 // Matches returns true if the given tool, command, and path all match this permission

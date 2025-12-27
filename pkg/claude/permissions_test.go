@@ -295,14 +295,34 @@ func TestToolPermission_PatternMatching(t *testing.T) {
 		testPath string
 		want     bool
 	}{
+		// Universal wildcards
 		{"Wildcard all", "*", "any/path", true},
+		{"Empty pattern (no constraint)", "", "any/path", true},
+
+		// ** recursive matching
 		{"Directory wildcard", "src/**", "src/file.go", true},
+		{"Directory wildcard nested", "src/**", "src/pkg/file.go", true},
 		{"Directory wildcard miss", "src/**", "test/file.go", false},
+		{"Double star with suffix", "/src/**/*.go", "/src/pkg/file.go", true},
+		{"Double star with suffix miss", "/src/**/*.go", "/src/pkg/file.js", false},
+
+		// Standard glob patterns via filepath.Match
 		{"File wildcard", "*.go", "main.go", true},
 		{"File wildcard miss", "*.go", "main.js", false},
+		{"Single char wildcard ?", "file?.go", "file1.go", true},
+		{"Single char wildcard ? miss", "file?.go", "file12.go", false},
+		{"Character class match", "file[123].go", "file2.go", true},
+		{"Character class miss", "file[123].go", "file4.go", false},
+		{"Character range match", "file[0-9].go", "file5.go", true},
+		{"Character range miss", "file[0-9].go", "filea.go", false},
+
+		// Exact matching
 		{"Exact match", "package.json", "package.json", true},
 		{"Exact match miss", "package.json", "package-lock.json", false},
-		{"Empty pattern (no constraint)", "", "any/path", true},
+
+		// Edge cases
+		{"Pattern with path", "src/*.go", "src/main.go", true},
+		{"Pattern with path miss", "src/*.go", "pkg/main.go", false},
 	}
 
 	for _, tt := range tests {

@@ -3,6 +3,7 @@ package claude
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -315,6 +316,38 @@ func TestPluginManagerShutdown(t *testing.T) {
 		err := pm.Shutdown(ctx)
 		if err == nil {
 			t.Error("expected shutdown error")
+		}
+	})
+
+	t.Run("multiple shutdown errors are collected", func(t *testing.T) {
+		pm := NewPluginManager()
+		plugin1 := newMockPlugin("failing1", "1.0.0")
+		plugin1.shutdownErr = errors.New("shutdown failed 1")
+		plugin2 := newMockPlugin("failing2", "1.0.0")
+		plugin2.shutdownErr = errors.New("shutdown failed 2")
+		plugin3 := newMockPlugin("successful", "1.0.0")
+
+		_ = pm.Register(plugin1, nil)
+		_ = pm.Register(plugin2, nil)
+		_ = pm.Register(plugin3, nil)
+
+		err := pm.Shutdown(ctx)
+		if err == nil {
+			t.Error("expected shutdown error")
+		}
+
+		// errors.Join produces an error that contains both messages
+		errStr := err.Error()
+		if !strings.Contains(errStr, "failing1") {
+			t.Errorf("expected error to contain 'failing1', got: %s", errStr)
+		}
+		if !strings.Contains(errStr, "failing2") {
+			t.Errorf("expected error to contain 'failing2', got: %s", errStr)
+		}
+
+		// All plugins should still be shut down
+		if plugin1.shutdownCount != 1 || plugin2.shutdownCount != 1 || plugin3.shutdownCount != 1 {
+			t.Error("expected all plugins to attempt shutdown")
 		}
 	})
 }

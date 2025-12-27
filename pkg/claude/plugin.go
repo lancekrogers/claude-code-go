@@ -2,6 +2,7 @@ package claude
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"sync"
@@ -157,10 +158,13 @@ func (pm *PluginManager) Initialize(ctx context.Context) error {
 // OnToolCall invokes OnToolCall on all enabled plugins
 // If any plugin returns an error, execution stops and the error is returned
 func (pm *PluginManager) OnToolCall(ctx context.Context, toolName string, input ToolInput) error {
+	// Copy plugins under lock to prevent holding mutex during callbacks
 	pm.mu.RLock()
-	defer pm.mu.RUnlock()
+	plugins := make([]pluginEntry, len(pm.plugins))
+	copy(plugins, pm.plugins)
+	pm.mu.RUnlock()
 
-	for _, entry := range pm.plugins {
+	for _, entry := range plugins {
 		if entry.config != nil && !entry.config.Enabled {
 			continue
 		}
@@ -174,10 +178,13 @@ func (pm *PluginManager) OnToolCall(ctx context.Context, toolName string, input 
 
 // OnMessage invokes OnMessage on all enabled plugins
 func (pm *PluginManager) OnMessage(ctx context.Context, msg Message) error {
+	// Copy plugins under lock to prevent holding mutex during callbacks
 	pm.mu.RLock()
-	defer pm.mu.RUnlock()
+	plugins := make([]pluginEntry, len(pm.plugins))
+	copy(plugins, pm.plugins)
+	pm.mu.RUnlock()
 
-	for _, entry := range pm.plugins {
+	for _, entry := range plugins {
 		if entry.config != nil && !entry.config.Enabled {
 			continue
 		}
@@ -191,10 +198,13 @@ func (pm *PluginManager) OnMessage(ctx context.Context, msg Message) error {
 
 // OnComplete invokes OnComplete on all enabled plugins
 func (pm *PluginManager) OnComplete(ctx context.Context, result *ClaudeResult) error {
+	// Copy plugins under lock to prevent holding mutex during callbacks
 	pm.mu.RLock()
-	defer pm.mu.RUnlock()
+	plugins := make([]pluginEntry, len(pm.plugins))
+	copy(plugins, pm.plugins)
+	pm.mu.RUnlock()
 
-	for _, entry := range pm.plugins {
+	for _, entry := range plugins {
 		if entry.config != nil && !entry.config.Enabled {
 			continue
 		}
@@ -206,22 +216,23 @@ func (pm *PluginManager) OnComplete(ctx context.Context, result *ClaudeResult) e
 	return nil
 }
 
-// Shutdown shuts down all plugins in reverse order
+// Shutdown shuts down all plugins in reverse order.
+// Returns a combined error using errors.Join if multiple plugins fail to shutdown.
 func (pm *PluginManager) Shutdown(ctx context.Context) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
-	var lastErr error
+	var errs []error
 	// Shutdown in reverse order
 	for i := len(pm.plugins) - 1; i >= 0; i-- {
 		entry := pm.plugins[i]
 		if err := entry.plugin.Shutdown(ctx); err != nil {
-			lastErr = fmt.Errorf("failed to shutdown plugin '%s': %w", entry.plugin.Name(), err)
+			errs = append(errs, fmt.Errorf("failed to shutdown plugin '%s': %w", entry.plugin.Name(), err))
 		}
 	}
 
 	pm.initialized = false
-	return lastErr
+	return errors.Join(errs...)
 }
 
 // List returns the names of all registered plugins

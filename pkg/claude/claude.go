@@ -906,16 +906,31 @@ func (rp *RetryPolicy) calculateBackoff(attempt int) time.Duration {
 	return result
 }
 
+// cryptoRandFloat64 returns a cryptographically secure random float64 in [0, 1)
+func cryptoRandFloat64() float64 {
+	var b [8]byte
+	_, err := cryptorand.Read(b[:])
+	if err != nil {
+		// Fallback to math/rand if crypto/rand fails (shouldn't happen)
+		return rand.Float64()
+	}
+	// Convert bytes to uint64 and normalize to [0, 1)
+	n := uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
+		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
+	return float64(n) / float64(math.MaxUint64)
+}
+
 // calculateBackoffWithJitter adds ±20% randomization to prevent thundering herd
+// Uses crypto/rand for secure randomization
 func (rp *RetryPolicy) calculateBackoffWithJitter(attempt int) time.Duration {
 	delay := rp.calculateBackoff(attempt)
 	if delay == 0 {
 		return 0
 	}
 
-	// Add jitter: ±20% randomization
+	// Add jitter: ±20% randomization using crypto/rand
 	// Formula: delay + (delay * 0.2 * (random value from -1 to 1))
-	jitter := float64(delay) * 0.2 * (2*rand.Float64() - 1)
+	jitter := float64(delay) * 0.2 * (2*cryptoRandFloat64() - 1)
 	result := delay + time.Duration(jitter)
 
 	// Ensure we don't go negative (shouldn't happen with 20% jitter, but be safe)
