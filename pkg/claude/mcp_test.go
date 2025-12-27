@@ -508,3 +508,308 @@ func TestMCPConfigBuilder_Build_Immutability(t *testing.T) {
 		t.Error("Build() should return independent copies")
 	}
 }
+
+// Additional error path tests for MCP configuration
+
+func TestParseMCPConfig_InvalidJSONVariants(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input string
+	}{
+		{"empty string", ""},
+		{"array instead of object", "[]"},
+		{"unclosed brace", "{"},
+		{"invalid unicode", `{"key": "\uXXXX"}`},
+		{"trailing comma", `{"mcpServers": {},"}`},
+		{"single quotes", "{'mcpServers': {}}"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ParseMCPConfig(tc.input)
+			if err == nil {
+				t.Errorf("Expected error for %q, got nil", tc.name)
+			}
+		})
+	}
+}
+
+func TestParseMCPConfig_NullJSON(t *testing.T) {
+	// "null" is valid JSON that unmarshals to zero value struct
+	// This tests that the function doesn't error but returns an empty config
+	config, err := ParseMCPConfig("null")
+	if err != nil {
+		t.Fatalf("Unexpected error for null JSON: %v", err)
+	}
+	// Should have nil or empty MCPServers
+	if len(config.MCPServers) != 0 {
+		t.Errorf("Expected 0 servers for null JSON, got %d", len(config.MCPServers))
+	}
+}
+
+func TestLoadMCPConfigFile_Errors(t *testing.T) {
+	t.Run("directory instead of file", func(t *testing.T) {
+		tempDir := t.TempDir()
+		_, err := LoadMCPConfigFile(tempDir)
+		if err == nil {
+			t.Error("Expected error when loading a directory")
+		}
+	})
+
+	t.Run("empty file", func(t *testing.T) {
+		tempDir := t.TempDir()
+		emptyFile := filepath.Join(tempDir, "empty.json")
+		if err := os.WriteFile(emptyFile, []byte{}, 0644); err != nil {
+			t.Fatalf("Failed to create empty file: %v", err)
+		}
+
+		_, err := LoadMCPConfigFile(emptyFile)
+		if err == nil {
+			t.Error("Expected error for empty file")
+		}
+	})
+
+	t.Run("invalid JSON in file", func(t *testing.T) {
+		tempDir := t.TempDir()
+		badFile := filepath.Join(tempDir, "bad.json")
+		if err := os.WriteFile(badFile, []byte("not valid json"), 0644); err != nil {
+			t.Fatalf("Failed to create file: %v", err)
+		}
+
+		_, err := LoadMCPConfigFile(badFile)
+		if err == nil {
+			t.Error("Expected error for invalid JSON file")
+		}
+	})
+}
+
+func TestMCPConfig_Merge_EdgeCases(t *testing.T) {
+	t.Run("merge with empty config", func(t *testing.T) {
+		config := &MCPConfig{
+			MCPServers: map[string]MCPServerConfig{
+				"api": {URL: "https://api.example.com", Type: MCPServerTypeHTTP},
+			},
+		}
+		empty := &MCPConfig{
+			MCPServers: map[string]MCPServerConfig{},
+		}
+
+		merged := config.Merge(empty)
+		if len(merged.MCPServers) != 1 {
+			t.Errorf("Expected 1 server, got %d", len(merged.MCPServers))
+		}
+	})
+
+	t.Run("merge empty with populated", func(t *testing.T) {
+		empty := &MCPConfig{
+			MCPServers: map[string]MCPServerConfig{},
+		}
+		populated := &MCPConfig{
+			MCPServers: map[string]MCPServerConfig{
+				"api": {URL: "https://api.example.com", Type: MCPServerTypeHTTP},
+			},
+		}
+
+		merged := empty.Merge(populated)
+		if len(merged.MCPServers) != 1 {
+			t.Errorf("Expected 1 server, got %d", len(merged.MCPServers))
+		}
+	})
+
+	t.Run("merge nil MCPServers map", func(t *testing.T) {
+		config := &MCPConfig{
+			MCPServers: map[string]MCPServerConfig{
+				"api": {URL: "https://api.example.com", Type: MCPServerTypeHTTP},
+			},
+		}
+		nilServers := &MCPConfig{
+			MCPServers: nil,
+		}
+
+		merged := config.Merge(nilServers)
+		if len(merged.MCPServers) != 1 {
+			t.Errorf("Expected 1 server, got %d", len(merged.MCPServers))
+		}
+	})
+
+	t.Run("merge overrides all fields", func(t *testing.T) {
+		config1 := &MCPConfig{
+			MCPServers: map[string]MCPServerConfig{
+				"server": {
+					Command: "python",
+					Args:    []string{"old.py"},
+					Env:     map[string]string{"OLD": "value"},
+					Type:    MCPServerTypeStdio,
+				},
+			},
+		}
+		config2 := &MCPConfig{
+			MCPServers: map[string]MCPServerConfig{
+				"server": {
+					Command: "node",
+					Args:    []string{"new.js"},
+					Env:     map[string]string{"NEW": "value"},
+					Type:    MCPServerTypeStdio,
+				},
+			},
+		}
+
+		merged := config1.Merge(config2)
+		server := merged.MCPServers["server"]
+
+		if server.Command != "node" {
+			t.Errorf("Expected command 'node', got %q", server.Command)
+		}
+		if len(server.Args) != 1 || server.Args[0] != "new.js" {
+			t.Errorf("Expected args ['new.js'], got %v", server.Args)
+		}
+		if server.Env["NEW"] != "value" {
+			t.Error("Expected NEW env var")
+		}
+		if _, hasOld := server.Env["OLD"]; hasOld {
+			t.Error("OLD env var should not be present")
+		}
+	})
+}
+
+func TestMCPConfig_GetServer_EdgeCases(t *testing.T) {
+	t.Run("nil MCPServers map", func(t *testing.T) {
+		config := &MCPConfig{MCPServers: nil}
+		_, ok := config.GetServer("any")
+		if ok {
+			t.Error("Expected false for nil MCPServers")
+		}
+	})
+
+	t.Run("empty string key", func(t *testing.T) {
+		config := &MCPConfig{
+			MCPServers: map[string]MCPServerConfig{
+				"": {URL: "https://empty-key.example.com", Type: MCPServerTypeHTTP},
+			},
+		}
+		server, ok := config.GetServer("")
+		if !ok {
+			t.Error("Expected to find empty string key")
+		}
+		if server.URL != "https://empty-key.example.com" {
+			t.Errorf("Unexpected URL: %q", server.URL)
+		}
+	})
+}
+
+func TestMCPConfig_ServerNames_EdgeCases(t *testing.T) {
+	t.Run("nil MCPServers map", func(t *testing.T) {
+		config := &MCPConfig{MCPServers: nil}
+		names := config.ServerNames()
+		if len(names) != 0 {
+			t.Errorf("Expected 0 names for nil MCPServers, got %d", len(names))
+		}
+	})
+
+	t.Run("empty MCPServers map", func(t *testing.T) {
+		config := &MCPConfig{MCPServers: map[string]MCPServerConfig{}}
+		names := config.ServerNames()
+		if len(names) != 0 {
+			t.Errorf("Expected 0 names for empty MCPServers, got %d", len(names))
+		}
+	})
+}
+
+func TestMCPConfigBuilder_WriteFile_Errors(t *testing.T) {
+	t.Run("write to non-existent directory", func(t *testing.T) {
+		builder := NewMCPConfigBuilder()
+		builder.AddHTTPServer("api", "https://api.example.com")
+
+		err := builder.WriteFile("/nonexistent/dir/config.json")
+		if err == nil {
+			t.Error("Expected error when writing to non-existent directory")
+		}
+	})
+}
+
+func TestMCPConfig_WriteFile_Errors(t *testing.T) {
+	t.Run("write to non-existent directory", func(t *testing.T) {
+		config := &MCPConfig{
+			MCPServers: map[string]MCPServerConfig{
+				"api": {URL: "https://api.example.com", Type: MCPServerTypeHTTP},
+			},
+		}
+
+		err := config.WriteFile("/nonexistent/dir/config.json")
+		if err == nil {
+			t.Error("Expected error when writing to non-existent directory")
+		}
+	})
+}
+
+func TestMCPServerTypes(t *testing.T) {
+	// Verify server type constants are properly defined
+	types := []MCPServerType{
+		MCPServerTypeHTTP,
+		MCPServerTypeSSE,
+		MCPServerTypeStdio,
+	}
+
+	seen := make(map[MCPServerType]bool)
+	for _, serverType := range types {
+		if serverType == "" {
+			t.Error("Server type should not be empty")
+		}
+		if seen[serverType] {
+			t.Errorf("Duplicate server type: %q", serverType)
+		}
+		seen[serverType] = true
+	}
+}
+
+func TestMCPConfig_ToJSON_EdgeCases(t *testing.T) {
+	t.Run("nil MCPServers", func(t *testing.T) {
+		config := &MCPConfig{MCPServers: nil}
+		jsonStr, err := config.ToJSON()
+		if err != nil {
+			t.Fatalf("ToJSON() error: %v", err)
+		}
+
+		// Should still produce valid JSON
+		var parsed MCPConfig
+		if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+			t.Errorf("ToJSON output is not valid JSON: %v", err)
+		}
+	})
+
+	t.Run("empty MCPServers", func(t *testing.T) {
+		config := &MCPConfig{MCPServers: map[string]MCPServerConfig{}}
+		jsonStr, err := config.ToJSON()
+		if err != nil {
+			t.Fatalf("ToJSON() error: %v", err)
+		}
+
+		var parsed MCPConfig
+		if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+			t.Errorf("ToJSON output is not valid JSON: %v", err)
+		}
+		if len(parsed.MCPServers) != 0 {
+			t.Error("Expected empty MCPServers in parsed output")
+		}
+	})
+
+	t.Run("server with special characters in name", func(t *testing.T) {
+		config := &MCPConfig{
+			MCPServers: map[string]MCPServerConfig{
+				"server with spaces": {URL: "https://example.com", Type: MCPServerTypeHTTP},
+				"server\twith\ttabs":  {URL: "https://example2.com", Type: MCPServerTypeHTTP},
+			},
+		}
+
+		jsonStr, err := config.ToJSON()
+		if err != nil {
+			t.Fatalf("ToJSON() error: %v", err)
+		}
+
+		// Should still parse correctly
+		var parsed MCPConfig
+		if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+			t.Errorf("ToJSON output is not valid JSON: %v", err)
+		}
+	})
+}

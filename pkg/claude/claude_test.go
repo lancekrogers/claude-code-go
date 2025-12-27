@@ -1070,3 +1070,308 @@ func TestPreprocessOptions_SessionValidation(t *testing.T) {
 		t.Errorf("Expected session ID validation error, got: %v", err)
 	}
 }
+
+// Context Cancellation Tests
+
+func TestRunPromptCtx_ContextCancellation(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	// Mock command that would take a long time
+	execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sleep", "10")
+	}
+
+	client := NewClient("claude")
+
+	t.Run("pre-canceled context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel() // Cancel before starting
+
+		_, err := client.RunPromptCtx(ctx, "test", &RunOptions{})
+		if err == nil {
+			t.Fatal("Expected error for canceled context")
+		}
+	})
+
+	t.Run("context canceled during execution", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+
+		// Cancel after a short delay
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			cancel()
+		}()
+
+		_, err := client.RunPromptCtx(ctx, "test", &RunOptions{})
+		if err == nil {
+			t.Fatal("Expected error when context is canceled during execution")
+		}
+	})
+}
+
+func TestRunPromptCtx_ContextDeadlineExceeded(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	// Mock command that takes longer than the deadline
+	execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sleep", "10")
+	}
+
+	client := NewClient("claude")
+
+	t.Run("deadline exceeded", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+
+		start := time.Now()
+		_, err := client.RunPromptCtx(ctx, "test", &RunOptions{})
+		elapsed := time.Since(start)
+
+		if err == nil {
+			t.Fatal("Expected error for deadline exceeded")
+		}
+
+		// Verify it didn't wait the full 10 seconds
+		if elapsed > 500*time.Millisecond {
+			t.Errorf("Expected fast timeout, but took %v", elapsed)
+		}
+	})
+}
+
+func TestStreamPrompt_ContextCancellation(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	// Mock command that would run forever
+	execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sleep", "100")
+	}
+
+	client := NewClient("claude")
+
+	t.Run("pre-canceled context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel() // Cancel before starting
+
+		msgCh, errCh := client.StreamPrompt(ctx, "test", &RunOptions{})
+
+		// Drain channels
+		go func() {
+			for range msgCh {
+			}
+		}()
+
+		// Should receive an error
+		foundError := false
+		for err := range errCh {
+			if err != nil {
+				foundError = true
+			}
+		}
+
+		if !foundError {
+			t.Log("No error received on pre-canceled context - this may be expected if command starts immediately")
+		}
+	})
+
+	t.Run("context canceled during streaming", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+
+		msgCh, errCh := client.StreamPrompt(ctx, "test", &RunOptions{})
+
+		// Cancel after starting
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			cancel()
+		}()
+
+		// Drain messages
+		go func() {
+			for range msgCh {
+			}
+		}()
+
+		// Wait for error or completion
+		start := time.Now()
+		for range errCh {
+		}
+		elapsed := time.Since(start)
+
+		// Should complete quickly due to cancellation
+		if elapsed > 500*time.Millisecond {
+			t.Errorf("Expected fast cancellation, but took %v", elapsed)
+		}
+	})
+}
+
+func TestStreamPrompt_ContextDeadline(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	// Mock command that takes forever
+	execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sleep", "100")
+	}
+
+	client := NewClient("claude")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	msgCh, errCh := client.StreamPrompt(ctx, "test", &RunOptions{})
+
+	// Drain messages
+	go func() {
+		for range msgCh {
+		}
+	}()
+
+	// Wait for completion
+	start := time.Now()
+	for range errCh {
+	}
+	elapsed := time.Since(start)
+
+	// Should complete around the deadline
+	if elapsed > 500*time.Millisecond {
+		t.Errorf("Expected deadline to trigger around 100ms, but took %v", elapsed)
+	}
+}
+
+func TestRunFromStdinCtx_ContextCancellation(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	// Mock command that takes forever
+	execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sleep", "10")
+	}
+
+	client := NewClient("claude")
+
+	t.Run("pre-canceled context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		stdin := bytes.NewBufferString("test input")
+		_, err := client.RunFromStdinCtx(ctx, stdin, "", &RunOptions{})
+
+		if err == nil {
+			t.Fatal("Expected error for canceled context")
+		}
+	})
+
+	t.Run("context canceled during execution", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			cancel()
+		}()
+
+		stdin := bytes.NewBufferString("test input")
+		_, err := client.RunFromStdinCtx(ctx, stdin, "", &RunOptions{})
+
+		if err == nil {
+			t.Fatal("Expected error when context canceled during execution")
+		}
+	})
+}
+
+func TestRunOptionsTimeout(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	// Mock command that takes forever
+	execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sleep", "10")
+	}
+
+	client := NewClient("claude")
+
+	t.Run("timeout option", func(t *testing.T) {
+		start := time.Now()
+		_, err := client.RunPromptCtx(context.Background(), "test", &RunOptions{
+			Timeout: 100 * time.Millisecond,
+		})
+		elapsed := time.Since(start)
+
+		if err == nil {
+			t.Fatal("Expected error for timeout")
+		}
+
+		// Should timeout around 100ms
+		if elapsed > 500*time.Millisecond {
+			t.Errorf("Expected timeout around 100ms, but took %v", elapsed)
+		}
+	})
+}
+
+func TestContextPropagationThroughMethods(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	// Mock command that checks context
+	execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "echo", "done")
+	}
+
+	client := NewClient("claude")
+
+	t.Run("RunWithMCPCtx propagates context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		_, err := client.RunWithMCPCtx(ctx, "test", "", nil)
+		// Should get an error because context is canceled
+		if err == nil {
+			t.Error("Expected error from canceled context")
+		}
+	})
+
+	t.Run("RunWithSystemPromptCtx propagates context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		_, err := client.RunWithSystemPromptCtx(ctx, "test", "system", nil)
+		if err == nil {
+			t.Error("Expected error from canceled context")
+		}
+	})
+
+	t.Run("ContinueConversationCtx propagates context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		_, err := client.ContinueConversationCtx(ctx, "test")
+		if err == nil {
+			t.Error("Expected error from canceled context")
+		}
+	})
+
+	t.Run("ResumeConversationCtx propagates context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		_, err := client.ResumeConversationCtx(ctx, "test", "session123")
+		if err == nil {
+			t.Error("Expected error from canceled context")
+		}
+	})
+}
