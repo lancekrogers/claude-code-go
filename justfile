@@ -5,7 +5,7 @@ set dotenv-load := true
 
 # Module imports
 mod build '.justfiles/build.just'
-mod demos '.justfiles/demos.just'
+mod demo '.justfiles/demos.just'
 mod test '.justfiles/test.just'
 mod coverage '.justfiles/coverage.just'
 mod mock '.justfiles/mock.just'
