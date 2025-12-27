@@ -78,6 +78,9 @@ tasks:
       - go build -o {{.BIN_DIR}}/basic-example ./examples/basic || echo "❌ Basic example build failed"
       - go build -o {{.BIN_DIR}}/advanced-example ./examples/advanced || echo "❌ Advanced example build failed"
       - go build -o {{.BIN_DIR}}/testing-example ./examples/testing || echo "❌ Testing example build failed"
+      - go build -o {{.BIN_DIR}}/budget-example ./examples/budget || echo "❌ Budget example build failed"
+      - go build -o {{.BIN_DIR}}/plugins-example ./examples/plugins || echo "❌ Plugins example build failed"
+      - go build -o {{.BIN_DIR}}/subagents-example ./examples/subagents || echo "❌ Subagents example build failed"
       - task: build-demo-streaming
       - task: build-demo-basic
       - task: build-dangerous-example
@@ -108,6 +111,30 @@ tasks:
       - mkdir -p {{.BIN_DIR}}
       - go build -o {{.BIN_DIR}}/testing-example ./examples/testing
       - echo "✅ Testing example built at {{.BIN_DIR}}/testing-example"
+
+  build-budget:
+    desc: "Build budget tracking example only"
+    cmds:
+      - echo "🔨 Building budget example..."
+      - mkdir -p {{.BIN_DIR}}
+      - go build -o {{.BIN_DIR}}/budget-example ./examples/budget
+      - echo "✅ Budget example built at {{.BIN_DIR}}/budget-example"
+
+  build-plugins:
+    desc: "Build plugins example only"
+    cmds:
+      - echo "🔨 Building plugins example..."
+      - mkdir -p {{.BIN_DIR}}
+      - go build -o {{.BIN_DIR}}/plugins-example ./examples/plugins
+      - echo "✅ Plugins example built at {{.BIN_DIR}}/plugins-example"
+
+  build-subagents:
+    desc: "Build subagents example only"
+    cmds:
+      - echo "🔨 Building subagents example..."
+      - mkdir -p {{.BIN_DIR}}
+      - go build -o {{.BIN_DIR}}/subagents-example ./examples/subagents
+      - echo "✅ Subagents example built at {{.BIN_DIR}}/subagents-example"
 
   build-demo:
     desc: "Build the interactive demo (streaming)"

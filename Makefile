@@ -19,6 +19,7 @@ RESET := \033[0m
 
 # Phony targets (not files)
 .PHONY: all build build-lib examples build-examples build-basic build-advanced build-testing
+.PHONY: build-budget build-plugins build-subagents
 .PHONY: build-demo build-demo-streaming build-demo-basic build-dangerous-example
 .PHONY: test test-lib test-dangerous test-integration test-integration-real test-local coverage
 .PHONY: demo demo-streaming demo-basic run-dangerous check-go check-claude
@@ -45,6 +46,9 @@ build-examples: build-demo-streaming build-demo-basic build-dangerous-example ##
 	@go build -o $(BIN_DIR)/basic-example ./examples/basic || echo "$(RED)❌ Basic example build failed$(RESET)"
 	@go build -o $(BIN_DIR)/advanced-example ./examples/advanced || echo "$(RED)❌ Advanced example build failed$(RESET)"
 	@go build -o $(BIN_DIR)/testing-example ./examples/testing || echo "$(RED)❌ Testing example build failed$(RESET)"
+	@go build -o $(BIN_DIR)/budget-example ./examples/budget || echo "$(RED)❌ Budget example build failed$(RESET)"
+	@go build -o $(BIN_DIR)/plugins-example ./examples/plugins || echo "$(RED)❌ Plugins example build failed$(RESET)"
+	@go build -o $(BIN_DIR)/subagents-example ./examples/subagents || echo "$(RED)❌ Subagents example build failed$(RESET)"
 	@echo "$(GREEN)✅ Example builds completed$(RESET)"
 
 build-demo: build-demo-streaming ## Build the interactive demo (streaming)
@@ -85,6 +89,24 @@ build-testing: ## Build testing example only
 	@mkdir -p $(BIN_DIR)
 	@go build -o $(BIN_DIR)/testing-example ./examples/testing
 	@echo "$(GREEN)✅ Testing example built: $(BIN_DIR)/testing-example$(RESET)"
+
+build-budget: ## Build budget tracking example only
+	@echo "$(BLUE)🔨 Building budget example...$(RESET)"
+	@mkdir -p $(BIN_DIR)
+	@go build -o $(BIN_DIR)/budget-example ./examples/budget
+	@echo "$(GREEN)✅ Budget example built: $(BIN_DIR)/budget-example$(RESET)"
+
+build-plugins: ## Build plugins example only
+	@echo "$(BLUE)🔨 Building plugins example...$(RESET)"
+	@mkdir -p $(BIN_DIR)
+	@go build -o $(BIN_DIR)/plugins-example ./examples/plugins
+	@echo "$(GREEN)✅ Plugins example built: $(BIN_DIR)/plugins-example$(RESET)"
+
+build-subagents: ## Build subagents example only
+	@echo "$(BLUE)🔨 Building subagents example...$(RESET)"
+	@mkdir -p $(BIN_DIR)
+	@go build -o $(BIN_DIR)/subagents-example ./examples/subagents
+	@echo "$(GREEN)✅ Subagents example built: $(BIN_DIR)/subagents-example$(RESET)"
 
 ##@ Test Targets
 

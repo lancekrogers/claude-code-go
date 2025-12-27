@@ -22,6 +22,9 @@ demo
 demo-basic
 demo-streaming
 dangerous-example
+budget
+plugins
+subagents
 
 # Prevent any binary with common patterns in top-level
 *-example
