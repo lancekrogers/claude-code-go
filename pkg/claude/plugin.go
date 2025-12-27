@@ -3,6 +3,7 @@ package claude
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sync"
 	"time"
 )
@@ -320,10 +321,12 @@ func (bp *BasePlugin) Shutdown(ctx context.Context) error {
 // LoggingPlugin logs all tool calls and messages
 type LoggingPlugin struct {
 	BasePlugin
-	Logger    func(format string, args ...interface{})
-	LogTools  bool
-	LogMsgs   bool
-	LogResult bool
+	Logger          func(format string, args ...interface{})
+	LogTools        bool
+	LogMsgs         bool
+	LogResult       bool
+	SanitizeSecrets bool // Redact sensitive patterns (API keys, tokens, passwords)
+	TruncateLength  int  // Max chars per field (0 = unlimited)
 }
 
 // NewLoggingPlugin creates a new logging plugin
@@ -343,9 +346,77 @@ func NewLoggingPlugin(logger func(format string, args ...interface{})) *LoggingP
 // OnToolCall logs the tool call
 func (lp *LoggingPlugin) OnToolCall(ctx context.Context, toolName string, input ToolInput) error {
 	if lp.LogTools && lp.Logger != nil {
-		lp.Logger("[logging] Tool call: %s, input: %+v", toolName, input)
+		sanitizedInput := lp.sanitizeInput(input)
+		lp.Logger("[logging] Tool call: %s, input: %+v", toolName, sanitizedInput)
 	}
 	return nil
+}
+
+// sanitizeInput applies truncation and secret redaction to tool input
+func (lp *LoggingPlugin) sanitizeInput(input ToolInput) ToolInput {
+	if !lp.SanitizeSecrets && lp.TruncateLength <= 0 {
+		return input // No sanitization needed
+	}
+
+	sanitized := ToolInput{
+		Command:   lp.sanitizeString(input.Command),
+		FilePath:  lp.sanitizeString(input.FilePath),
+		Pattern:   lp.sanitizeString(input.Pattern),
+		Content:   lp.sanitizeString(input.Content),
+		OldString: lp.sanitizeString(input.OldString),
+		NewString: lp.sanitizeString(input.NewString),
+		Raw:       input.Raw, // Don't modify raw map
+	}
+
+	return sanitized
+}
+
+// sanitizeString applies truncation and secret redaction to a string
+func (lp *LoggingPlugin) sanitizeString(s string) string {
+	if s == "" {
+		return s
+	}
+
+	result := s
+
+	// Apply secret redaction first
+	if lp.SanitizeSecrets {
+		result = redactSecrets(result)
+	}
+
+	// Apply truncation
+	if lp.TruncateLength > 0 {
+		result = truncateString(result, lp.TruncateLength)
+	}
+
+	return result
+}
+
+// truncateString truncates a string to maxLen characters
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "...[truncated]"
+}
+
+// secretPatterns contains regex patterns for common secrets
+var secretPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)(api[_-]?key|token|password|secret|credential)[=:]\s*\S+`),
+	regexp.MustCompile(`(?i)bearer\s+\S+`),
+	regexp.MustCompile(`sk-[a-zA-Z0-9]{20,}`),                       // OpenAI-style keys
+	regexp.MustCompile(`(?i)(aws[_-]?secret|aws[_-]?key)[=:]\s*\S+`), // AWS keys
+	regexp.MustCompile(`ghp_[a-zA-Z0-9]{36}`),                        // GitHub personal access tokens
+	regexp.MustCompile(`gho_[a-zA-Z0-9]{36}`),                        // GitHub OAuth tokens
+}
+
+// redactSecrets redacts common secret patterns from a string
+func redactSecrets(s string) string {
+	result := s
+	for _, pattern := range secretPatterns {
+		result = pattern.ReplaceAllString(result, "[REDACTED]")
+	}
+	return result
 }
 
 // OnMessage logs the message

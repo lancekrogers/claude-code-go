@@ -703,3 +703,194 @@ func TestRunOptionsPluginManager(t *testing.T) {
 		t.Errorf("expected 1 plugin, got %d", opts.PluginManager.Count())
 	}
 }
+
+// === Sanitization Tests ===
+
+func TestTruncateString(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		maxLen int
+		want   string
+	}{
+		{
+			name:   "short_string_no_truncation",
+			input:  "hello",
+			maxLen: 10,
+			want:   "hello",
+		},
+		{
+			name:   "exact_length",
+			input:  "hello",
+			maxLen: 5,
+			want:   "hello",
+		},
+		{
+			name:   "truncated",
+			input:  "hello world this is a long string",
+			maxLen: 10,
+			want:   "hello worl...[truncated]",
+		},
+		{
+			name:   "empty_string",
+			input:  "",
+			maxLen: 10,
+			want:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := truncateString(tt.input, tt.maxLen)
+			if got != tt.want {
+				t.Errorf("truncateString(%q, %d) = %q, want %q", tt.input, tt.maxLen, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRedactSecrets(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "api_key_equals",
+			input: "config api_key=sk-1234567890abcdef",
+			want:  "config [REDACTED]",
+		},
+		{
+			name:  "api_key_colon",
+			input: "api-key: secret123",
+			want:  "[REDACTED]",
+		},
+		{
+			name:  "bearer_token",
+			input: "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+			want:  "Authorization: [REDACTED]",
+		},
+		{
+			name:  "openai_key",
+			input: "OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwxyz",
+			want:  "OPENAI_[REDACTED]", // api_key pattern matches first, then sk- pattern
+		},
+		{
+			name:  "password_field",
+			input: "password: mysecretpass123",
+			want:  "[REDACTED]",
+		},
+		{
+			name:  "github_pat",
+			input: "token=ghp_1234567890abcdefghijklmnopqrstuvwxyz",
+			want:  "[REDACTED]", // token= pattern matches the whole string
+		},
+		{
+			name:  "no_secrets",
+			input: "this is just regular text",
+			want:  "this is just regular text",
+		},
+		{
+			name:  "empty_string",
+			input: "",
+			want:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := redactSecrets(tt.input)
+			if got != tt.want {
+				t.Errorf("redactSecrets(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestLoggingPluginSanitization(t *testing.T) {
+	logger := func(format string, args ...interface{}) {
+		// Logger for testing - we don't need to capture output for these tests
+		_ = format
+		_ = args
+	}
+
+	t.Run("no_sanitization_by_default", func(t *testing.T) {
+		plugin := NewLoggingPlugin(logger)
+		input := ToolInput{
+			Command: "api_key=secret123",
+		}
+
+		// Default plugin should not sanitize
+		sanitized := plugin.sanitizeInput(input)
+		if sanitized.Command != input.Command {
+			t.Errorf("expected no sanitization by default, got %q", sanitized.Command)
+		}
+	})
+
+	t.Run("secret_redaction_enabled", func(t *testing.T) {
+		plugin := NewLoggingPlugin(logger)
+		plugin.SanitizeSecrets = true
+
+		input := ToolInput{
+			Command: "export API_KEY=sk-abcdefghijklmnopqrstuvwxyz",
+			Content: "password: mysecretpass",
+		}
+
+		sanitized := plugin.sanitizeInput(input)
+		if sanitized.Command == input.Command {
+			t.Error("expected command to be sanitized")
+		}
+		if sanitized.Content == input.Content {
+			t.Error("expected content to be sanitized")
+		}
+	})
+
+	t.Run("truncation_enabled", func(t *testing.T) {
+		plugin := NewLoggingPlugin(logger)
+		plugin.TruncateLength = 20
+
+		input := ToolInput{
+			Content: "this is a very long string that should be truncated",
+		}
+
+		sanitized := plugin.sanitizeInput(input)
+		if len(sanitized.Content) > 35 { // 20 chars + "...[truncated]"
+			t.Errorf("expected truncation, got length %d", len(sanitized.Content))
+		}
+		if sanitized.Content != "this is a very long ...[truncated]" {
+			t.Errorf("unexpected truncation result: %q", sanitized.Content)
+		}
+	})
+
+	t.Run("both_sanitization_and_truncation", func(t *testing.T) {
+		plugin := NewLoggingPlugin(logger)
+		plugin.SanitizeSecrets = true
+		plugin.TruncateLength = 30
+
+		input := ToolInput{
+			Command: "export API_KEY=sk-verylongsecretkeyvalue1234567890",
+		}
+
+		sanitized := plugin.sanitizeInput(input)
+		// Should redact first, then truncate
+		if sanitized.Command == input.Command {
+			t.Error("expected command to be sanitized")
+		}
+	})
+
+	t.Run("empty_fields_not_modified", func(t *testing.T) {
+		plugin := NewLoggingPlugin(logger)
+		plugin.SanitizeSecrets = true
+		plugin.TruncateLength = 10
+
+		input := ToolInput{
+			Command: "",
+			Content: "",
+		}
+
+		sanitized := plugin.sanitizeInput(input)
+		if sanitized.Command != "" || sanitized.Content != "" {
+			t.Error("empty fields should remain empty")
+		}
+	})
+}

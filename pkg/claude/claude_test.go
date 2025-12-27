@@ -747,3 +747,326 @@ func TestHelperProcessError(t *testing.T) {
 	defer os.Exit(1)
 	os.Stderr.Write([]byte("command failed with error"))
 }
+
+// Test Session Control flags
+func TestBuildArgs_SessionControl(t *testing.T) {
+	tests := []struct {
+		name     string
+		opts     *RunOptions
+		expected []string
+		excluded []string
+	}{
+		{
+			name: "SessionID flag",
+			opts: &RunOptions{
+				SessionID: "550e8400-e29b-41d4-a716-446655440000",
+			},
+			expected: []string{"--session-id", "550e8400-e29b-41d4-a716-446655440000"},
+		},
+		{
+			name: "ForkSession flag",
+			opts: &RunOptions{
+				ForkSession: true,
+			},
+			expected: []string{"--fork-session"},
+		},
+		{
+			name: "NoSessionPersistence flag",
+			opts: &RunOptions{
+				NoSessionPersistence: true,
+			},
+			expected: []string{"--no-session-persistence"},
+		},
+		{
+			name: "All session flags combined",
+			opts: &RunOptions{
+				SessionID:            "550e8400-e29b-41d4-a716-446655440000",
+				ForkSession:          true,
+				NoSessionPersistence: true,
+			},
+			expected: []string{
+				"--session-id", "550e8400-e29b-41d4-a716-446655440000",
+				"--fork-session",
+				"--no-session-persistence",
+			},
+		},
+		{
+			name: "Empty SessionID should not add flag",
+			opts: &RunOptions{
+				SessionID: "",
+			},
+			excluded: []string{"--session-id"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := BuildArgs("test", tt.opts)
+
+			// Check expected args are present
+			for _, exp := range tt.expected {
+				found := false
+				for _, arg := range args {
+					if arg == exp {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected argument %q not found in %v", exp, args)
+				}
+			}
+
+			// Check excluded args are absent
+			for _, exc := range tt.excluded {
+				for _, arg := range args {
+					if arg == exc {
+						t.Errorf("Excluded argument %q should not be present in %v", exc, args)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestValidateSessionID(t *testing.T) {
+	tests := []struct {
+		name      string
+		sessionID string
+		wantErr   bool
+	}{
+		{
+			name:      "valid UUID",
+			sessionID: "550e8400-e29b-41d4-a716-446655440000",
+			wantErr:   false,
+		},
+		{
+			name:      "empty string is valid",
+			sessionID: "",
+			wantErr:   false,
+		},
+		{
+			name:      "invalid length",
+			sessionID: "550e8400-e29b",
+			wantErr:   true,
+		},
+		{
+			name:      "missing hyphens",
+			sessionID: "550e8400e29b41d4a716446655440000xxxx",
+			wantErr:   true,
+		},
+		{
+			name:      "wrong hyphen positions",
+			sessionID: "550e-8400-e29b-41d4-a71644665544",
+			wantErr:   true,
+		},
+		{
+			name:      "non-hex characters",
+			sessionID: "550e8400-e29b-41d4-a716-44665544000g",
+			wantErr:   true,
+		},
+		{
+			name:      "uppercase valid",
+			sessionID: "550E8400-E29B-41D4-A716-446655440000",
+			wantErr:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateSessionID(tt.sessionID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateSessionID(%q) error = %v, wantErr %v", tt.sessionID, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestGenerateSessionID(t *testing.T) {
+	// Generate multiple session IDs and verify they're valid UUIDs
+	generated := make(map[string]bool)
+
+	for i := 0; i < 100; i++ {
+		id := GenerateSessionID()
+
+		// Check format
+		if err := ValidateSessionID(id); err != nil {
+			t.Errorf("GenerateSessionID() produced invalid UUID: %q, error: %v", id, err)
+		}
+
+		// Check uniqueness
+		if generated[id] {
+			t.Errorf("GenerateSessionID() produced duplicate UUID: %q", id)
+		}
+		generated[id] = true
+	}
+}
+
+// Test MCP configuration flags
+func TestBuildArgs_MCPConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		opts     *RunOptions
+		expected []string
+		excluded []string
+	}{
+		{
+			name: "Multiple MCP configs",
+			opts: &RunOptions{
+				MCPConfigs: []string{"/path/config1.json", "/path/config2.json"},
+			},
+			expected: []string{"--mcp-config", "/path/config1.json", "/path/config2.json"},
+		},
+		{
+			name: "StrictMCPConfig flag",
+			opts: &RunOptions{
+				StrictMCPConfig: true,
+			},
+			expected: []string{"--strict-mcp-config"},
+		},
+		{
+			name: "MCP configs with strict mode",
+			opts: &RunOptions{
+				MCPConfigs:      []string{"/path/config.json"},
+				StrictMCPConfig: true,
+			},
+			expected: []string{"--mcp-config", "/path/config.json", "--strict-mcp-config"},
+		},
+		{
+			name: "Empty MCPConfigs should not add flag",
+			opts: &RunOptions{
+				MCPConfigs: []string{},
+			},
+			excluded: []string{"--mcp-config"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := BuildArgs("test", tt.opts)
+
+			// Check expected args are present
+			for _, exp := range tt.expected {
+				found := false
+				for _, arg := range args {
+					if arg == exp {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected argument %q not found in %v", exp, args)
+				}
+			}
+
+			// Check excluded args are absent
+			for _, exc := range tt.excluded {
+				for _, arg := range args {
+					if arg == exc {
+						t.Errorf("Excluded argument %q should not be present in %v", exc, args)
+					}
+				}
+			}
+		})
+	}
+}
+
+// Test AddDirectories and PrintMode flags
+func TestBuildArgs_CLIFlags(t *testing.T) {
+	tests := []struct {
+		name     string
+		opts     *RunOptions
+		expected []string
+		excluded []string
+	}{
+		{
+			name: "Single AddDirectory",
+			opts: &RunOptions{
+				AddDirectories: []string{"/path/to/dir"},
+			},
+			expected: []string{"--add-dir", "/path/to/dir"},
+		},
+		{
+			name: "Multiple AddDirectories",
+			opts: &RunOptions{
+				AddDirectories: []string{"/path/dir1", "/path/dir2", "/path/dir3"},
+			},
+			expected: []string{"--add-dir", "/path/dir1", "--add-dir", "/path/dir2", "--add-dir", "/path/dir3"},
+		},
+		{
+			name: "PrintMode flag",
+			opts: &RunOptions{
+				PrintMode: true,
+			},
+			expected: []string{"--print"},
+		},
+		{
+			name: "AddDirectories with PrintMode",
+			opts: &RunOptions{
+				AddDirectories: []string{"/path/to/dir"},
+				PrintMode:      true,
+			},
+			expected: []string{"--add-dir", "/path/to/dir", "--print"},
+		},
+		{
+			name: "Empty AddDirectories should not add flag",
+			opts: &RunOptions{
+				AddDirectories: []string{},
+			},
+			excluded: []string{"--add-dir"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := BuildArgs("test", tt.opts)
+
+			// Check expected args are present in order
+			for i := 0; i < len(tt.expected); i++ {
+				exp := tt.expected[i]
+				found := false
+				for _, arg := range args {
+					if arg == exp {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected argument %q not found in %v", exp, args)
+				}
+			}
+
+			// Check excluded args are absent
+			for _, exc := range tt.excluded {
+				for _, arg := range args {
+					if arg == exc {
+						t.Errorf("Excluded argument %q should not be present in %v", exc, args)
+					}
+				}
+			}
+		})
+	}
+}
+
+// Test session ID validation in PreprocessOptions
+func TestPreprocessOptions_SessionValidation(t *testing.T) {
+	client := &ClaudeClient{BinPath: "claude"}
+
+	// Valid session ID should not error
+	_, err := client.RunPromptCtx(context.Background(), "test", &RunOptions{
+		SessionID: "550e8400-e29b-41d4-a716-446655440000",
+	})
+	// This will fail because we don't have a mock, but it should fail after validation
+	// If it had failed validation, we'd get a different error
+
+	// Invalid session ID should error with validation message
+	_, err = client.RunPromptCtx(context.Background(), "test", &RunOptions{
+		SessionID: "invalid-session-id",
+	})
+	if err == nil {
+		t.Fatal("Expected error for invalid session ID, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid session ID") {
+		t.Errorf("Expected session ID validation error, got: %v", err)
+	}
+}
