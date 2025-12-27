@@ -14,18 +14,6 @@ coverage.html
 claude-go
 *.exe
 
-# Prevent any top-level binaries from examples/
-basic
-advanced
-testing
-demo
-demo-basic
-demo-streaming
-dangerous-example
-budget
-plugins
-subagents
-
 # Prevent any binary with common patterns in top-level
 *-example
 *-demo

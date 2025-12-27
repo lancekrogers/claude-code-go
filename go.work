@@ -3,5 +3,8 @@ go 1.24.2
 use .
 use ./examples/demo/basic
 use ./examples/demo/streaming
+use ./examples/demo/budget
+use ./examples/demo/plugins
+use ./examples/demo/subagents
 use ./examples/dangerous_usage
 use ./examples/enhanced_features

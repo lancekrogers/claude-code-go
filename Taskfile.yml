@@ -162,6 +162,39 @@ tasks:
         go build -o ../../../{{.BIN_DIR}}/demo-basic ./cmd/demo
       - echo "✅ Basic demo built successfully"
 
+  build-demo-budget:
+    desc: "Build the budget tracking demo"
+    cmds:
+      - echo "🔨 Building budget demo..."
+      - mkdir -p {{.BIN_DIR}}
+      - |
+        cd examples/demo/budget
+        go mod tidy
+        go build -o ../../../{{.BIN_DIR}}/demo-budget ./cmd/demo
+      - echo "✅ Budget demo built successfully"
+
+  build-demo-plugins:
+    desc: "Build the plugins demo"
+    cmds:
+      - echo "🔨 Building plugins demo..."
+      - mkdir -p {{.BIN_DIR}}
+      - |
+        cd examples/demo/plugins
+        go mod tidy
+        go build -o ../../../{{.BIN_DIR}}/demo-plugins ./cmd/demo
+      - echo "✅ Plugins demo built successfully"
+
+  build-demo-subagents:
+    desc: "Build the subagents demo"
+    cmds:
+      - echo "🔨 Building subagents demo..."
+      - mkdir -p {{.BIN_DIR}}
+      - |
+        cd examples/demo/subagents
+        go mod tidy
+        go build -o ../../../{{.BIN_DIR}}/demo-subagents ./cmd/demo
+      - echo "✅ Subagents demo built successfully"
+
   build-dangerous-example:
     desc: "Build dangerous usage example"
     cmds:
@@ -286,6 +319,45 @@ tasks:
       - echo "   Type 'exit', 'quit', 'bye', or press Enter on empty line to exit"
       - echo ""
       - "{{.BIN_DIR}}/demo-basic"
+
+  demo-budget:
+    desc: "Run the budget tracking demo"
+    deps: [build-demo-budget]
+    cmds:
+      - echo "🚀 Claude Code Go SDK Demo (Budget Tracking)"
+      - echo "============================================"
+      - echo "This demo shows real-time budget tracking with:"
+      - echo "  - Spending limits and warnings"
+      - echo "  - Per-session cost tracking"
+      - echo "  - Budget exceeded protection"
+      - echo ""
+      - "{{.BIN_DIR}}/demo-budget"
+
+  demo-plugins:
+    desc: "Run the plugins demo"
+    deps: [build-demo-plugins]
+    cmds:
+      - echo "🚀 Claude Code Go SDK Demo (Plugin System)"
+      - echo "=========================================="
+      - echo "This demo shows the plugin system with:"
+      - echo "  - Logging, metrics, and audit plugins"
+      - echo "  - Tool filtering for security"
+      - echo "  - Real-time plugin callbacks"
+      - echo ""
+      - "{{.BIN_DIR}}/demo-plugins"
+
+  demo-subagents:
+    desc: "Run the subagents demo"
+    deps: [build-demo-subagents]
+    cmds:
+      - echo "🚀 Claude Code Go SDK Demo (Subagent Orchestration)"
+      - echo "==================================================="
+      - echo "This demo shows the subagent system with:"
+      - echo "  - Specialized agents (security, code-review, testing)"
+      - echo "  - Agent switching with @agent syntax"
+      - echo "  - Session persistence and resumption"
+      - echo ""
+      - "{{.BIN_DIR}}/demo-subagents"
 
   run-dangerous:
     desc: "Run dangerous features example (development only)"

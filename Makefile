@@ -21,8 +21,9 @@ RESET := \033[0m
 .PHONY: all build build-lib examples build-examples build-basic build-advanced build-testing
 .PHONY: build-budget build-plugins build-subagents
 .PHONY: build-demo build-demo-streaming build-demo-basic build-dangerous-example
+.PHONY: build-demo-budget build-demo-plugins build-demo-subagents
 .PHONY: test test-lib test-dangerous test-integration test-integration-real test-local coverage
-.PHONY: demo demo-streaming demo-basic run-dangerous check-go check-claude
+.PHONY: demo demo-streaming demo-basic demo-budget demo-plugins demo-subagents run-dangerous check-go check-claude
 .PHONY: clean help banner
 
 ##@ Build Targets
@@ -64,6 +65,24 @@ build-demo-basic: ## Build the basic demo
 	@mkdir -p $(BIN_DIR)
 	@cd examples/demo/basic && go mod tidy && go build -o ../../../$(BIN_DIR)/demo-basic ./cmd/demo
 	@echo "$(GREEN)✅ Basic demo built successfully$(RESET)"
+
+build-demo-budget: ## Build the budget tracking demo
+	@echo "$(BLUE)🔨 Building budget demo...$(RESET)"
+	@mkdir -p $(BIN_DIR)
+	@cd examples/demo/budget && go mod tidy && go build -o ../../../$(BIN_DIR)/demo-budget ./cmd/demo
+	@echo "$(GREEN)✅ Budget demo built successfully$(RESET)"
+
+build-demo-plugins: ## Build the plugins demo
+	@echo "$(BLUE)🔨 Building plugins demo...$(RESET)"
+	@mkdir -p $(BIN_DIR)
+	@cd examples/demo/plugins && go mod tidy && go build -o ../../../$(BIN_DIR)/demo-plugins ./cmd/demo
+	@echo "$(GREEN)✅ Plugins demo built successfully$(RESET)"
+
+build-demo-subagents: ## Build the subagents demo
+	@echo "$(BLUE)🔨 Building subagents demo...$(RESET)"
+	@mkdir -p $(BIN_DIR)
+	@cd examples/demo/subagents && go mod tidy && go build -o ../../../$(BIN_DIR)/demo-subagents ./cmd/demo
+	@echo "$(GREEN)✅ Subagents demo built successfully$(RESET)"
 
 build-dangerous-example: ## Build dangerous usage example
 	@echo "$(BLUE)🔨 Building dangerous example...$(RESET)"
@@ -235,6 +254,36 @@ demo-basic: build-demo-basic check-go check-claude ## Run the basic demo
 	@echo "$(YELLOW)   Type 'exit', 'quit', 'bye', or press Enter on empty line to exit$(RESET)"
 	@echo ""
 	@$(BIN_DIR)/demo-basic
+
+demo-budget: build-demo-budget check-go check-claude ## Run the budget tracking demo
+	@echo "$(BLUE)🚀 Claude Code Go SDK Demo (Budget Tracking)$(RESET)"
+	@echo "$(BLUE)============================================$(RESET)"
+	@echo "This demo shows real-time budget tracking with:"
+	@echo "  - Spending limits and warnings"
+	@echo "  - Per-session cost tracking"
+	@echo "  - Budget exceeded protection"
+	@echo ""
+	@$(BIN_DIR)/demo-budget
+
+demo-plugins: build-demo-plugins check-go check-claude ## Run the plugins demo
+	@echo "$(BLUE)🚀 Claude Code Go SDK Demo (Plugin System)$(RESET)"
+	@echo "$(BLUE)==========================================$(RESET)"
+	@echo "This demo shows the plugin system with:"
+	@echo "  - Logging, metrics, and audit plugins"
+	@echo "  - Tool filtering for security"
+	@echo "  - Real-time plugin callbacks"
+	@echo ""
+	@$(BIN_DIR)/demo-plugins
+
+demo-subagents: build-demo-subagents check-go check-claude ## Run the subagents demo
+	@echo "$(BLUE)🚀 Claude Code Go SDK Demo (Subagent Orchestration)$(RESET)"
+	@echo "$(BLUE)===================================================$(RESET)"
+	@echo "This demo shows the subagent system with:"
+	@echo "  - Specialized agents (security, code-review, testing)"
+	@echo "  - Agent switching with @agent syntax"
+	@echo "  - Session persistence and resumption"
+	@echo ""
+	@$(BIN_DIR)/demo-subagents
 
 run-dangerous: build-dangerous-example check-dangerous ## Run dangerous features example (development only)
 	@echo "$(YELLOW)🚨 Running Dangerous Features Example$(RESET)"
