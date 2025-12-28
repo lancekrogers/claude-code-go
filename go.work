@@ -6,5 +6,9 @@ use ./examples/demo/streaming
 use ./examples/demo/budget
 use ./examples/demo/plugins
 use ./examples/demo/subagents
+use ./examples/demo/sessions
+use ./examples/demo/mcp
+use ./examples/demo/retry
+use ./examples/demo/permissions
 use ./examples/dangerous_usage
 use ./examples/enhanced_features

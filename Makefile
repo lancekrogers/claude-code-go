@@ -22,8 +22,10 @@ RESET := \033[0m
 .PHONY: build-budget build-plugins build-subagents
 .PHONY: build-demo build-demo-streaming build-demo-basic build-dangerous-example
 .PHONY: build-demo-budget build-demo-plugins build-demo-subagents
+.PHONY: build-demo-sessions build-demo-mcp build-demo-retry build-demo-permissions
 .PHONY: test test-lib test-dangerous test-integration test-integration-real test-local coverage
 .PHONY: demo demo-streaming demo-basic demo-budget demo-plugins demo-subagents run-dangerous check-go check-claude
+.PHONY: demo-sessions demo-mcp demo-retry demo-permissions
 .PHONY: clean help banner
 
 ##@ Build Targets
@@ -83,6 +85,30 @@ build-demo-subagents: ## Build the subagents demo
 	@mkdir -p $(BIN_DIR)
 	@cd examples/demo/subagents && go mod tidy && go build -o ../../../$(BIN_DIR)/demo-subagents ./cmd/demo
 	@echo "$(GREEN)✅ Subagents demo built successfully$(RESET)"
+
+build-demo-sessions: ## Build the sessions demo
+	@echo "$(BLUE)🔨 Building sessions demo...$(RESET)"
+	@mkdir -p $(BIN_DIR)
+	@cd examples/demo/sessions && go mod tidy && go build -o ../../../$(BIN_DIR)/demo-sessions ./cmd/demo
+	@echo "$(GREEN)✅ Sessions demo built successfully$(RESET)"
+
+build-demo-mcp: ## Build the MCP demo
+	@echo "$(BLUE)🔨 Building MCP demo...$(RESET)"
+	@mkdir -p $(BIN_DIR)
+	@cd examples/demo/mcp && go mod tidy && go build -o ../../../$(BIN_DIR)/demo-mcp ./cmd/demo
+	@echo "$(GREEN)✅ MCP demo built successfully$(RESET)"
+
+build-demo-retry: ## Build the retry demo
+	@echo "$(BLUE)🔨 Building retry demo...$(RESET)"
+	@mkdir -p $(BIN_DIR)
+	@cd examples/demo/retry && go mod tidy && go build -o ../../../$(BIN_DIR)/demo-retry ./cmd/demo
+	@echo "$(GREEN)✅ Retry demo built successfully$(RESET)"
+
+build-demo-permissions: ## Build the permissions demo
+	@echo "$(BLUE)🔨 Building permissions demo...$(RESET)"
+	@mkdir -p $(BIN_DIR)
+	@cd examples/demo/permissions && go mod tidy && go build -o ../../../$(BIN_DIR)/demo-permissions ./cmd/demo
+	@echo "$(GREEN)✅ Permissions demo built successfully$(RESET)"
 
 build-dangerous-example: ## Build dangerous usage example
 	@echo "$(BLUE)🔨 Building dangerous example...$(RESET)"
@@ -284,6 +310,46 @@ demo-subagents: build-demo-subagents check-go check-claude ## Run the subagents 
 	@echo "  - Session persistence and resumption"
 	@echo ""
 	@$(BIN_DIR)/demo-subagents
+
+demo-sessions: build-demo-sessions check-go check-claude ## Run the sessions demo
+	@echo "$(BLUE)🚀 Claude Code Go SDK Demo (Session Management)$(RESET)"
+	@echo "$(BLUE)================================================$(RESET)"
+	@echo "This demo shows session management with:"
+	@echo "  - Custom session IDs"
+	@echo "  - Session forking and resumption"
+	@echo "  - Ephemeral sessions"
+	@echo ""
+	@$(BIN_DIR)/demo-sessions
+
+demo-mcp: build-demo-mcp check-go check-claude ## Run the MCP demo
+	@echo "$(BLUE)🚀 Claude Code Go SDK Demo (MCP Integration)$(RESET)"
+	@echo "$(BLUE)=============================================$(RESET)"
+	@echo "This demo shows MCP integration with:"
+	@echo "  - MCP server configuration"
+	@echo "  - Strict mode for isolated environments"
+	@echo "  - Tool allowlisting"
+	@echo ""
+	@$(BIN_DIR)/demo-mcp
+
+demo-retry: build-demo-retry check-go check-claude ## Run the retry demo
+	@echo "$(BLUE)🚀 Claude Code Go SDK Demo (Retry & Error Handling)$(RESET)"
+	@echo "$(BLUE)===================================================$(RESET)"
+	@echo "This demo shows retry and error handling with:"
+	@echo "  - Configurable retry policies"
+	@echo "  - Exponential backoff with jitter"
+	@echo "  - Error classification"
+	@echo ""
+	@$(BIN_DIR)/demo-retry
+
+demo-permissions: build-demo-permissions check-go check-claude ## Run the permissions demo
+	@echo "$(BLUE)🚀 Claude Code Go SDK Demo (Permission Control)$(RESET)"
+	@echo "$(BLUE)================================================$(RESET)"
+	@echo "This demo shows permission control with:"
+	@echo "  - Permission modes (default, acceptEdits, bypass)"
+	@echo "  - Tool allowlisting and blocklisting"
+	@echo "  - Security presets"
+	@echo ""
+	@$(BIN_DIR)/demo-permissions
 
 run-dangerous: build-dangerous-example check-dangerous ## Run dangerous features example (development only)
 	@echo "$(YELLOW)🚨 Running Dangerous Features Example$(RESET)"

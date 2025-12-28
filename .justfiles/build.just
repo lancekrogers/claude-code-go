@@ -107,3 +107,72 @@ workflow:
     @mkdir -p {{BIN_DIR}}
     cd {{PROJECT_DIR}} && go build -o {{BIN_DIR}}/workflow-example ./examples/workflow
     @echo "Built: {{BIN_DIR}}/workflow-example"
+
+# ==== Interactive Demos ====
+
+# Build all interactive demos
+demos: demo-streaming demo-basic demo-budget demo-plugins demo-subagents demo-sessions demo-mcp demo-retry demo-permissions
+    @echo "All demos built"
+
+# Build streaming demo
+demo-streaming:
+    @echo "Building streaming demo..."
+    @mkdir -p {{BIN_DIR}}
+    cd {{PROJECT_DIR}}/examples/demo/streaming && go mod tidy && go build -o ../../../bin/demo ./cmd/demo
+    @echo "Built: {{BIN_DIR}}/demo"
+
+# Build basic demo
+demo-basic:
+    @echo "Building basic demo..."
+    @mkdir -p {{BIN_DIR}}
+    cd {{PROJECT_DIR}}/examples/demo/basic && go mod tidy && go build -o ../../../bin/demo-basic ./cmd/demo
+    @echo "Built: {{BIN_DIR}}/demo-basic"
+
+# Build budget demo
+demo-budget:
+    @echo "Building budget demo..."
+    @mkdir -p {{BIN_DIR}}
+    cd {{PROJECT_DIR}}/examples/demo/budget && go mod tidy && go build -o ../../../bin/demo-budget ./cmd/demo
+    @echo "Built: {{BIN_DIR}}/demo-budget"
+
+# Build plugins demo
+demo-plugins:
+    @echo "Building plugins demo..."
+    @mkdir -p {{BIN_DIR}}
+    cd {{PROJECT_DIR}}/examples/demo/plugins && go mod tidy && go build -o ../../../bin/demo-plugins ./cmd/demo
+    @echo "Built: {{BIN_DIR}}/demo-plugins"
+
+# Build subagents demo
+demo-subagents:
+    @echo "Building subagents demo..."
+    @mkdir -p {{BIN_DIR}}
+    cd {{PROJECT_DIR}}/examples/demo/subagents && go mod tidy && go build -o ../../../bin/demo-subagents ./cmd/demo
+    @echo "Built: {{BIN_DIR}}/demo-subagents"
+
+# Build sessions demo
+demo-sessions:
+    @echo "Building sessions demo..."
+    @mkdir -p {{BIN_DIR}}
+    cd {{PROJECT_DIR}}/examples/demo/sessions && go mod tidy && go build -o ../../../bin/demo-sessions ./cmd/demo
+    @echo "Built: {{BIN_DIR}}/demo-sessions"
+
+# Build MCP demo
+demo-mcp:
+    @echo "Building MCP demo..."
+    @mkdir -p {{BIN_DIR}}
+    cd {{PROJECT_DIR}}/examples/demo/mcp && go mod tidy && go build -o ../../../bin/demo-mcp ./cmd/demo
+    @echo "Built: {{BIN_DIR}}/demo-mcp"
+
+# Build retry demo
+demo-retry:
+    @echo "Building retry demo..."
+    @mkdir -p {{BIN_DIR}}
+    cd {{PROJECT_DIR}}/examples/demo/retry && go mod tidy && go build -o ../../../bin/demo-retry ./cmd/demo
+    @echo "Built: {{BIN_DIR}}/demo-retry"
+
+# Build permissions demo
+demo-permissions:
+    @echo "Building permissions demo..."
+    @mkdir -p {{BIN_DIR}}
+    cd {{PROJECT_DIR}}/examples/demo/permissions && go mod tidy && go build -o ../../../bin/demo-permissions ./cmd/demo
+    @echo "Built: {{BIN_DIR}}/demo-permissions"

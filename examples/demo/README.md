@@ -64,6 +64,66 @@ Demonstrates multi-agent orchestration with specialized agents.
 - ✅ Session persistence and resumption
 - ✅ Interactive commands: `agents`, `resume`
 
+## 🔄 Session Management Demo
+
+**Location**: `sessions/`
+**Command**: `make demo-sessions`
+
+Showcases session control features for conversation management.
+
+### Features
+
+- ✅ Custom session IDs with UUID generation
+- ✅ Session forking (branch conversations)
+- ✅ Ephemeral sessions (no disk persistence)
+- ✅ Session resumption and history tracking
+- ✅ Interactive commands: `/custom`, `/fork`, `/ephemeral`, `/history`
+
+## 🔌 MCP Integration Demo
+
+**Location**: `mcp/`
+**Command**: `make demo-mcp`
+
+Demonstrates Model Context Protocol (MCP) server integration.
+
+### Features
+
+- ✅ MCP server configuration loading
+- ✅ Strict mode for isolated environments
+- ✅ Tool allowlisting for security
+- ✅ Example filesystem MCP setup
+- ✅ Interactive commands: `/config`, `/strict`, `/allow`
+
+## 🔁 Retry & Error Handling Demo
+
+**Location**: `retry/`
+**Command**: `make demo-retry`
+
+Shows the SDK's retry and error handling capabilities.
+
+### Features
+
+- ✅ Configurable retry policies
+- ✅ Exponential backoff with jitter
+- ✅ Error classification (retryable vs non-retryable)
+- ✅ Preset policies (aggressive, conservative)
+- ✅ Interactive commands: `/retries`, `/delay`, `/enhanced`
+
+## 🔒 Permission Control Demo
+
+**Location**: `permissions/`
+**Command**: `make demo-permissions`
+
+Demonstrates permission and tool control features.
+
+### Features
+
+- ✅ Permission modes (default, acceptEdits, bypass)
+- ✅ Tool allowlisting with glob patterns
+- ✅ Tool blocklisting for security
+- ✅ Preset configurations (readonly, safe, git, full)
+- ✅ Interactive commands: `/mode`, `/allow`, `/deny`, `/preset`
+
 ## Quick Start
 
 ```bash
@@ -75,6 +135,10 @@ make demo-basic        # Basic JSON output
 make demo-budget       # Budget tracking
 make demo-plugins      # Plugin system
 make demo-subagents    # Subagent orchestration
+make demo-sessions     # Session management
+make demo-mcp          # MCP integration
+make demo-retry        # Retry & error handling
+make demo-permissions  # Permission control
 ```
 
 ## Demo Overview
@@ -86,6 +150,10 @@ make demo-subagents    # Subagent orchestration
 | budget | Cost control | API spending limits |
 | plugins | Extensibility | Custom integrations |
 | subagents | Multi-agent | Specialized workflows |
+| sessions | Conversation control | Multi-turn apps |
+| mcp | External tools | Tool integrations |
+| retry | Error handling | Production resilience |
+| permissions | Security | Enterprise deployments |
 
 ---
 

@@ -160,13 +160,13 @@ func handleCommand(cmd string) bool {
 		}
 		switch strings.ToLower(parts[1]) {
 		case "default":
-			permissionMode = claude.PermissionDefault
+			permissionMode = claude.PermissionModeDefault
 			fmt.Println("✓ Mode: default (standard permission checks)")
 		case "acceptedits":
-			permissionMode = claude.PermissionAcceptEdits
+			permissionMode = claude.PermissionModeAcceptEdits
 			fmt.Println("✓ Mode: acceptEdits (auto-approve file edits)")
 		case "bypass":
-			permissionMode = claude.PermissionBypass
+			permissionMode = claude.PermissionModeBypassPermissions
 			fmt.Println("⚠️  Mode: bypass (ALL permissions bypassed - DANGEROUS!)")
 		default:
 			fmt.Println("✗ Unknown mode. Use: default, acceptEdits, or bypass")
@@ -339,7 +339,7 @@ func main() {
 	fmt.Println()
 
 	// Initialize defaults
-	permissionMode = claude.PermissionDefault
+	permissionMode = claude.PermissionModeDefault
 	callbackEnabled = false
 	callbackDecision = "allow"
 

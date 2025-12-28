@@ -73,7 +73,7 @@ func handleCommand(cmd string) bool {
 		return true
 	case "/custom":
 		currentMode = ModeCustomID
-		newID, _ := claude.GenerateSessionID()
+		newID := claude.GenerateSessionID()
 		currentSessionID = newID
 		sessionHistory = append(sessionHistory, newID)
 		fmt.Printf("✓ Switched to custom ID mode. Generated ID: %s\n", truncateID(newID))
