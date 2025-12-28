@@ -37,10 +37,10 @@ func main() {
 
 	// Aggressive retry for critical operations
 	aggressivePolicy := &claude.RetryPolicy{
-		MaxRetries:    5,                      // More retry attempts
-		BaseDelay:     50 * time.Millisecond,  // Faster initial retry
-		MaxDelay:      10 * time.Second,       // Longer max wait
-		BackoffFactor: 1.5,                    // Slower backoff
+		MaxRetries:    5,                     // More retry attempts
+		BaseDelay:     50 * time.Millisecond, // Faster initial retry
+		MaxDelay:      10 * time.Second,      // Longer max wait
+		BackoffFactor: 1.5,                   // Slower backoff
 	}
 	fmt.Println("Aggressive Policy (for critical operations):")
 	fmt.Printf("  Max Retries: %d, Base Delay: %v, Max Delay: %v\n",
@@ -48,10 +48,10 @@ func main() {
 
 	// Conservative retry for background tasks
 	conservativePolicy := &claude.RetryPolicy{
-		MaxRetries:    2,                      // Fewer attempts
-		BaseDelay:     1 * time.Second,        // Longer initial wait
-		MaxDelay:      30 * time.Second,       // Longer max wait
-		BackoffFactor: 3.0,                    // Aggressive backoff
+		MaxRetries:    2,                // Fewer attempts
+		BaseDelay:     1 * time.Second,  // Longer initial wait
+		MaxDelay:      30 * time.Second, // Longer max wait
+		BackoffFactor: 3.0,              // Aggressive backoff
 	}
 	fmt.Println("Conservative Policy (for background tasks):")
 	fmt.Printf("  Max Retries: %d, Base Delay: %v, Max Delay: %v\n",
@@ -129,8 +129,7 @@ func main() {
 
 	// Example with default retry policy
 	fmt.Println("Code example with default retry:")
-	fmt.Println(`
-  result, err := client.RunPromptWithRetry(
+	fmt.Println(`  result, err := client.RunPromptWithRetry(
       "Your prompt here",
       &claude.RunOptions{Format: claude.JSONOutput},
       nil, // Uses DefaultRetryPolicy()
@@ -138,13 +137,11 @@ func main() {
   if err != nil {
       // All retries exhausted or non-retryable error
       handleError(err)
-  }
-`)
+  }`)
 
 	// Example with custom retry policy
 	fmt.Println("Code example with custom retry policy:")
-	fmt.Println(`
-  customPolicy := &claude.RetryPolicy{
+	fmt.Println(`  customPolicy := &claude.RetryPolicy{
       MaxRetries:    5,
       BaseDelay:     100 * time.Millisecond,
       MaxDelay:      10 * time.Second,
@@ -154,8 +151,7 @@ func main() {
       "Your prompt here",
       &claude.RunOptions{Format: claude.JSONOutput},
       customPolicy,
-  )
-`)
+  )`)
 	_ = client
 	fmt.Println()
 
@@ -166,8 +162,7 @@ func main() {
 	fmt.Println("=== Example 6: Context-Aware Retry ===")
 
 	fmt.Println("Using RunPromptWithRetryCtx for timeout control:")
-	fmt.Println(`
-  ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	fmt.Println(`  ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
   defer cancel()
 
   result, err := client.RunPromptWithRetryCtx(
@@ -180,8 +175,7 @@ func main() {
       if errors.Is(err, context.DeadlineExceeded) {
           log.Println("Operation timed out after all retries")
       }
-  }
-`)
+  }`)
 	fmt.Println()
 
 	// =========================================================================
@@ -247,8 +241,7 @@ func main() {
 	fmt.Println("=== Example 8: Enhanced Mode with Built-in Retry ===")
 
 	fmt.Println("RunPromptEnhanced includes automatic retry:")
-	fmt.Println(`
-  // Enhanced mode includes: validation, timeout support, and default retry
+	fmt.Println(`  // Enhanced mode includes: validation, timeout support, and default retry
   result, err := client.RunPromptEnhanced(
       "Your prompt",
       &claude.RunOptions{
@@ -256,16 +249,13 @@ func main() {
           Timeout: 30 * time.Second,
       },
   )
-  // Automatically retries on transient errors with DefaultRetryPolicy
-`)
+  // Automatically retries on transient errors with DefaultRetryPolicy`)
 
 	fmt.Println("With context for cancellation:")
-	fmt.Println(`
-  ctx, cancel := context.WithCancel(context.Background())
+	fmt.Println(`  ctx, cancel := context.WithCancel(context.Background())
   defer cancel()
 
-  result, err := client.RunPromptEnhancedCtx(ctx, "Your prompt", opts)
-`)
+  result, err := client.RunPromptEnhancedCtx(ctx, "Your prompt", opts)`)
 	fmt.Println()
 
 	// =========================================================================
@@ -300,8 +290,7 @@ func main() {
 	// Summary
 	// =========================================================================
 	fmt.Println("=== Retry and Error Handling Summary ===")
-	fmt.Println(`
-Error Types (claude.ErrorType):
+	fmt.Println(`Error Types (claude.ErrorType):
 - ErrorAuthentication  - API key issues (not retryable)
 - ErrorRateLimit       - Rate limiting (retryable with delay)
 - ErrorPermission      - Tool access denied (not retryable)
@@ -337,6 +326,5 @@ Best Practices:
 3. Set appropriate timeouts with context
 4. Use conservative retry for background tasks
 5. Log retry attempts for debugging
-6. Have fallback strategies for critical paths
-`)
+6. Have fallback strategies for critical paths`)
 }

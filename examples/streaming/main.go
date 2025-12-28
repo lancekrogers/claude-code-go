@@ -26,7 +26,7 @@ func main() {
 	// Messages arrive as Claude generates the response.
 	fmt.Println("=== Example 1: Basic Streaming Pattern ===")
 
-	fmt.Println(`
+	os.Stdout.WriteString(`
 Basic streaming pattern:
 
   client := claude.NewClient("claude")
@@ -56,8 +56,7 @@ Basic streaming pattern:
 	// Claude sends different message types during streaming.
 	fmt.Println("=== Example 2: Message Types ===")
 
-	fmt.Println(`
-Message types you may receive:
+	fmt.Println(`Message types you may receive:
 
   Type: "system"
     - Initial system message with available tools and MCP servers
@@ -73,8 +72,7 @@ Message types you may receive:
 
   Type: "result"
     - Final result when conversation completes
-    - Contains: Result, CostUSD, DurationMS, NumTurns, SessionID, IsError
-`)
+    - Contains: Result, CostUSD, DurationMS, NumTurns, SessionID, IsError`)
 
 	// =========================================================================
 	// Example 3: Processing Messages
@@ -82,7 +80,7 @@ Message types you may receive:
 	// Handle each message type appropriately.
 	fmt.Println("=== Example 3: Processing Messages ===")
 
-	fmt.Println(`
+	os.Stdout.WriteString(`
 Complete message processing pattern:
 
   func processMessages(messageCh <-chan claude.Message) {
@@ -126,7 +124,7 @@ Complete message processing pattern:
 	// Handle errors in a separate goroutine.
 	fmt.Println("=== Example 4: Concurrent Error Handling ===")
 
-	fmt.Println(`
+	os.Stdout.WriteString(`
 Handle errors concurrently:
 
   messageCh, errCh := client.StreamPrompt(ctx, prompt, opts)
@@ -154,7 +152,7 @@ Handle errors concurrently:
 	// Cancel streaming mid-response.
 	fmt.Println("=== Example 5: Context Cancellation ===")
 
-	fmt.Println(`
+	os.Stdout.WriteString(`
 Cancel streaming with context:
 
   ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -191,8 +189,7 @@ Cancel streaming with context:
 	// Handle OS signals to gracefully stop streaming.
 	fmt.Println("=== Example 6: Signal Handling ===")
 
-	fmt.Println(`
-Graceful shutdown with signals:
+	fmt.Println(`Graceful shutdown with signals:
 
   ctx, cancel := context.WithCancel(context.Background())
   defer cancel()
@@ -208,8 +205,7 @@ Graceful shutdown with signals:
   }()
 
   messageCh, errCh := client.StreamPrompt(ctx, prompt, opts)
-  // ... process as usual
-`)
+  // ... process as usual`)
 
 	// =========================================================================
 	// Example 7: Real-Time Progress Display
@@ -217,7 +213,7 @@ Graceful shutdown with signals:
 	// Display streaming progress to the user.
 	fmt.Println("=== Example 7: Real-Time Progress Display ===")
 
-	fmt.Println(`
+	os.Stdout.WriteString(`
 Display streaming progress:
 
   func streamWithProgress(client *claude.ClaudeClient, prompt string) {
@@ -297,7 +293,7 @@ Display streaming progress:
 	// =========================================================================
 	fmt.Println("=== Example 9: Complete Working Example ===")
 
-	fmt.Println(`
+	os.Stdout.WriteString(`
 Complete example you can run:
 
   package main
@@ -359,8 +355,7 @@ Complete example you can run:
 	// Summary
 	// =========================================================================
 	fmt.Println("=== Streaming Summary ===")
-	fmt.Println(`
-StreamPrompt Returns:
+	fmt.Println(`StreamPrompt Returns:
 - messageCh (<-chan Message) - Receives messages as they arrive
 - errCh (<-chan error)       - Receives any errors during streaming
 
@@ -381,6 +376,5 @@ Best Practices:
 3. Check msg.Type == "result" for completion
 4. Handle signals for graceful shutdown
 5. Close resources when streaming ends
-6. Consider buffering for high-frequency messages
-`)
+6. Consider buffering for high-frequency messages`)
 }

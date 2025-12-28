@@ -167,8 +167,7 @@ func main() {
 	// Summary
 	// =========================================================================
 	fmt.Println("=== Session Management Summary ===")
-	fmt.Println(`
-Session management features:
+	fmt.Println(`Session management features:
 
 1. SessionID        - Explicit UUID for tracking conversations
 2. ResumeConversation - Resume a specific session by ID
@@ -186,6 +185,5 @@ Best practices:
 - Generate UUIDs with claude.GenerateSessionID()
 - Store session IDs if you need to resume later
 - Use ephemeral sessions for sensitive one-off queries
-- Use context with timeout for production robustness
-`)
+- Use context with timeout for production robustness`)
 }

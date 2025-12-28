@@ -57,8 +57,8 @@ func main() {
 	secureBuilder := claude.NewMCPConfigBuilder().
 		AddHTTPServer("secure-api", "https://secure.example.com/mcp").
 		WithEnv("secure-api", map[string]string{
-			"API_KEY":    "your-api-key-here",     // In production: os.Getenv("API_KEY")
-			"API_SECRET": "your-api-secret-here",  // In production: os.Getenv("API_SECRET")
+			"API_KEY":    "your-api-key-here",    // In production: os.Getenv("API_KEY")
+			"API_SECRET": "your-api-secret-here", // In production: os.Getenv("API_SECRET")
 		})
 
 	// You can also add a stdio server with environment variables
@@ -181,7 +181,7 @@ func main() {
 
 	// Create an overlay configuration (e.g., for a specific environment)
 	overlayConfig := claude.NewMCPConfigBuilder().
-		AddHTTPServer("base-api", "https://production.example.com/mcp"). // Override
+		AddHTTPServer("base-api", "https://production.example.com/mcp").  // Override
 		AddSSEServer("monitoring", "https://monitor.example.com/events"). // New
 		Build()
 
@@ -268,8 +268,7 @@ func main() {
 	// Summary
 	// =========================================================================
 	fmt.Println("=== MCP Configuration Summary ===")
-	fmt.Println(`
-MCP Server Types:
+	fmt.Println(`MCP Server Types:
 - HTTP:  REST API endpoints (MCPServerTypeHTTP)
 - SSE:   Server-Sent Events for streaming (MCPServerTypeSSE)
 - Stdio: Local processes via stdin/stdout (MCPServerTypeStdio)
@@ -299,6 +298,5 @@ Usage with ClaudeClient:
 - MCPConfigPath      - Single config file path
 - MCPConfigs[]       - Multiple config paths/JSON strings
 - StrictMCPConfig    - Only use specified servers
-- AllowedTools       - Include mcp__<server>__<tool> format
-`)
+- AllowedTools       - Include mcp__<server>__<tool> format`)
 }

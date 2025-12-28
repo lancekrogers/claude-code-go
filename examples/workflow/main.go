@@ -26,8 +26,7 @@ func main() {
 	// Permission modes allow automated execution.
 	fmt.Println("=== Example 1: Permission Modes for CI/CD ===")
 
-	fmt.Println(`
-Permission modes for automation:
+	fmt.Println(`Permission modes for automation:
 
 1. PermissionModeDefault (safe for CI)
    - Uses standard permission checks
@@ -42,8 +41,7 @@ Permission modes for automation:
 3. PermissionModeBypassPermissions (dangerous!)
    - Skips ALL permission checks
    - Should NEVER be used in production CI
-   - Reserved for development/testing only
-`)
+   - Reserved for development/testing only`)
 
 	// Example CI/CD configuration
 	client := claude.NewClient("claude")
@@ -68,8 +66,8 @@ Permission modes for automation:
 			"Bash(sudo:*)",
 			"Bash(curl|sh:*)",
 		},
-		MaxTurns: 10,                  // Limit iterations
-		Timeout:  5 * time.Minute,     // Prevent runaway tasks
+		MaxTurns: 10,              // Limit iterations
+		Timeout:  5 * time.Minute, // Prevent runaway tasks
 	}
 
 	fmt.Println("CI/CD Configuration:")
@@ -85,7 +83,7 @@ Permission modes for automation:
 	// CI/CD pipelines need structured data for decision-making.
 	fmt.Println("=== Example 2: Structured Output Handling ===")
 
-	fmt.Println(`
+	os.Stdout.WriteString(`
 Parse JSON output for pipeline integration:
 
   result, err := client.RunPrompt("Review code for bugs", &claude.RunOptions{
@@ -136,8 +134,7 @@ Parse JSON output for pipeline integration:
 	// Proper exit codes are critical for CI/CD pipelines.
 	fmt.Println("=== Example 3: Exit Code Management ===")
 
-	fmt.Println(`
-Exit code convention for CI/CD:
+	fmt.Println(`Exit code convention for CI/CD:
 
   Exit 0: Success
   Exit 1: General error (Claude execution failed)
@@ -176,8 +173,7 @@ Error handling pattern:
       }
       fmt.Fprintln(os.Stderr, "Unknown error:", err)
       os.Exit(1)
-  }
-`)
+  }`)
 	fmt.Println()
 
 	// =========================================================================
@@ -186,7 +182,7 @@ Error handling pattern:
 	// Process multiple items in a CI pipeline.
 	fmt.Println("=== Example 4: Batch Processing ===")
 
-	fmt.Println(`
+	os.Stdout.WriteString(`
 Batch processing pattern for CI:
 
   type TaskResult struct {
@@ -252,8 +248,7 @@ Batch processing pattern for CI:
 	// Example of Claude in a GitHub Actions workflow.
 	fmt.Println("=== Example 5: GitHub Actions Integration ===")
 
-	fmt.Println(`
-GitHub Actions workflow example (.github/workflows/claude-review.yml):
+	fmt.Println(`GitHub Actions workflow example (.github/workflows/claude-review.yml):
 
   name: Claude Code Review
 
@@ -300,8 +295,7 @@ GitHub Actions workflow example (.github/workflows/claude-review.yml):
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
                 body: results.summary
-              });
-`)
+              });`)
 	fmt.Println()
 
 	// =========================================================================
@@ -310,7 +304,7 @@ GitHub Actions workflow example (.github/workflows/claude-review.yml):
 	// Managing API costs in automated pipelines.
 	fmt.Println("=== Example 6: Cost Control ===")
 
-	fmt.Println(`
+	os.Stdout.WriteString(`
 Budget control for CI pipelines:
 
   // Create a shared budget tracker for the pipeline
@@ -354,8 +348,7 @@ Budget control for CI pipelines:
 	// =========================================================================
 	fmt.Println("=== Example 7: Complete CI/CD Tool Pattern ===")
 
-	fmt.Println(`
-Complete CI/CD tool structure:
+	os.Stdout.WriteString(`Complete CI/CD tool structure:
 
   package main
 
@@ -453,8 +446,7 @@ Complete CI/CD tool structure:
 	// Summary
 	// =========================================================================
 	fmt.Println("=== CI/CD Workflow Summary ===")
-	fmt.Println(`
-Permission Modes:
+	fmt.Println(`Permission Modes:
 - PermissionModeDefault       - Safe, explicit tool list required
 - PermissionModeAcceptEdits   - Auto-approve edits, good for trusted CI
 - PermissionModeBypassPermissions - Dangerous, never in production
@@ -480,6 +472,5 @@ Best Practices:
 5. Log all costs for billing visibility
 6. Handle errors with proper exit codes
 7. Output structured data for downstream tools
-8. Use ephemeral sessions (NoSessionPersistence) for stateless CI
-`)
+8. Use ephemeral sessions (NoSessionPersistence) for stateless CI`)
 }

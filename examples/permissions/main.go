@@ -91,11 +91,11 @@ func main() {
 	fmt.Println("=== Example 3: SafeBash Callback (Custom Patterns) ===")
 
 	customPatterns := []string{
-		"sudo",       // Block all sudo commands
-		"apt-get",    // Block package management
-		"yum",        // Block package management
+		"sudo",        // Block all sudo commands
+		"apt-get",     // Block package management
+		"yum",         // Block package management
 		"npm publish", // Block publishing
-		"git push",   // Block pushing
+		"git push",    // Block pushing
 	}
 
 	safeBashCustom := claude.SafeBashCallback(customPatterns)
@@ -141,12 +141,12 @@ func main() {
 		tool string
 		path string
 	}{
-		{"Read", "/home/user/project/main.go"},  // Allowed (in allowed paths)
-		{"Write", "/tmp/test.txt"},               // Allowed (in allowed paths)
-		{"Edit", "/etc/passwd"},                  // Denied (in denied paths)
-		{"Read", "/var/log/syslog"},              // Denied (in denied paths)
-		{"Write", "/usr/bin/test"},               // Denied (not in allowed paths)
-		{"Bash", "ls"},                           // Allowed (not a file tool)
+		{"Read", "/home/user/project/main.go"}, // Allowed (in allowed paths)
+		{"Write", "/tmp/test.txt"},             // Allowed (in allowed paths)
+		{"Edit", "/etc/passwd"},                // Denied (in denied paths)
+		{"Read", "/var/log/syslog"},            // Denied (in denied paths)
+		{"Write", "/usr/bin/test"},             // Denied (not in allowed paths)
+		{"Bash", "ls"},                         // Allowed (not a file tool)
 	}
 
 	for _, fp := range filePaths {
@@ -177,10 +177,10 @@ func main() {
 		tool  string
 		input claude.ToolInput
 	}{
-		{"Read", claude.ToolInput{FilePath: "/home/user/project/main.go"}},  // Allowed
-		{"Write", claude.ToolInput{FilePath: "/etc/passwd"}},                 // Denied by FilePath
-		{"Bash", claude.ToolInput{Command: "ls -la"}},                        // Allowed
-		{"Bash", claude.ToolInput{Command: "rm -rf /"}},                      // Denied by SafeBash
+		{"Read", claude.ToolInput{FilePath: "/home/user/project/main.go"}}, // Allowed
+		{"Write", claude.ToolInput{FilePath: "/etc/passwd"}},               // Denied by FilePath
+		{"Bash", claude.ToolInput{Command: "ls -la"}},                      // Allowed
+		{"Bash", claude.ToolInput{Command: "rm -rf /"}},                    // Denied by SafeBash
 	}
 
 	for _, test := range chainedTests {
@@ -231,11 +231,11 @@ func main() {
 		tool  string
 		input claude.ToolInput
 	}{
-		{"Read", claude.ToolInput{FilePath: "/home/user/config.yaml"}},       // Allowed
-		{"Read", claude.ToolInput{FilePath: "/home/user/.secrets"}},          // Denied
-		{"Bash", claude.ToolInput{Command: "echo $API_KEY"}},                 // Denied
-		{"Write", claude.ToolInput{FilePath: "/tmp/output.txt"}},             // Ask
-		{"Bash", claude.ToolInput{Command: "git status"}},                    // Allowed
+		{"Read", claude.ToolInput{FilePath: "/home/user/config.yaml"}}, // Allowed
+		{"Read", claude.ToolInput{FilePath: "/home/user/.secrets"}},    // Denied
+		{"Bash", claude.ToolInput{Command: "echo $API_KEY"}},           // Denied
+		{"Write", claude.ToolInput{FilePath: "/tmp/output.txt"}},       // Ask
+		{"Bash", claude.ToolInput{Command: "git status"}},              // Allowed
 	}
 
 	for _, test := range customTests {
@@ -259,12 +259,12 @@ func main() {
 	fmt.Println("=== Example 7: Tool Permission Parsing ===")
 
 	permissions := []string{
-		"Bash",                    // Legacy format
-		"Write",                   // Legacy format
-		"Bash(git log:*)",         // Enhanced: any git log command
-		"Bash(npm install)",       // Enhanced: npm install only
-		"Write(src/**)",           // Enhanced: write to src/ directory
-		"mcp__filesystem__read",   // MCP tool
+		"Bash",                  // Legacy format
+		"Write",                 // Legacy format
+		"Bash(git log:*)",       // Enhanced: any git log command
+		"Bash(npm install)",     // Enhanced: npm install only
+		"Write(src/**)",         // Enhanced: write to src/ directory
+		"mcp__filesystem__read", // MCP tool
 	}
 
 	for _, perm := range permissions {
@@ -333,8 +333,7 @@ func main() {
 	// Summary
 	// =========================================================================
 	fmt.Println("=== Permission System Summary ===")
-	fmt.Println(`
-Permission Behaviors:
+	fmt.Println(`Permission Behaviors:
 - PermissionAllow - Allow the tool to execute
 - PermissionDeny  - Block the tool with a message
 - PermissionAsk   - Prompt user for confirmation
@@ -361,6 +360,5 @@ Usage in RunOptions:
 - PermissionMode     - Set default behavior
 - PermissionCallback - Custom callback function
 - AllowedTools       - List of permitted tools
-- DisallowedTools    - List of blocked tools
-`)
+- DisallowedTools    - List of blocked tools`)
 }
