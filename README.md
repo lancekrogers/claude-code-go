@@ -12,12 +12,14 @@ A comprehensive Go library for programmatically integrating the [Claude Code CLI
 ## Features
 
 ### Core Capabilities
+
 - **Full CLI Wrapper**: Complete access to all Claude Code features
 - **Streaming Support**: Real-time response streaming with context cancellation
 - **Session Management**: Multi-turn conversations with custom IDs, forking, and persistence control
 - **MCP Integration**: Model Context Protocol support for extending Claude with external tools
 
 ### Advanced Features
+
 - **Plugin System**: Extensible architecture with logging, metrics, audit, and tool filtering plugins
 - **Budget Tracking**: Cost control with spending limits, warnings, and callbacks
 - **Subagent Orchestration**: Specialized agents for different tasks (security, code review, testing)
@@ -25,6 +27,7 @@ A comprehensive Go library for programmatically integrating the [Claude Code CLI
 - **Permission Control**: Fine-grained tool permissions with allowlists, blocklists, and modes
 
 ### Developer Experience
+
 - **9 Interactive Demos**: Ready-to-run examples showcasing every feature
 - **Comprehensive Testing**: Unit and integration tests with mock server support
 - **Multiple Output Formats**: Text, JSON, and streaming JSON outputs
@@ -425,6 +428,7 @@ result, err := client.BYPASS_ALL_PERMISSIONS("trusted prompt", nil)
 ```
 
 **Requirements:**
+
 - Set `CLAUDE_ENABLE_DANGEROUS="i-accept-all-risks"`
 - Cannot run in production environments
 - See [pkg/claude/dangerous/README.md](pkg/claude/dangerous/README.md)

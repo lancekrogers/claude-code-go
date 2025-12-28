@@ -15,6 +15,7 @@ For official Claude Code documentation and SDK patterns, see the [Claude Code SD
 ### SDK Library Focus
 
 **What this project IS:**
+
 - Go SDK library (`pkg/claude/`)
 - Subprocess wrapper around official Claude Code CLI
 - JSON/streaming response parser
@@ -22,6 +23,7 @@ For official Claude Code documentation and SDK patterns, see the [Claude Code SD
 - MCP tool integration
 
 **What this project IS NOT:**
+
 - CLI distribution or replacement
 - Standalone application for end users
 - Alternative to the official `claude` command
@@ -29,18 +31,22 @@ For official Claude Code documentation and SDK patterns, see the [Claude Code SD
 ### Key Design Decisions
 
 #### 1. No Custom CLI
+
 We **do not** provide CLI interfaces. Users should use the official `claude` command directly.
 
 **Rationale:**
+
 - Avoids user confusion
 - Reduces maintenance burden
 - Prevents circular dependencies
 - Maintains clear project scope
 
 #### 2. Subprocess Pattern
+
 The SDK executes `claude` CLI as subprocess and parses responses.
 
 **Implementation:**
+
 - Uses `exec.CommandContext()` with proper context handling
 - Builds command arguments programmatically
 - Parses JSON/text/streaming responses
@@ -49,11 +55,13 @@ The SDK executes `claude` CLI as subprocess and parses responses.
 ## 🛠️ Development Setup
 
 ### Prerequisites
+
 - Go 1.21+ (latest version recommended)
 - Claude Code CLI installed
 - Make or Task runner
 
 ### Quick Start
+
 ```bash
 # Clone the repository
 git clone https://github.com/lancekrogers/claude-code-go
@@ -73,6 +81,7 @@ make test-integration
 ```
 
 ### Development Commands
+
 ```bash
 # Core development
 make build          # Build library and examples
@@ -92,14 +101,17 @@ make test-integration # Integration tests with mock server
 ## 📝 Code Guidelines
 
 ### Go Standards
+
 - Follow [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
 - Use `gofmt` for formatting
 - Run `go vet` before submitting
 - Write comprehensive tests
 
 ### API Design
+
 - All blocking operations must accept `context.Context`
 - Provide both context-aware and convenience methods:
+
   ```go
   // Context-aware (preferred)
   func (c *Client) RunPromptCtx(ctx context.Context, prompt string, opts *RunOptions) (*Result, error)
@@ -109,9 +121,11 @@ make test-integration # Integration tests with mock server
       return c.RunPromptCtx(context.Background(), prompt, opts)
   }
   ```
+
 - Use proper error wrapping with `fmt.Errorf("operation failed: %w", err)`
 
 ### Testing Requirements
+
 - **Minimum 80% test coverage** for new code
 - Unit tests for all public methods
 - Integration tests for end-to-end workflows
@@ -119,6 +133,7 @@ make test-integration # Integration tests with mock server
 - Use table-driven tests where appropriate
 
 ### Dependencies
+
 - **Minimize external dependencies**
 - Only add dependencies that enhance core SDK functionality
 - No CLI frameworks or command-line parsing libraries
@@ -129,23 +144,27 @@ make test-integration # Integration tests with mock server
 ### Test Types
 
 #### Unit Tests (`pkg/claude/*_test.go`)
+
 - Test core SDK functionality
 - Mock command execution using dependency injection
 - Validate argument building and response parsing
 - Test error conditions and edge cases
 
 #### Integration Tests (`test/integration/`)
+
 - Test full end-to-end workflows
 - Use mock Claude server for reliable testing
 - Validate MCP integration
 - Test streaming functionality
 
 #### Example Tests
+
 - Ensure all examples compile and run
 - Validate usage patterns
 - Test documentation examples
 
 ### Running Tests
+
 ```bash
 # All tests (recommended)
 make test-local
@@ -161,7 +180,9 @@ open coverage/coverage.html
 ```
 
 ### Mock Server Testing
+
 We provide a mock Claude server for integration testing:
+
 - HTTP server simulating Claude Code responses
 - Enables testing without Claude CLI dependency
 - Located in `test/mockserver/`
@@ -191,11 +212,13 @@ claude-code-go/
 ## 🚀 Contributing Process
 
 ### 1. Before Starting
+
 - Check existing issues and discussions
 - Discuss major changes in an issue first
 - Ensure your Go version meets requirements
 
 ### 2. Development Workflow
+
 ```bash
 # Fork and clone your fork
 git clone https://github.com/YOUR_USERNAME/claude-code-go
@@ -217,6 +240,7 @@ git commit -m "Add streaming timeout support
 ```
 
 ### 3. Pull Request Guidelines
+
 - **Clear title** describing the change
 - **Comprehensive description** with motivation and approach
 - **Link related issues** using "Fixes #123" or "Related to #456"
@@ -225,6 +249,7 @@ git commit -m "Add streaming timeout support
 - **Ensure CI passes** before requesting review
 
 ### 4. Code Review Process
+
 - Maintainers will review for design, correctness, and style
 - Address feedback promptly and thoroughly
 - Be responsive to questions and suggestions
@@ -233,6 +258,7 @@ git commit -m "Add streaming timeout support
 ## 📋 Common Contribution Areas
 
 ### High-Impact Contributions
+
 - **New convenience methods** for common use cases
 - **Improved error handling** and error messages
 - **Performance optimizations** for subprocess execution
@@ -240,12 +266,14 @@ git commit -m "Add streaming timeout support
 - **Enhanced MCP integration** and tool support
 
 ### Documentation Improvements
+
 - **Code examples** showing real-world usage
 - **API documentation** improvements
 - **Architecture diagrams** and explanations
 - **Testing guides** and best practices
 
 ### Testing and Quality
+
 - **Edge case testing** for error conditions
 - **Performance benchmarks** and load testing
 - **Cross-platform compatibility** testing
@@ -277,6 +305,7 @@ git commit -m "Add streaming timeout support
 ## 🎉 Recognition
 
 Contributors will be recognized in:
+
 - GitHub contributors page
 - Release notes for significant contributions
 - Project documentation and examples
