@@ -116,3 +116,31 @@ _check-dangerous:
         exit 1
     fi
     echo "Security requirements met"
+
+# ============================================================================
+# GIF Generation
+# ============================================================================
+
+# Generate GIF for a specific demo (basic, streaming, sessions, mcp, retry, permissions, budget, plugins, subagents)
+gif demo-name:
+    {{PROJECT_DIR}}/scripts/record-demo-gif.sh {{demo-name}}
+
+# Generate GIFs for all demos
+gif-all:
+    {{PROJECT_DIR}}/scripts/record-demo-gif.sh all
+
+# List available demos for GIF generation
+gif-list:
+    @echo "Available demos for GIF generation:"
+    @echo "  - basic"
+    @echo "  - streaming"
+    @echo "  - sessions"
+    @echo "  - mcp"
+    @echo "  - retry"
+    @echo "  - permissions"
+    @echo "  - budget"
+    @echo "  - plugins"
+    @echo "  - subagents"
+    @echo ""
+    @echo "Usage: just demo gif <demo-name>"
+    @echo "       just demo gif-all"
