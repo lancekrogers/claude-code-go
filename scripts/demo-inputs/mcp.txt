@@ -1,0 +1,4 @@
+/example
+/status
+List files in current directory
+exit

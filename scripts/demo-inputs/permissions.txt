@@ -1,0 +1,5 @@
+/preset readonly
+/tools
+/status
+List files in current directory
+exit

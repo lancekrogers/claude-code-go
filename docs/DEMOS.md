@@ -199,6 +199,10 @@ Orchestrate specialized AI agents for complex multi-step tasks. Decompose work i
 
 ## Generating Demo GIFs
 
+The demo GIFs are recordings of the **real Go demos running** with actual Claude API calls.
+
+> **Note:** Recording demos makes real API calls and incurs costs. Keep input scripts short.
+
 To regenerate the demo GIFs:
 
 ```bash
@@ -229,7 +233,7 @@ cargo install --git https://github.com/asciinema/agg
 To add a new demo:
 
 1. Create the interactive demo in `examples/demo/<name>/cmd/demo/main.go`
-2. Create the GIF script in `scripts/demo-scripts/<name>-demo.sh`
+2. Create an input file in `scripts/demo-inputs/<name>.txt` with commands to run
 3. Add build targets to `.justfiles/demos.just`
 4. Add documentation section to this file
 5. Generate the GIF: `just demo gif <name>`
