@@ -59,6 +59,7 @@ record_demo() {
     local demo_script="${DEMO_SCRIPTS_DIR}/${demo_name}-demo.sh"
     local cast_file="${OUTPUT_DIR}/${demo_name}.cast"
     local gif_file="${OUTPUT_DIR}/${demo_name}.gif"
+    local typescript_file="${OUTPUT_DIR}/${demo_name}.typescript"
 
     # Check if demo script exists
     if [ ! -f "$demo_script" ]; then
@@ -71,12 +72,69 @@ record_demo() {
 
     echo -e "${BLUE}Recording demo: ${demo_name}${NC}"
 
-    # Record with asciinema
-    asciinema rec "$cast_file" \
-        --command="$demo_script" \
-        --title="Claude Code Go SDK - ${demo_name} demo" \
-        --idle-time-limit=2 \
-        --overwrite
+    # Use macOS script command for reliable recording without TTY issues
+    # Then convert to asciicast format
+    local start_time=$(python3 -c "import time; print(time.time())")
+
+    # Record using script command (works without TTY)
+    script -q "$typescript_file" "$demo_script"
+
+    local end_time=$(python3 -c "import time; print(time.time())")
+    local duration=$(python3 -c "print(${end_time} - ${start_time})")
+
+    # Convert typescript to asciicast v2 format
+    echo -e "${BLUE}Converting to asciicast format...${NC}"
+
+    python3 - "$typescript_file" "$cast_file" "$duration" <<'PYTHON'
+import sys
+import json
+import re
+
+typescript_file = sys.argv[1]
+cast_file = sys.argv[2]
+duration = float(sys.argv[3])
+
+# Read typescript content
+with open(typescript_file, 'rb') as f:
+    content = f.read()
+
+# Clean up control sequences and split into chunks
+# Remove the "Script started/done" lines from macOS script command
+lines = content.decode('utf-8', errors='replace').split('\n')
+if lines and lines[0].startswith('Script started'):
+    lines = lines[1:]
+if lines and 'Script done' in lines[-1]:
+    lines = lines[:-1]
+
+content = '\n'.join(lines)
+
+# Create asciicast v2 format
+header = {
+    "version": 2,
+    "width": 100,
+    "height": 25,
+    "timestamp": int(float(sys.argv[3])),
+    "env": {"SHELL": "/bin/bash", "TERM": "xterm-256color"}
+}
+
+with open(cast_file, 'w') as f:
+    f.write(json.dumps(header) + '\n')
+
+    # Split content into chunks and add timing
+    chunks = re.split(r'(\x1b\[[0-9;]*m|\n)', content)
+    time_per_chunk = duration / max(len(chunks), 1)
+    current_time = 0.0
+
+    for chunk in chunks:
+        if chunk:
+            f.write(json.dumps([current_time, "o", chunk]) + '\n')
+            current_time += time_per_chunk
+
+print(f"Created {cast_file}")
+PYTHON
+
+    # Clean up typescript file
+    rm -f "$typescript_file"
 
     echo -e "${BLUE}Converting to GIF...${NC}"
 
