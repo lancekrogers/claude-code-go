@@ -1,0 +1,30 @@
+#!/usr/bin/expect -f
+# MCP demo - shows Model Context Protocol integration
+
+set timeout 120
+log_user 1
+
+spawn /demo/bin/demo-mcp
+
+# Wait for initial display and prompt
+expect ">>>"
+
+# Show help
+send "/help\r"
+expect ">>>"
+
+# Show status
+send "/status\r"
+expect ">>>"
+
+# Toggle strict mode
+send "/strict on\r"
+expect ">>>"
+
+# Show tools
+send "/tools\r"
+expect ">>>"
+
+# Exit
+send "exit\r"
+expect eof

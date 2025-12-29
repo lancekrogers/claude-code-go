@@ -1,0 +1,38 @@
+#!/usr/bin/expect -f
+# Subagents demo - shows agent orchestration
+
+set timeout 120
+log_user 1
+
+spawn /demo/bin/demo-subagents
+
+# Wait for initial display and prompt
+expect {
+    -re {\[code-review\] >>>} {}
+    ">>>" {}
+}
+
+# List available agents
+send "agents\r"
+expect {
+    -re {\[code-review\] >>>} {}
+    ">>>" {}
+}
+
+# Switch to security agent
+send "@security Summarize security best practices\r"
+expect {
+    -re {\[security\] >>>} {}
+    ">>>" {}
+}
+
+# Switch to docs agent
+send "@docs What makes good documentation?\r"
+expect {
+    -re {\[docs\] >>>} {}
+    ">>>" {}
+}
+
+# Exit
+send "exit\r"
+expect eof

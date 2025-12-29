@@ -1,0 +1,29 @@
+# Docker image for recording demo GIFs
+# Contains: expect (input automation) + asciinema (recording)
+# GIF conversion (agg) happens on host after cast file extraction
+
+FROM debian:bookworm-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    expect \
+    python3 \
+    python3-pip \
+    pipx \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install asciinema via pipx
+RUN pipx install asciinema && pipx ensurepath
+ENV PATH="/root/.local/bin:$PATH"
+
+# Create working directories
+WORKDIR /demo
+RUN mkdir -p /output /scripts /expect
+
+# Copy the recording script
+COPY scripts/docker/record-inside-container.sh /scripts/
+RUN chmod +x /scripts/record-inside-container.sh
+
+# Default command
+ENTRYPOINT ["/scripts/record-inside-container.sh"]

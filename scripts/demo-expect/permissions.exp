@@ -1,0 +1,30 @@
+#!/usr/bin/expect -f
+# Permissions demo - shows tool access control features
+
+set timeout 120
+log_user 1
+
+spawn /demo/bin/demo-permissions
+
+# Wait for initial display and prompt
+expect ">>>"
+
+# Show available presets
+send "/presets\r"
+expect ">>>"
+
+# Apply readonly preset
+send "/preset readonly\r"
+expect ">>>"
+
+# Show current tools configuration
+send "/tools\r"
+expect ">>>"
+
+# Show status
+send "/status\r"
+expect ">>>"
+
+# Exit
+send "exit\r"
+expect eof

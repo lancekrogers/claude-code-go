@@ -1,0 +1,22 @@
+#!/usr/bin/expect -f
+# Budget demo - shows cost tracking features
+
+set timeout 120
+log_user 1
+
+spawn /demo/bin/demo-budget
+
+# Wait for initial display and prompt
+expect ">>>"
+
+# Send a simple query to trigger cost tracking
+send "What is the capital of France?\r"
+expect ">>>"
+
+# Send another query to accumulate costs
+send "List 3 programming languages\r"
+expect ">>>"
+
+# Exit
+send "exit\r"
+expect eof

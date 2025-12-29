@@ -1,4 +1,0 @@
-List files in the current directory
-metrics
-audit
-exit

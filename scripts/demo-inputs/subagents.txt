@@ -1,4 +1,0 @@
-agents
-@security Check the README.md for security issues
-@docs Summarize the project structure
-exit

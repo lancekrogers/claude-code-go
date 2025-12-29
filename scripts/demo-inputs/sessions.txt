@@ -1,6 +1,0 @@
-/custom
-What is 2+2?
-/fork
-Tell me about Go programming
-/status
-exit

@@ -1,4 +1,0 @@
-/aggressive
-/status
-What is 5 times 7?
-exit
