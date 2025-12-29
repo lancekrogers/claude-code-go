@@ -123,12 +123,13 @@ record_demo() {
 
     # Record with asciinema using input file
     # The demo reads from stdin, we pipe in the input file
+    # Use asciicast-v2 format for agg compatibility
     cat "$input_file" | asciinema rec "$cast_file" \
         --command="$binary_path" \
         --title="Claude Code Go SDK - ${demo_name} demo" \
         --idle-time-limit=2 \
         --overwrite \
-        --format=asciicast
+        --output-format=asciicast-v2
 
     echo -e "${BLUE}Converting to GIF...${NC}"
 
