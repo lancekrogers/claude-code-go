@@ -4,8 +4,8 @@
 set timeout 120
 log_user 1
 
-# Use environment variable for binary path (-noecho hides full path in recording)
-spawn -noecho $env(DEMO_BINARY)
+# Show the command being run, then execute it
+spawn -noecho bash -c "echo '\$ just demo permissions' && sleep 0.5 && cd $env(PROJECT_DIR) && just demo permissions"
 
 # Wait for initial display and prompt
 expect ">>>"

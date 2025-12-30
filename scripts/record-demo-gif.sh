@@ -12,7 +12,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="${PROJECT_DIR}/docs/gif"
 EXPECT_DIR="${SCRIPT_DIR}/demo-expect"
-BIN_DIR="${PROJECT_DIR}/bin"
 
 # Colors
 RED='\033[0;31m'
@@ -75,44 +74,11 @@ check_dependencies() {
     echo -e "${GREEN}Dependencies verified${NC}"
 }
 
-# Get binary name for a demo
-get_binary_name() {
-    local demo_name="$1"
-    case "$demo_name" in
-        streaming)
-            echo "demo"
-            ;;
-        *)
-            echo "demo-${demo_name}"
-            ;;
-    esac
-}
-
-# Build demo binary for macOS
-build_demo() {
-    local demo_name="$1"
-    local binary_name=$(get_binary_name "$demo_name")
-    local demo_dir="${PROJECT_DIR}/examples/demo/${demo_name}"
-    local output_path="${BIN_DIR}/${binary_name}"
-
-    echo -e "${BLUE}Building ${demo_name}...${NC}"
-
-    mkdir -p "${BIN_DIR}"
-
-    # Build for local execution
-    cd "$demo_dir"
-    go build -o "$output_path" ./cmd/demo
-
-    echo -e "${GREEN}Built: ${output_path}${NC}"
-}
-
 record_demo() {
     local demo_name="$1"
-    local binary_name=$(get_binary_name "$demo_name")
     local expect_script="${EXPECT_DIR}/${demo_name}.exp"
     local cast_file="${OUTPUT_DIR}/${demo_name}.cast"
     local gif_file="${OUTPUT_DIR}/${demo_name}.gif"
-    local binary_path="${BIN_DIR}/${binary_name}"
 
     # Check expect script exists
     if [ ! -f "$expect_script" ]; then
@@ -121,9 +87,6 @@ record_demo() {
     fi
 
     echo -e "${BLUE}Recording demo: ${demo_name}${NC}"
-
-    # Build demo
-    build_demo "$demo_name"
 
     # Create temp sandbox directory
     local sandbox=$(mktemp -d)
@@ -138,9 +101,15 @@ record_demo() {
     echo -e "${YELLOW}Note: This uses real API credits!${NC}"
 
     # Record in sandbox directory
-    # Export binary path for expect script to use
     cd "$sandbox"
-    export DEMO_BINARY="$binary_path"
+
+    # Export project directory for expect scripts to use with just commands
+    export PROJECT_DIR="$PROJECT_DIR"
+
+    # Force color output even without TTY
+    export TERM="xterm-256color"
+    export FORCE_COLOR="1"
+    export CLICOLOR_FORCE="1"
 
     # Run asciinema with expect script
     asciinema rec "$cast_file" \

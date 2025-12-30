@@ -1,12 +1,11 @@
 #!/usr/bin/expect -f
 # Streaming demo - shows real-time message streaming
-# Similar to basic but with streaming output display
 
 set timeout 180
 log_user 1
 
-# Use environment variable for binary path (-noecho hides full path in recording)
-spawn -noecho $env(DEMO_BINARY)
+# Show the command being run, then execute it
+spawn -noecho bash -c "echo '\$ just demo streaming' && sleep 0.5 && cd $env(PROJECT_DIR) && just demo streaming"
 
 # Wait for streaming output and the prompt
 expect {
