@@ -113,6 +113,7 @@ record_demo() {
 
     # Run asciinema with expect script
     asciinema rec "$cast_file" \
+        --overwrite \
         --output-format=asciicast-v2 \
         --cols=100 \
         --rows=25 \
