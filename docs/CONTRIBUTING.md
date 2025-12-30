@@ -187,6 +187,40 @@ We provide a mock Claude server for integration testing:
 - Enables testing without Claude CLI dependency
 - Located in `test/mockserver/`
 
+## 🎬 Demo GIF Generation
+
+Interactive demos showcase the SDK features. The GIFs are recordings of real Go demos running with actual Claude Code CLI interactions.
+
+### Prerequisites
+
+```bash
+brew install expect asciinema just
+cargo install --git https://github.com/asciinema/agg
+```
+
+### Generating GIFs
+
+```bash
+# Generate single demo GIF
+just demo gif basic
+
+# Generate all demo GIFs
+just demo gif-all
+
+# List available demos
+just demo gif-list
+```
+
+> **Note:** Recording demos makes real API calls via Claude Code CLI. Keep demos short to control costs.
+
+### Adding a New Demo
+
+1. Create interactive demo: `examples/demo/<name>/cmd/demo/main.go`
+2. Create expect script: `scripts/demo-expect/<name>.exp`
+3. Add build targets to `.justfiles/demos.just`
+4. Add documentation section to `docs/DEMOS.md`
+5. Generate the GIF: `just demo gif <name>`
+
 ## 📂 Project Structure
 
 ```

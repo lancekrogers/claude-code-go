@@ -1,23 +1,6 @@
 # Claude Code Go SDK - Interactive Demos
 
-This document showcases the interactive demos included with the Claude Code Go SDK. Each demo highlights a specific feature of the SDK with animated GIFs showing the functionality in action.
-
-## Quick Start
-
-```bash
-# Install dependencies for GIF generation (optional)
-brew install asciinema
-cargo install --git https://github.com/asciinema/agg
-
-# Build all demos
-just build all
-
-# Run a specific demo
-just demo streaming
-just demo basic
-just demo sessions
-# ... etc
-```
+Interactive demos showcasing the Claude Code Go SDK features. Each demo runs the actual Claude Code CLI through the SDK, demonstrating real functionality.
 
 ## Available Demos
 
@@ -194,46 +177,3 @@ Orchestrate specialized AI agents for complex multi-step tasks. Decompose work i
 - Parallel execution support
 
 **Run it:** `just demo subagents`
-
----
-
-## Generating Demo GIFs
-
-The demo GIFs are recordings of the **real Go demos running** with actual Claude API calls.
-
-> **Note:** Recording demos makes real API calls and incurs costs. Keep input scripts short.
-
-To regenerate the demo GIFs:
-
-```bash
-# Generate a single demo GIF
-just demo gif basic
-
-# Generate all demo GIFs
-just demo gif-all
-
-# List available demos
-just demo gif-list
-```
-
-**Requirements:**
-- [asciinema](https://asciinema.org/) - Terminal session recording
-- [agg](https://github.com/asciinema/agg) - GIF conversion
-
-```bash
-# Install on macOS
-brew install asciinema
-cargo install --git https://github.com/asciinema/agg
-```
-
----
-
-## Contributing
-
-To add a new demo:
-
-1. Create the interactive demo in `examples/demo/<name>/cmd/demo/main.go`
-2. Create an input file in `scripts/demo-inputs/<name>.txt` with commands to run
-3. Add build targets to `.justfiles/demos.just`
-4. Add documentation section to this file
-5. Generate the GIF: `just demo gif <name>`

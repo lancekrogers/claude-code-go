@@ -1,8 +1,0 @@
-{"version":2,"width":80,"height":24,"timestamp":1767048715,"command":"expect /Users/lancerogers/Dev/AI/CC_GO_PLANNING/claude-code-go/scripts/demo-expect/basic.exp","env":{"SHELL":"/bin/zsh"}}
-[0.024065, "o", "spawn /Users/lancerogers/Dev/AI/CC_GO_PLANNING/claude-code-go/bin/demo-basic\r\r\r\n"]
-[0.425686, "o", "Starting demo conversation...\r\r\n"]
-[11.189836, "o", "Claude: I'll create the `it_works/` directory, copy the test file into it, and write a simple Go program that uses the standard library's `crypto/sha3` package with `sha3.NewLegacyKeccak256()` to compute and print the Keccak-256 hash of any file passed as a command-line argument. The program will read the file contents, hash them, and output the result as a hexadecimal string. After implementation, I'll verify it works by hashing both `test-file.txt` and `../README.md`.\r\r\n\r\r\nWould you like me to start implementing now?\r\r\n\r\r\n>>> "]
-[11.189881, "o", "no thanks, just demonstrate\r\r\n"]
-[77.236949, "o", "Claude: I've created the files in `it_works/`:\r\r\n\r\r\n- **main.go** - Uses `golang.org/x/crypto/sha3.NewLegacyKeccak256()` to hash any file\r\r\n- **test-file.txt** - Sample file to hash\r\r\n- **go.mod** - Module with the required dependency\r\r\n\r\r\nTo run it:\r\r\n```bash\r\r\ncd it_works && go mod tidy && go run main.go test-file.txt\r\r\n```\r\r\n\r\r\n>>> "]
-[77.237031, "o", "exit\r\r\nGoodbye! Thanks for trying the Claude Code Go SDK demo.\r\r\nDemo completed!\r\r\n"]
-[77.238071, "x", "0"]

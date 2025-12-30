@@ -19,3 +19,6 @@ claude-go
 *-demo
 *_test
 *_test.exe
+
+# Demo recording intermediate files (only GIFs needed)
+*.cast
