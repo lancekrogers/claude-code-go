@@ -473,6 +473,118 @@ just lint
 - [SDK Patterns](https://docs.anthropic.com/en/docs/claude-code/sdk)
 - [Getting Started](https://docs.anthropic.com/en/docs/claude-code/getting-started)
 
+## Demo Showcase
+
+Animated demonstrations of the SDK features. Run any demo locally with `just demo <name>`.
+
+### Basic
+
+Fundamental SDK usage - create a client, run prompts, get structured responses.
+
+![Basic Demo](docs/gif/basic.gif)
+
+```bash
+just demo basic
+```
+
+---
+
+### Streaming
+
+Real-time response streaming with message type handling and context cancellation.
+
+![Streaming Demo](docs/gif/streaming.gif)
+
+```bash
+just demo streaming
+```
+
+---
+
+### Sessions
+
+Multi-turn conversations with custom session IDs, forking, and persistence control.
+
+![Sessions Demo](docs/gif/sessions.gif)
+
+```bash
+just demo sessions
+```
+
+---
+
+### MCP
+
+Model Context Protocol integration for extending Claude with external tools.
+
+![MCP Demo](docs/gif/mcp.gif)
+
+```bash
+just demo mcp
+```
+
+---
+
+### Retry
+
+Configurable retry policies with exponential backoff and jitter.
+
+![Retry Demo](docs/gif/retry.gif)
+
+```bash
+just demo retry
+```
+
+---
+
+### Permissions
+
+Fine-grained tool access control with modes, allowlists, and blocklists.
+
+![Permissions Demo](docs/gif/permissions.gif)
+
+```bash
+just demo permissions
+```
+
+---
+
+### Budget
+
+Cost tracking with spending limits, warnings, and budget exceeded callbacks.
+
+![Budget Demo](docs/gif/budget.gif)
+
+```bash
+just demo budget
+```
+
+---
+
+### Plugins
+
+Extensible plugin system with logging, metrics, audit, and tool filtering.
+
+![Plugins Demo](docs/gif/plugins.gif)
+
+```bash
+just demo plugins
+```
+
+---
+
+### Subagents
+
+Specialized agent orchestration for complex multi-step tasks.
+
+![Subagents Demo](docs/gif/subagents.gif)
+
+```bash
+just demo subagents
+```
+
+---
+
 ## Contributing
 
 See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
