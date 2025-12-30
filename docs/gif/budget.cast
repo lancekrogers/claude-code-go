@@ -1,0 +1,13 @@
+{"version":2,"width":150,"height":84,"timestamp":1767062619,"command":"expect /Users/lancerogers/Dev/AI/CC_GO_PLANNING/claude-code-go/scripts/demo-expect/budget.exp","env":{"SHELL":"/bin/zsh"},"theme":{"fg":"#c0c0c0","bg":"#0a0a0a","palette":"#000000:#cc0403:#19cb00:#cecb00:#0d73cc:#cb1ed1:#0dcdcd:#dddddd:#767676:#f2201f:#23fd00:#fffd00:#1a8fff:#fd28ff:#14ffff:#ffffff"}}
+[0.013368, "o", "spawn /Users/lancerogers/Dev/AI/CC_GO_PLANNING/claude-code-go/bin/demo-budget\r\r\r\n"]
+[0.388454, "o", "╔════════════════════════════════════════════════════════════╗\r\r\n║       Claude Code Go SDK - Budget Tracking Demo            ║\r\r\n╚════════════════════════════════════════════════════════════╝\r\r\n\r\r\nð Budget Configuration:\r\r\n   • Maximum budget: $0.50\r\r\n   • Warning threshold: 50%\r\r\n\r\r\nð° Budget: $0.0000 / $0.50 [░░░░░░░░░░░░░░░░░░░░] 0.0% | Remaining: $0.5000\r\r\n\r\r\nð Starting budget-tracked conversation...\r\r\n   Ask Claude to do tasks and watch your budget in real-time!\r\r\n\r\r\n\r\r\n>>> "]
+[0.388519, "o", "What is the capital of France?\r\r\n"]
+[2.223719, "o", "ð Session dd7df1bf started\r\r\n"]
+[5.98743, "o", "ð¬ Paris is the capital of France.\r\r\n"]
+[6.188013, "o", "ð Cost: $0.033784 | Duration: 4.1s | Turns: 1\r\r\nð° Budget: $0.0338 / $0.50 [█░░░░░░░░░░░░░░░░░░░] 6.8% | Remaining: $0.4662\r\r\n\r\r\n>>> "]
+[6.188072, "o", "List 3 programming languages\r\r\n"]
+[7.900342, "o", "ð Session dd7df1bf started\r\r\n"]
+[13.817459, "o", "ð¬ 1. **Python** - General-purpose, known for readability and data science\r\r\n2. **Go** - Systems programming, concurrency, and cloud infrastructure\r\r\n3. **Rust** - Memory safety, performance, and systems programming\r\r\n"]
+[13.951087, "o", "ð Cost: $0.034489 | Duration: 6.1s | Turns: 1\r\r\nð° Budget: $0.0683 / $0.50 [██░░░░░░░░░░░░░░░░░░] 13.7% | Remaining: $0.4317\r\r\n\r\r\n>>> "]
+[13.951151, "o", "exit\r\r\n\r\r\n╔════════════════════════════════════════════════════════════╗\r\r\n║                     Session Summary                        ║\r\r\n╚════════════════════════════════════════════════════════════╝\r\r\n   Total spent: $0.068273\r\r\n   Remaining:   $0.431727\r\r\nð° Budget: $0.0683 / $0.50 [██░░░░░░░░░░░░░░░░░░] 13.7% | Remaining: $0.4317\r\r\n\r\r\nDemo completed!\r\r\n"]
+[13.952521, "x", "0"]

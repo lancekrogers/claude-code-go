@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Record and generate demo GIFs using Docker + expect + asciinema
-# Runs demos in isolated Docker container for filesystem safety
+# Record and generate demo GIFs using expect + asciinema
+# Runs demos in temp directory sandbox for filesystem isolation
 #
 # Usage: ./scripts/record-demo-gif.sh [demo-name]
 # Example: ./scripts/record-demo-gif.sh basic
@@ -11,12 +11,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="${PROJECT_DIR}/docs/gif"
-DOCKER_DIR="${SCRIPT_DIR}/docker"
 EXPECT_DIR="${SCRIPT_DIR}/demo-expect"
 BIN_DIR="${PROJECT_DIR}/bin"
-
-# Docker image name
-IMAGE_NAME="claude-code-go-demo-recorder"
 
 # Colors
 RED='\033[0;31m'
@@ -31,7 +27,7 @@ DEMOS=(basic streaming sessions mcp retry permissions budget plugins subagents)
 print_usage() {
     echo "Usage: $0 <demo-name|all>"
     echo ""
-    echo "Records REAL Go demos in isolated Docker container."
+    echo "Records REAL Go demos in temp directory sandbox."
     echo "Each recording makes real API calls - keep demos short to control costs."
     echo ""
     echo "Available demos:"
@@ -44,8 +40,12 @@ print_usage() {
 check_dependencies() {
     local missing=()
 
-    if ! command -v docker &> /dev/null; then
-        missing+=("docker")
+    if ! command -v expect &> /dev/null; then
+        missing+=("expect")
+    fi
+
+    if ! command -v asciinema &> /dev/null; then
+        missing+=("asciinema")
     fi
 
     if ! command -v agg &> /dev/null; then
@@ -60,33 +60,19 @@ check_dependencies() {
         echo -e "${RED}Missing dependencies: ${missing[*]}${NC}"
         echo ""
         echo "Install with:"
-        echo "  brew install just"
+        echo "  brew install expect asciinema just"
         echo "  cargo install --git https://github.com/asciinema/agg"
-        echo "  (Docker should be installed and running)"
         exit 1
     fi
 
-    # Check Docker is running
-    if ! docker info &> /dev/null; then
-        echo -e "${RED}Docker is not running${NC}"
-        exit 1
-    fi
-
-    # Check API key is set
-    if [ -z "$ANTHROPIC_API_KEY" ]; then
-        echo -e "${RED}ANTHROPIC_API_KEY environment variable is not set${NC}"
+    # Verify claude CLI is available and logged in
+    if ! command -v claude &> /dev/null; then
+        echo -e "${RED}claude CLI not found${NC}"
+        echo "Install from: https://github.com/anthropics/claude-code"
         exit 1
     fi
 
     echo -e "${GREEN}Dependencies verified${NC}"
-}
-
-build_docker_image() {
-    echo -e "${BLUE}Building Docker image...${NC}"
-    docker build \
-        -t "$IMAGE_NAME" \
-        -f "${DOCKER_DIR}/Dockerfile.demo-recorder" \
-        "$PROJECT_DIR"
 }
 
 # Get binary name for a demo
@@ -102,20 +88,20 @@ get_binary_name() {
     esac
 }
 
-# Build demo binary for Linux (cross-compile)
-build_demo_for_linux() {
+# Build demo binary for macOS
+build_demo() {
     local demo_name="$1"
     local binary_name=$(get_binary_name "$demo_name")
     local demo_dir="${PROJECT_DIR}/examples/demo/${demo_name}"
-    local output_path="${BIN_DIR}/linux/${binary_name}"
+    local output_path="${BIN_DIR}/${binary_name}"
 
-    echo -e "${BLUE}Building ${demo_name} for Linux...${NC}"
+    echo -e "${BLUE}Building ${demo_name}...${NC}"
 
-    mkdir -p "${BIN_DIR}/linux"
+    mkdir -p "${BIN_DIR}"
 
-    # Cross-compile for Linux
+    # Build for local execution
     cd "$demo_dir"
-    GOOS=linux GOARCH=amd64 go build -o "$output_path" ./cmd/demo
+    go build -o "$output_path" ./cmd/demo
 
     echo -e "${GREEN}Built: ${output_path}${NC}"
 }
@@ -126,6 +112,7 @@ record_demo() {
     local expect_script="${EXPECT_DIR}/${demo_name}.exp"
     local cast_file="${OUTPUT_DIR}/${demo_name}.cast"
     local gif_file="${OUTPUT_DIR}/${demo_name}.gif"
+    local binary_path="${BIN_DIR}/${binary_name}"
 
     # Check expect script exists
     if [ ! -f "$expect_script" ]; then
@@ -135,24 +122,38 @@ record_demo() {
 
     echo -e "${BLUE}Recording demo: ${demo_name}${NC}"
 
-    # Build demo for Linux
-    build_demo_for_linux "$demo_name"
+    # Build demo
+    build_demo "$demo_name"
 
-    echo -e "${BLUE}Running in Docker container...${NC}"
+    # Create temp sandbox directory
+    local sandbox=$(mktemp -d)
+    echo -e "${BLUE}Using sandbox: ${sandbox}${NC}"
+
+    # Cleanup sandbox on exit (whether success or failure)
+    cleanup() {
+        rm -rf "$sandbox"
+    }
+    trap cleanup EXIT
+
     echo -e "${YELLOW}Note: This uses real API credits!${NC}"
 
-    # Run in Docker with:
-    # - Binary mounted to /demo/bin/
-    # - Expect script mounted to /expect/
-    # - Output directory mounted to /output/
-    # - API key passed as environment variable
-    docker run --rm \
-        -v "${BIN_DIR}/linux:/demo/bin:ro" \
-        -v "${EXPECT_DIR}:/expect:ro" \
-        -v "${OUTPUT_DIR}:/output" \
-        -e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" \
-        "$IMAGE_NAME" \
-        "$demo_name"
+    # Record in sandbox directory
+    # Export binary path for expect script to use
+    cd "$sandbox"
+    export DEMO_BINARY="$binary_path"
+
+    # Run asciinema with expect script
+    asciinema rec "$cast_file" \
+        --output-format=asciicast-v2 \
+        --cols=100 \
+        --rows=25 \
+        --command="expect $expect_script"
+
+    # Reset trap to avoid double cleanup
+    trap - EXIT
+
+    # Clean up sandbox
+    rm -rf "$sandbox"
 
     # Check if cast file was created
     if [ ! -f "$cast_file" ]; then
@@ -162,7 +163,7 @@ record_demo() {
 
     echo -e "${BLUE}Converting to GIF...${NC}"
 
-    # Convert to GIF with agg (runs on host)
+    # Convert to GIF with agg
     agg \
         --theme=monokai \
         --font-size=14 \
@@ -212,9 +213,6 @@ main() {
 
     # Check dependencies
     check_dependencies
-
-    # Build Docker image
-    build_docker_image
 
     if [ "$demo_name" = "all" ]; then
         record_all

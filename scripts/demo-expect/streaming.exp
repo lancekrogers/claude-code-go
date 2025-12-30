@@ -5,7 +5,8 @@
 set timeout 180
 log_user 1
 
-spawn /demo/bin/demo
+# Use environment variable for binary path
+spawn $env(DEMO_BINARY)
 
 # Wait for streaming output and the prompt
 expect {

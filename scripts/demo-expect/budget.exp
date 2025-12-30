@@ -4,7 +4,8 @@
 set timeout 120
 log_user 1
 
-spawn /demo/bin/demo-budget
+# Use environment variable for binary path
+spawn $env(DEMO_BINARY)
 
 # Wait for initial display and prompt
 expect ">>>"
