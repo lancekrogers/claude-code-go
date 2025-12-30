@@ -79,18 +79,20 @@ git clone https://github.com/lancekrogers/claude-code-go
 cd claude-code-go
 
 # Core demos
-make demo              # Streaming demo (default)
-make demo-basic        # Basic JSON output
+just demo streaming    # Real-time streaming (default)
+just demo basic        # Basic JSON output
 
 # Feature demos
-make demo-budget       # Budget tracking with spending limits
-make demo-plugins      # Plugin system with logging/metrics
-make demo-subagents    # Multi-agent orchestration
-make demo-sessions     # Session management features
-make demo-mcp          # MCP server integration
-make demo-retry        # Retry and error handling
-make demo-permissions  # Permission control system
+just demo sessions     # Session management and forking
+just demo mcp          # MCP server integration
+just demo retry        # Retry and error handling
+just demo permissions  # Permission control system
+just demo budget       # Budget tracking with spending limits
+just demo plugins      # Plugin system with logging/metrics
+just demo subagents    # Multi-agent orchestration
 ```
+
+See [Demo Showcase](#demo-showcase) below for animated GIFs of each demo.
 
 ## Core Features
 
@@ -436,32 +438,32 @@ result, err := client.BYPASS_ALL_PERMISSIONS("trusted prompt", nil)
 ## Testing
 
 ```bash
-# Unit tests
-make test
+# All tests
+just test all
+
+# Unit tests only
+just test lib
 
 # Integration tests (mock server)
-make test-integration
-
-# Integration tests (real Claude)
-make test-integration-real
+just test integration
 
 # Coverage report
-make coverage
+just coverage
 ```
 
 ## Development
 
-Both Make and [Task](https://taskfile.dev) are supported:
+[Just](https://github.com/casey/just) is the primary command runner:
 
 ```bash
 # Show available commands
-make help        # or: task --list
+just --list
 
 # Build everything
-make build       # or: task build
+just build all
 
-# Run demos
-make demo        # or: task demo
+# Run linting
+just lint
 ```
 
 ## Official Documentation

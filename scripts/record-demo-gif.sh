@@ -112,12 +112,13 @@ record_demo() {
     export CLICOLOR_FORCE="1"
 
     # Run asciinema with expect script
+    # Pass PROJECT_DIR inline since asciinema doesn't inherit exported env vars
     asciinema rec "$cast_file" \
         --overwrite \
         --output-format=asciicast-v2 \
         --cols=100 \
         --rows=25 \
-        --command="expect $expect_script"
+        --command="PROJECT_DIR=$PROJECT_DIR TERM=$TERM FORCE_COLOR=$FORCE_COLOR expect $expect_script"
 
     # Reset trap to avoid double cleanup
     trap - EXIT
@@ -139,7 +140,7 @@ record_demo() {
         --font-size=14 \
         --cols=100 \
         --rows=25 \
-        --speed=1.5 \
+        --speed=0.5 \
         "$cast_file" \
         "$gif_file"
 
