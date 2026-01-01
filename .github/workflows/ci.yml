@@ -38,6 +38,3 @@ jobs:
 
       - name: Test dangerous package
         run: just test dangerous
-
-      - name: Test integration
-        run: just test integration

@@ -20,18 +20,29 @@ start:
 # Start mock server in background
 start-bg:
     #!/usr/bin/env bash
+    set -euo pipefail
     echo "Starting mock server in background..."
     MOCK_PORT="${MOCK_SERVER_PORT:-8080}"
-    go run {{PROJECT_DIR}}/test/mockserver/main.go &
+    START_TIMEOUT="${MOCK_SERVER_START_TIMEOUT:-30}"
+    LOG_FILE="${MOCK_SERVER_LOG_FILE:-/tmp/claude-mock-server.log}"
+    : > "${LOG_FILE}"
+    go run {{PROJECT_DIR}}/test/mockserver/main.go >"${LOG_FILE}" 2>&1 &
     echo $! > {{MOCK_PID_FILE}}
     echo "Mock server started (PID saved to {{MOCK_PID_FILE}})"
-    for _ in {1..50}; do
+    attempts=$((START_TIMEOUT * 10))
+    for _ in $(seq 1 "${attempts}"); do
         if curl -sf "http://localhost:${MOCK_PORT}/health" >/dev/null; then
             exit 0
         fi
+        if ! kill -0 "$(cat {{MOCK_PID_FILE}})" 2>/dev/null; then
+            echo "Mock server process exited early"
+            tail -n 50 "${LOG_FILE}" || true
+            exit 1
+        fi
         sleep 0.1
     done
-    echo "Mock server failed to start on port ${MOCK_PORT}"
+    echo "Mock server failed to start on port ${MOCK_PORT} within ${START_TIMEOUT}s"
+    tail -n 50 "${LOG_FILE}" || true
     just mock stop
     exit 1
 
