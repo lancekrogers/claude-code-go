@@ -317,6 +317,21 @@ func BuildArgs(prompt string, opts *RunOptions) []string {
 		args = append(args, "--print")
 	}
 
+	// JSON Schema for structured output
+	if opts.JSONSchema != "" {
+		args = append(args, "--json-schema", opts.JSONSchema)
+	}
+
+	// Fallback model for overloaded primary
+	if opts.FallbackModel != "" {
+		args = append(args, "--fallback-model", opts.FallbackModel)
+	}
+
+	// Debug mode with filter
+	if opts.Debug != "" {
+		args = append(args, "--debug", opts.Debug)
+	}
+
 	return args
 }
 

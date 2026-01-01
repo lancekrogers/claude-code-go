@@ -121,6 +121,20 @@ type RunOptions struct {
 	AddDirectories []string
 	// PrintMode enables print mode output (required for some flags)
 	PrintMode bool
+
+	// JSONSchema specifies a JSON Schema for structured output validation
+	// The response will be validated against this schema
+	// Example: {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
+	JSONSchema string
+
+	// FallbackModel specifies a model to use when the primary model is overloaded
+	// Only works with --print mode
+	// Example: "sonnet" or "claude-sonnet-4-5-20250929"
+	FallbackModel string
+
+	// Debug enables debug mode with optional category filtering
+	// Example: "api,mcp" or "!statsig,!file" (exclude categories)
+	Debug string
 }
 
 // validateMCPToolName validates that MCP tool names follow the correct pattern: mcp__<serverName>__<toolName>
