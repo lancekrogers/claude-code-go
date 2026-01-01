@@ -10,6 +10,7 @@ mod test '.justfiles/test.just'
 mod coverage '.justfiles/coverage.just'
 mod mock '.justfiles/mock.just'
 mod util '.justfiles/util.just'
+mod release '.justfiles/releases.just'
 
 # Variables
 PROJECT := "Claude Code Go SDK"
