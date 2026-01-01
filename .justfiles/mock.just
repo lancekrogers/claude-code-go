@@ -15,15 +15,25 @@ MOCK_PID_FILE := "/tmp/claude-mock-server.pid"
 # Start mock Claude server (foreground)
 start:
     @echo "Starting mock Claude server..."
-    go run {{PROJECT_DIR}}/test/mock_server/main.go
+    go run {{PROJECT_DIR}}/test/mockserver/main.go
 
 # Start mock server in background
 start-bg:
-    @echo "Starting mock server in background..."
-    go run {{PROJECT_DIR}}/test/mock_server/main.go &
+    #!/usr/bin/env bash
+    echo "Starting mock server in background..."
+    MOCK_PORT="${MOCK_SERVER_PORT:-8080}"
+    go run {{PROJECT_DIR}}/test/mockserver/main.go &
     echo $! > {{MOCK_PID_FILE}}
-    @echo "Mock server started (PID saved to {{MOCK_PID_FILE}})"
-    sleep 2
+    echo "Mock server started (PID saved to {{MOCK_PID_FILE}})"
+    for _ in {1..50}; do
+        if curl -sf "http://localhost:${MOCK_PORT}/health" >/dev/null; then
+            exit 0
+        fi
+        sleep 0.1
+    done
+    echo "Mock server failed to start on port ${MOCK_PORT}"
+    just mock stop
+    exit 1
 
 # Stop background mock server
 stop:
@@ -40,7 +50,7 @@ stop:
     else
         echo "No PID file found"
         # Try to find and kill any running mock server
-        pkill -f "mock_server/main.go" || true
+        pkill -f "mockserver/main.go" || true
     fi
 
 # Check mock server status
@@ -60,4 +70,4 @@ status:
 # Test mock server functionality
 test:
     @echo "Testing mock server..."
-    curl -s http://localhost:8080/health || echo "Mock server not responding"
+    curl -s "http://localhost:${MOCK_SERVER_PORT:-8080}/health" || echo "Mock server not responding"

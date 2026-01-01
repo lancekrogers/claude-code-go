@@ -28,9 +28,15 @@ dangerous:
 
 # Run integration tests with mock server
 integration:
-    @echo "Running integration tests..."
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Running integration tests..."
+    export MOCK_SERVER_PORT="${MOCK_SERVER_PORT:-8080}"
+    just mock start-bg
+    cleanup() { just mock stop; }
+    trap cleanup EXIT
     INTEGRATION_TESTS=1 USE_MOCK_SERVER=1 go test -tags=integration {{PROJECT_DIR}}/test/integration -v
-    @echo "Integration tests complete"
+    echo "Integration tests complete"
 
 # Run integration tests with real Claude CLI
 integration-real:
