@@ -5,7 +5,7 @@ This directory contains interactive demo implementations showcasing different as
 ## 🚀 Streaming Demo (Default)
 
 **Location**: `streaming/`
-**Command**: `make demo` or `make demo-streaming`
+**Command**: `just demo streaming`
 
 Real-time visibility into Claude's actions using streaming JSON output.
 
@@ -18,14 +18,14 @@ Real-time visibility into Claude's actions using streaming JSON output.
 ## 📝 Basic Demo
 
 **Location**: `basic/`
-**Command**: `make demo-basic`
+**Command**: `just demo basic`
 
 Simple SDK usage with standard JSON output for learning fundamentals.
 
 ## 💰 Budget Tracking Demo
 
 **Location**: `budget/`
-**Command**: `make demo-budget`
+**Command**: `just demo budget`
 
 Demonstrates the SDK's budget tracking capabilities for cost control.
 
@@ -39,7 +39,7 @@ Demonstrates the SDK's budget tracking capabilities for cost control.
 ## 🔌 Plugin System Demo
 
 **Location**: `plugins/`
-**Command**: `make demo-plugins`
+**Command**: `just demo plugins`
 
 Showcases the extensible plugin architecture for customizing SDK behavior.
 
@@ -53,7 +53,7 @@ Showcases the extensible plugin architecture for customizing SDK behavior.
 ## 🤖 Subagent Orchestration Demo
 
 **Location**: `subagents/`
-**Command**: `make demo-subagents`
+**Command**: `just demo subagents`
 
 Demonstrates multi-agent orchestration with specialized agents.
 
@@ -67,7 +67,7 @@ Demonstrates multi-agent orchestration with specialized agents.
 ## 🔄 Session Management Demo
 
 **Location**: `sessions/`
-**Command**: `make demo-sessions`
+**Command**: `just demo sessions`
 
 Showcases session control features for conversation management.
 
@@ -82,7 +82,7 @@ Showcases session control features for conversation management.
 ## 🔌 MCP Integration Demo
 
 **Location**: `mcp/`
-**Command**: `make demo-mcp`
+**Command**: `just demo mcp`
 
 Demonstrates Model Context Protocol (MCP) server integration.
 
@@ -97,7 +97,7 @@ Demonstrates Model Context Protocol (MCP) server integration.
 ## 🔁 Retry & Error Handling Demo
 
 **Location**: `retry/`
-**Command**: `make demo-retry`
+**Command**: `just demo retry`
 
 Shows the SDK's retry and error handling capabilities.
 
@@ -112,7 +112,7 @@ Shows the SDK's retry and error handling capabilities.
 ## 🔒 Permission Control Demo
 
 **Location**: `permissions/`
-**Command**: `make demo-permissions`
+**Command**: `just demo permissions`
 
 Demonstrates permission and tool control features.
 
@@ -127,18 +127,21 @@ Demonstrates permission and tool control features.
 ## Quick Start
 
 ```bash
+# List all demo commands
+just demo
+
 # Core demos
-make demo              # Streaming demo (default)
-make demo-basic        # Basic JSON output
+just demo streaming    # Streaming demo (default)
+just demo basic        # Basic JSON output
 
 # Feature demos
-make demo-budget       # Budget tracking
-make demo-plugins      # Plugin system
-make demo-subagents    # Subagent orchestration
-make demo-sessions     # Session management
-make demo-mcp          # MCP integration
-make demo-retry        # Retry & error handling
-make demo-permissions  # Permission control
+just demo budget       # Budget tracking
+just demo plugins      # Plugin system
+just demo subagents    # Subagent orchestration
+just demo sessions     # Session management
+just demo mcp          # MCP integration
+just demo retry        # Retry & error handling
+just demo permissions  # Permission control
 ```
 
 ## Demo Overview

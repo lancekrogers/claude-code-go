@@ -11,7 +11,7 @@ The demo showcases Claude Code Go SDK by having Claude:
 
 ## Expected Demo Flow
 
-1. **Run from SDK root**: `make demo` (from project top-level directory)
+1. **Run from SDK root**: `just demo basic` (from project top-level directory)
 2. Claude explains approach (≤3 sentences)
 3. User says: "yes, please start coding"
 4. Claude creates `it_works/` directory

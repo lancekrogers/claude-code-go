@@ -58,7 +58,7 @@ The SDK executes `claude` CLI as subprocess and parses responses.
 
 - Go 1.21+ (latest version recommended)
 - Claude Code CLI installed
-- Make or Task runner
+- just command runner (`brew install just`)
 
 ### Quick Start
 
@@ -71,31 +71,35 @@ cd claude-code-go
 go mod download
 
 # Run tests
-make test-local
+just test all
 
 # Build examples
-make build-examples
+just build examples
 
 # Run integration tests
-make test-integration
+just test integration
 ```
 
 ### Development Commands
 
 ```bash
+# List all available commands
+just
+
 # Core development
-make build          # Build library and examples
-make test-local     # Run all tests
-make coverage       # Generate coverage report
+just build all      # Build library and examples
+just test all       # Run all tests
+just coverage report # Generate coverage report
 
 # Examples and demos
-make demo           # Run interactive demo
-make build-examples # Build all examples
+just demo           # List demo commands
+just demo streaming # Run streaming demo
+just build examples # Build all examples
 
 # Testing variants
-make test-lib       # Core library tests only
-make test-dangerous # Test dangerous package
-make test-integration # Integration tests with mock server
+just test unit      # Core library tests only
+just test dangerous # Test dangerous package
+just test integration # Integration tests with mock server
 ```
 
 ## 📝 Code Guidelines
@@ -167,15 +171,15 @@ make test-integration # Integration tests with mock server
 
 ```bash
 # All tests (recommended)
-make test-local
+just test all
 
 # Specific test suites
-make test-lib              # Core library only
-make test-dangerous        # Dangerous package only
-make test-integration      # Integration tests with mock
+just test unit             # Core library only
+just test dangerous        # Dangerous package only
+just test integration      # Integration tests with mock
 
 # With coverage
-make coverage
+just coverage report
 open coverage/coverage.html
 ```
 
@@ -238,8 +242,8 @@ claude-code-go/
 │   ├── integration/     # End-to-end tests
 │   ├── mockserver/      # Mock Claude server
 │   └── fixtures/        # Test data
-├── Makefile             # Build automation
-├── Taskfile.yml         # Alternative task runner
+├── justfile             # Primary build automation
+├── .justfiles/          # Modular justfile components
 └── go.mod               # Go module definition
 ```
 
@@ -262,14 +266,14 @@ cd claude-code-go
 git checkout -b feature/your-feature-name
 
 # Make changes and test
-make test-local
-make build-examples
+just test all
+just build examples
 
 # Commit with clear messages
 git commit -m "Add streaming timeout support
 
 - Add context timeout handling in StreamPrompt
-- Update tests to verify timeout behavior  
+- Update tests to verify timeout behavior
 - Add example demonstrating timeout usage"
 ```
 
