@@ -27,14 +27,17 @@ jobs:
             ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
 
+      - name: Install just
+        uses: taiki-e/install-action@just
+
       - name: Build and test core
-        run: make all
+        run: just all
 
       - name: Build all examples
-        run: make build-examples
+        run: just build examples
 
       - name: Test dangerous package
-        run: make test-dangerous
+        run: just test dangerous
 
       - name: Test integration
-        run: make test-integration
+        run: just test integration
