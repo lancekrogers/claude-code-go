@@ -34,6 +34,18 @@ tidy:
     go mod tidy
     @echo "Dependencies tidied"
 
+# Tidy all modules
+tidy-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Tidying all modules..."
+    while IFS= read -r -d '' modfile; do
+        moddir=$(dirname "$modfile")
+        echo "  - ${moddir}"
+        (cd "$moddir" && go mod tidy)
+    done < <(find "{{PROJECT_DIR}}" -name go.mod -print0)
+    echo "All modules tidied"
+
 # Run linters (fmt + vet)
 lint:
     @echo "Running linters..."

@@ -36,6 +36,10 @@ clean:
 deps:
     just util deps
 
+# Tidy all modules
+tidy-all:
+    just util tidy-all
+
 # Run linters
 lint:
     just util lint
