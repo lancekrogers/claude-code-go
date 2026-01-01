@@ -216,7 +216,7 @@ func main() {
 	}
 
 	// Create Claude client
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 
 	// Method 1: Use a single MCP config file
 	fmt.Println("Method 1: Single MCP config file")
@@ -261,7 +261,7 @@ func main() {
 
 	// Example usage:
 	// result, err := client.RunWithStrictMCP("Use only these tools", []string{mcpConfigPath}, nil)
-	_ = client // Avoid unused variable warning
+	_ = cc // Avoid unused variable warning
 	fmt.Println()
 
 	// =========================================================================

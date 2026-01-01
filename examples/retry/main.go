@@ -125,7 +125,7 @@ func main() {
 	// Execute prompts with automatic retry handling.
 	fmt.Println("=== Example 5: Using RunPromptWithRetry ===")
 
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 
 	// Example with default retry policy
 	fmt.Println("Code example with default retry:")
@@ -152,7 +152,7 @@ func main() {
       &claude.RunOptions{Format: claude.JSONOutput},
       customPolicy,
   )`)
-	_ = client
+	_ = cc
 	fmt.Println()
 
 	// =========================================================================

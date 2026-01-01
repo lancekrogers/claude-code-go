@@ -16,7 +16,7 @@ import (
 
 func main() {
 	// Create a new Claude client
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 
 	// =========================================================================
 	// Example 1: Explicit Session ID
@@ -31,7 +31,7 @@ func main() {
 	fmt.Printf("Session ID: %s\n\n", sessionID)
 
 	// Run a prompt with the explicit session ID
-	result, err := client.RunWithSession(
+	result, err := cc.RunWithSession(
 		"What is the capital of France? Keep your answer brief.",
 		sessionID,
 		&claude.RunOptions{
@@ -55,7 +55,7 @@ func main() {
 	fmt.Println("=== Example 2: Resuming a Session ===")
 	fmt.Println("Resuming the session to continue the conversation...")
 
-	resumeResult, err := client.ResumeConversation(
+	resumeResult, err := cc.ResumeConversation(
 		"What is its population? (referring to the city you just mentioned)",
 		sessionID,
 	)
@@ -75,7 +75,7 @@ func main() {
 	fmt.Println("=== Example 3: Forking a Session ===")
 	fmt.Println("Forking the session to explore a different direction...")
 
-	forkResult, err := client.ForkAndRun(
+	forkResult, err := cc.ForkAndRun(
 		"What about Tokyo's population instead?",
 		sessionID,
 		&claude.RunOptions{
@@ -100,7 +100,7 @@ func main() {
 	fmt.Println("=== Example 4: Ephemeral Session ===")
 	fmt.Println("Running an ephemeral session that won't be saved...")
 
-	ephemeralResult, err := client.RunEphemeral(
+	ephemeralResult, err := cc.RunEphemeral(
 		"What is 2 + 2? Keep your answer brief.",
 		&claude.RunOptions{
 			Format: claude.JSONOutput,
@@ -123,7 +123,7 @@ func main() {
 	fmt.Println("=== Example 5: Continue Last Session ===")
 	fmt.Println("Continuing the most recent conversation...")
 
-	continueResult, err := client.ContinueConversation(
+	continueResult, err := cc.ContinueConversation(
 		"Can you summarize what we discussed?",
 	)
 	if err != nil {
@@ -146,7 +146,7 @@ func main() {
 	defer cancel()
 
 	newSessionID := claude.GenerateSessionID()
-	ctxResult, err := client.RunWithSessionCtx(
+	ctxResult, err := cc.RunWithSessionCtx(
 		ctx,
 		"List 3 programming languages.",
 		newSessionID,

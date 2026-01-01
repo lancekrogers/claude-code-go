@@ -10,13 +10,13 @@ import (
 )
 
 func main() {
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 
 	// Example 1: Using Pre-built Subagent Templates
 	fmt.Println("Example 1: Pre-built Subagent Templates")
 	fmt.Println("========================================")
 
-	manager := claude.NewSubagentManager(client)
+	manager := claude.NewSubagentManager(cc)
 
 	// Register pre-built specialized agents
 	if err := manager.RegisterAgent("security", claude.SecurityReviewerAgent()); err != nil {
@@ -139,7 +139,7 @@ Provide practical examples and explain the "Go way" of solving problems.`,
 	fmt.Println("\n\nExample 6: Batch Agent Registration")
 	fmt.Println("====================================")
 
-	manager2 := claude.NewSubagentManager(client)
+	manager2 := claude.NewSubagentManager(cc)
 
 	agents := map[string]*claude.SubagentConfig{
 		"python-expert": {

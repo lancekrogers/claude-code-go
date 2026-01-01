@@ -349,7 +349,7 @@ func main() {
 	displayHelp()
 	displayPermissionStatus()
 
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 	ctx := context.Background()
 	scanner := bufio.NewScanner(os.Stdin)
 
@@ -395,7 +395,7 @@ func main() {
 			opts.ResumeID = sessionID
 		}
 
-		messageCh, errCh := client.StreamPrompt(ctx, input, opts)
+		messageCh, errCh := cc.StreamPrompt(ctx, input, opts)
 
 		// Process streaming messages
 	processLoop:

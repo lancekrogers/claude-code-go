@@ -128,14 +128,14 @@ After completing, briefly explain your approach (≤3 sentences), then ask if yo
 
 func main() {
 	// Create Claude client
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 
 	// First call with system prompt using streaming
 	fmt.Println("🚀 Starting streaming demo conversation...")
 	fmt.Println("📡 Using real-time tool execution display\n")
 
 	ctx := context.Background()
-	messageCh, errCh := client.StreamPrompt(ctx,
+	messageCh, errCh := cc.StreamPrompt(ctx,
 		"In ≤3 sentences, describe your plan and ask if I want you to begin.",
 		&claude.RunOptions{
 			Format:       claude.StreamJSONOutput,
@@ -210,7 +210,7 @@ repl:
 		// Continue conversation with same session and permissions
 		// Create a new context with timeout for each request
 		requestCtx := context.Background()
-		messageCh, errCh := client.StreamPrompt(requestCtx, input, &claude.RunOptions{
+		messageCh, errCh := cc.StreamPrompt(requestCtx, input, &claude.RunOptions{
 			Format:   claude.StreamJSONOutput,
 			ResumeID: sessionID,
 			AllowedTools: []string{

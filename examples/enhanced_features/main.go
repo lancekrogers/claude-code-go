@@ -11,7 +11,7 @@ import (
 
 func main() {
 	// Create client
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 
 	// Example 1: Enhanced tool permissions with granular control
 	fmt.Println("🔧 Example 1: Enhanced Tool Permissions")
@@ -31,7 +31,7 @@ func main() {
 		Verbose:    true,
 	}
 
-	result, err := client.RunPromptEnhanced("List recent git commits and explain the changes", opts)
+	result, err := cc.RunPromptEnhanced("List recent git commits and explain the changes", opts)
 	if err != nil {
 		// Enhanced error handling
 		if claudeErr, ok := err.(*claude.ClaudeError); ok {
@@ -63,7 +63,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	result, err = client.RunPromptWithRetryCtx(ctx, "Analyze this project structure", opts, retryPolicy)
+	result, err = cc.RunPromptWithRetryCtx(ctx, "Analyze this project structure", opts, retryPolicy)
 	if err != nil {
 		if claudeErr, ok := err.(*claude.ClaudeError); ok {
 			fmt.Printf("❌ Failed after retries - Type: %s\n", claudeErr.Type)

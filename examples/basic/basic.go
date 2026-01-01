@@ -12,11 +12,11 @@ import (
 
 func main() {
 	// Create a new Claude client
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 
 	// Example 1: Simple text prompt
 	fmt.Println("Example 1: Simple text prompt")
-	result, err := client.RunPrompt("Write a function to calculate Fibonacci numbers", nil)
+	result, err := cc.RunPrompt("Write a function to calculate Fibonacci numbers", nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -26,7 +26,7 @@ func main() {
 
 	// Example 2: JSON output
 	fmt.Println("Example 2: JSON output")
-	jsonResult, err := client.RunPrompt("Generate a hello world function", &claude.RunOptions{
+	jsonResult, err := cc.RunPrompt("Generate a hello world function", &claude.RunOptions{
 		Format: claude.JSONOutput,
 	})
 	if err != nil {
@@ -41,7 +41,7 @@ func main() {
 
 	// Example 3: Custom system prompt
 	fmt.Println("Example 3: Custom system prompt")
-	customResult, err := client.RunPrompt("Create a database schema", &claude.RunOptions{
+	customResult, err := cc.RunPrompt("Create a database schema", &claude.RunOptions{
 		SystemPrompt: "You are a database architect. Use PostgreSQL best practices and include proper indexing.",
 	})
 	if err != nil {
@@ -59,7 +59,7 @@ func main() {
 		fmt.Println("Skipping example 4 (no file found)")
 	} else {
 		defer file.Close()
-		fileResult, err := client.RunFromStdin(file, "Review this code for bugs", nil)
+		fileResult, err := cc.RunFromStdin(file, "Review this code for bugs", nil)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		} else {
@@ -73,7 +73,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	messageCh, errCh := client.StreamPrompt(ctx, "Build a React component", &claude.RunOptions{})
+	messageCh, errCh := cc.StreamPrompt(ctx, "Build a React component", &claude.RunOptions{})
 
 	go func() {
 		for err := range errCh {

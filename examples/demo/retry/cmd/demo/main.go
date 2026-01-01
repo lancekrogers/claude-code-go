@@ -270,7 +270,7 @@ func main() {
 	displayHelp()
 	displayRetryStatus()
 
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 	scanner := bufio.NewScanner(os.Stdin)
 
 	var sessionID string
@@ -318,7 +318,7 @@ func main() {
 		if useEnhanced {
 			// Use the enhanced retry method
 			fmt.Println("🔄 Using enhanced mode with automatic retry...")
-			result, err := client.RunPromptWithRetryCtx(ctx, input, opts, retryPolicy)
+			result, err := cc.RunPromptWithRetryCtx(ctx, input, opts, retryPolicy)
 			elapsed := time.Since(start)
 
 			if err != nil {
@@ -341,7 +341,7 @@ func main() {
 			fmt.Printf("⏱️  Total time: %v\n", elapsed.Round(time.Millisecond))
 		} else {
 			// Use streaming mode
-			messageCh, errCh := client.StreamPrompt(ctx, input, opts)
+			messageCh, errCh := cc.StreamPrompt(ctx, input, opts)
 
 		processLoop:
 			for {

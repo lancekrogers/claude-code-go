@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 
 	// Example 1: Basic budget tracking
 	fmt.Println("Example 1: Basic Budget Tracking")
@@ -50,7 +50,7 @@ func main() {
 			break
 		}
 
-		result, err := client.RunPrompt(prompt, opts)
+		result, err := cc.RunPrompt(prompt, opts)
 		if err != nil {
 			if err == claude.ErrBudgetExceeded {
 				fmt.Println("Budget exceeded, stopping")
@@ -107,7 +107,7 @@ func main() {
 		Timeout:       10 * time.Second,
 	}
 
-	result, err := client.RunPromptCtx(ctx, "Say hello briefly", budgetOpts)
+	result, err := cc.RunPromptCtx(ctx, "Say hello briefly", budgetOpts)
 	if err != nil {
 		log.Printf("Error: %v", err)
 	} else {

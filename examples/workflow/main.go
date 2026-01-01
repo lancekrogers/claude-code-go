@@ -44,7 +44,7 @@ func main() {
    - Reserved for development/testing only`)
 
 	// Example CI/CD configuration
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 
 	ciOpts := &claude.RunOptions{
 		Format:         claude.JSONOutput,
@@ -377,7 +377,7 @@ Budget control for CI pipelines:
       }
 
       // Setup client
-      client := claude.NewClient("claude")
+      cc := claude.NewClient("claude")
       ctx, cancel := context.WithTimeout(context.Background(), *timeout)
       defer cancel()
 
@@ -434,7 +434,7 @@ Budget control for CI pipelines:
 `)
 
 	// Avoid unused import warnings
-	_ = client
+	_ = cc
 	_ = ciOpts
 	_ = os.Stdout
 	_ = errors.New

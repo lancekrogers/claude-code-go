@@ -117,7 +117,7 @@ func main() {
 	displayBudgetStatus()
 	fmt.Println()
 
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 	ctx := context.Background()
 
 	// Initial prompt
@@ -163,7 +163,7 @@ func main() {
 			opts.ResumeID = sessionID
 		}
 
-		messageCh, errCh := client.StreamPrompt(ctx, input, opts)
+		messageCh, errCh := cc.StreamPrompt(ctx, input, opts)
 
 		// Process streaming messages
 	processLoop:

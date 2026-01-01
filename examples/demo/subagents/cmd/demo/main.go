@@ -87,8 +87,8 @@ func main() {
 	fmt.Println("╚════════════════════════════════════════════════════════════╝")
 	fmt.Println()
 
-	client := claude.NewClient("claude")
-	agentManager = claude.NewSubagentManager(client)
+	cc := claude.NewClient("claude")
+	agentManager = claude.NewSubagentManager(cc)
 
 	// Register pre-built specialized agents
 	agents := map[string]*claude.SubagentConfig{

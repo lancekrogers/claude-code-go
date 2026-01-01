@@ -158,7 +158,7 @@ func main() {
 	fmt.Println("📊 Metrics and audit logging are active")
 	fmt.Println()
 
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 
 	opts := &claude.RunOptions{
 		Format:        claude.StreamJSONOutput,
@@ -210,7 +210,7 @@ func main() {
 			opts.ResumeID = sessionID
 		}
 
-		messageCh, errCh := client.StreamPrompt(ctx, input, opts)
+		messageCh, errCh := cc.StreamPrompt(ctx, input, opts)
 
 	processLoop:
 		for {

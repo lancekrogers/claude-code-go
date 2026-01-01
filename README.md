@@ -58,9 +58,9 @@ import (
 )
 
 func main() {
-    client := claude.NewClient("claude")
+    cc := claude.NewClient("claude")
 
-    result, err := client.RunPrompt("Write a function to calculate Fibonacci numbers", nil)
+    result, err := cc.RunPrompt("Write a function to calculate Fibonacci numbers", nil)
     if err != nil {
         log.Fatalf("Error: %v", err)
     }
@@ -99,15 +99,15 @@ See [Demo Showcase](#demo-showcase) below for animated GIFs of each demo.
 ### Basic Usage
 
 ```go
-client := claude.NewClient("claude")
+cc := claude.NewClient("claude")
 
 // Simple prompt
-result, err := client.RunPrompt("Generate a hello world function", &claude.RunOptions{
+result, err := cc.RunPrompt("Generate a hello world function", &claude.RunOptions{
     Format: claude.JSONOutput,
 })
 
 // With custom system prompt
-result, err = client.RunWithSystemPrompt(
+result, err = cc.RunWithSystemPrompt(
     "Create a database schema",
     "You are a database architect. Use PostgreSQL best practices.",
     nil,
@@ -118,7 +118,7 @@ result, err = client.RunWithSystemPrompt(
 
 ```go
 ctx := context.Background()
-messageCh, errCh := client.StreamPrompt(ctx, "Build a React component", &claude.RunOptions{})
+messageCh, errCh := cc.StreamPrompt(ctx, "Build a React component", &claude.RunOptions{})
 
 go func() {
     for err := range errCh {
@@ -143,22 +143,22 @@ for msg := range messageCh {
 sessionID := claude.GenerateSessionID()
 
 // Start a new session with custom ID
-result, err := client.RunPrompt("Write a fibonacci function", &claude.RunOptions{
+result, err := cc.RunPrompt("Write a fibonacci function", &claude.RunOptions{
     SessionID: sessionID,
     Format:    claude.JSONOutput,
 })
 
 // Resume the conversation
-followup, err := client.ResumeConversation("Now optimize it for performance", result.SessionID)
+followup, err := cc.ResumeConversation("Now optimize it for performance", result.SessionID)
 
 // Fork a session (create a branch)
-forked, err := client.RunPrompt("Try a different approach", &claude.RunOptions{
+forked, err := cc.RunPrompt("Try a different approach", &claude.RunOptions{
     ResumeID:    result.SessionID,
     ForkSession: true,
 })
 
 // Ephemeral session (no disk persistence)
-ephemeral, err := client.RunPrompt("Quick question", &claude.RunOptions{
+ephemeral, err := cc.RunPrompt("Quick question", &claude.RunOptions{
     NoSessionPersistence: true,
 })
 ```
@@ -167,20 +167,20 @@ ephemeral, err := client.RunPrompt("Quick question", &claude.RunOptions{
 
 ```go
 // Single MCP config
-result, err := client.RunWithMCP(
+result, err := cc.RunWithMCP(
     "List files in the project",
     "mcp-config.json",
     []string{"mcp__filesystem__list_directory"},
 )
 
 // Multiple MCP configs
-result, err = client.RunWithMCPConfigs("Use both tools", []string{
+result, err = cc.RunWithMCPConfigs("Use both tools", []string{
     "filesystem-mcp.json",
     "database-mcp.json",
 }, nil)
 
 // Strict mode (only use specified MCP servers)
-result, err = client.RunWithStrictMCP("Isolated environment", []string{
+result, err = cc.RunWithStrictMCP("Isolated environment", []string{
     "secure-mcp.json",
 }, nil)
 ```
@@ -214,7 +214,7 @@ audit := claude.NewAuditPlugin(1000) // Keep last 1000 records
 pm.Register(audit, nil)
 
 // Use with client
-result, err := client.RunPrompt("Do something", &claude.RunOptions{
+result, err := cc.RunPrompt("Do something", &claude.RunOptions{
     PluginManager: pm,
 })
 
@@ -242,7 +242,7 @@ tracker := claude.NewBudgetTracker(&claude.BudgetConfig{
 })
 
 // Use with client
-result, err := client.RunPrompt("Generate code", &claude.RunOptions{
+result, err := cc.RunPrompt("Generate code", &claude.RunOptions{
     MaxBudgetUSD:  10.00,
     BudgetTracker: tracker,
 })
@@ -271,7 +271,7 @@ agents := map[string]*claude.SubagentConfig{
 }
 
 // Use agents
-result, err := client.RunPrompt("Analyze this code", &claude.RunOptions{
+result, err := cc.RunPrompt("Analyze this code", &claude.RunOptions{
     Agents: agents,
 })
 ```
@@ -288,13 +288,13 @@ policy := &claude.RetryPolicy{
 }
 
 // With automatic retry
-result, err := client.RunPromptWithRetry("Do something", nil, policy)
+result, err := cc.RunPromptWithRetry("Do something", nil, policy)
 
 // With timeout
 ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 defer cancel()
 
-result, err = client.RunPromptCtx(ctx, "Quick task", &claude.RunOptions{
+result, err = cc.RunPromptCtx(ctx, "Quick task", &claude.RunOptions{
     Timeout: 30 * time.Second,
 })
 
@@ -313,12 +313,12 @@ if err != nil {
 
 ```go
 // Permission modes
-result, err := client.RunPrompt("Edit files", &claude.RunOptions{
+result, err := cc.RunPrompt("Edit files", &claude.RunOptions{
     PermissionMode: claude.PermissionModeAcceptEdits, // Auto-approve edits
 })
 
 // Tool allowlisting (with glob patterns)
-result, err = client.RunPrompt("Work with git", &claude.RunOptions{
+result, err = cc.RunPrompt("Work with git", &claude.RunOptions{
     AllowedTools: []string{
         "Read(*)",
         "Bash(git status*)",
@@ -328,7 +328,7 @@ result, err = client.RunPrompt("Work with git", &claude.RunOptions{
 })
 
 // Tool blocklisting
-result, err = client.RunPrompt("Safe operations only", &claude.RunOptions{
+result, err = cc.RunPrompt("Safe operations only", &claude.RunOptions{
     DisallowedTools: []string{
         "Bash(rm*)",
         "Bash(curl*)",
@@ -419,14 +419,14 @@ For advanced use cases requiring bypassed safety controls:
 import "github.com/lancekrogers/claude-code-go/pkg/claude/dangerous"
 
 // SECURITY REVIEW REQUIRED
-client, err := dangerous.NewDangerousClient("claude")
+cc, err := dangerous.NewDangerousClient("claude")
 if err != nil {
     // Fails unless CLAUDE_ENABLE_DANGEROUS="i-accept-all-risks"
     return err
 }
 
 // Bypass all permission prompts
-result, err := client.BYPASS_ALL_PERMISSIONS("trusted prompt", nil)
+result, err := cc.BYPASS_ALL_PERMISSIONS("trusted prompt", nil)
 ```
 
 **Requirements:**

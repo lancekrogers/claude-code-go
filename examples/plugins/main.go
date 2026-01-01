@@ -49,7 +49,7 @@ func (sp *CustomSecurityPlugin) GetAuditLog() []string {
 }
 
 func main() {
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 
 	// Example 1: Using built-in LoggingPlugin
 	fmt.Println("Example 1: Logging Plugin")
@@ -79,7 +79,7 @@ func main() {
 		MaxTurns:      1,
 	}
 
-	result, err := client.RunPrompt("What is 5+5?", opts)
+	result, err := cc.RunPrompt("What is 5+5?", opts)
 	if err != nil {
 		log.Printf("Error: %v", err)
 	} else {

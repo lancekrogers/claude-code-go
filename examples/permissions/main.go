@@ -283,7 +283,7 @@ func main() {
 	// =========================================================================
 	fmt.Println("=== Example 8: Using with Claude Client ===")
 
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 
 	// Example RunOptions with permission callback
 	opts := &claude.RunOptions{
@@ -326,7 +326,7 @@ func main() {
 
 	// Note: In real usage, you would call:
 	// result, err := client.RunPrompt("Your prompt", opts)
-	_ = client
+	_ = cc
 	fmt.Println()
 
 	// =========================================================================

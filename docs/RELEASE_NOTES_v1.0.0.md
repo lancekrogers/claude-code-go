@@ -21,17 +21,17 @@ This major release brings the Go SDK to full feature parity with the Claude Code
 Build extensible applications with lifecycle hooks:
 
 ```go
-client := claude.NewClient("claude")
+cc := claude.NewClient("claude")
 
 // Add logging plugin
 logging := claude.NewLoggingPlugin(log.Printf)
-client.AddPlugin(logging)
+cc.AddPlugin(logging)
 
 // Add metrics collection
 metrics := claude.NewMetricsPlugin()
-client.AddPlugin(metrics)
+cc.AddPlugin(metrics)
 
-result, _ := client.RunPrompt(ctx, "Hello", nil)
+result, _ := cc.RunPrompt(ctx, "Hello", nil)
 fmt.Printf("Total cost: $%.4f\n", metrics.TotalCost)
 ```
 
@@ -57,7 +57,7 @@ budget := claude.NewBudgetTracker(&claude.BudgetConfig{
 
 // Check before expensive operations
 if budget.CanSpend(0.50) {
-    result, _ := client.RunPrompt(ctx, prompt, nil)
+    result, _ := cc.RunPrompt(ctx, prompt, nil)
     budget.AddSpend("session1", result.CostUSD)
 }
 ```
@@ -70,14 +70,14 @@ Maintain conversation state across multiple turns:
 sessions := claude.NewSessionManager()
 
 // First turn
-result1, _ := client.RunPrompt(ctx, "My name is Alice", nil)
+result1, _ := cc.RunPrompt(ctx, "My name is Alice", nil)
 sessions.SaveSession("chat1", result1.SessionID)
 
 // Later turn - resume the conversation
 opts := &claude.RunOptions{
     ResumeID: sessions.GetSession("chat1"),
 }
-result2, _ := client.RunPrompt(ctx, "What's my name?", opts)
+result2, _ := cc.RunPrompt(ctx, "What's my name?", opts)
 // Claude remembers: "Your name is Alice"
 ```
 
@@ -86,7 +86,7 @@ result2, _ := client.RunPrompt(ctx, "What's my name?", opts)
 Process responses in real-time:
 
 ```go
-msgChan, errChan := client.StreamPrompt(ctx, "Write a story", nil)
+msgChan, errChan := cc.StreamPrompt(ctx, "Write a story", nil)
 
 for msg := range msgChan {
     switch msg.Type {
@@ -132,7 +132,7 @@ opts := &claude.RunOptions{
     },
 }
 
-result, _ := client.RunPrompt(ctx, "Read config.json", opts)
+result, _ := cc.RunPrompt(ctx, "Read config.json", opts)
 ```
 
 ### Structured Output & Reliability
@@ -141,19 +141,19 @@ New options for production reliability:
 
 ```go
 // Structured output with JSON Schema validation
-result, err := client.RunPrompt(ctx, "Generate user profile", &claude.RunOptions{
+result, err := cc.RunPrompt(ctx, "Generate user profile", &claude.RunOptions{
     Format: claude.JSONOutput,
     JSONSchema: `{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name"]}`,
 })
 
 // Automatic fallback when primary model is overloaded
-result, err := client.RunPrompt(ctx, "Analyze code", &claude.RunOptions{
+result, err := cc.RunPrompt(ctx, "Analyze code", &claude.RunOptions{
     Model:         "opus",
     FallbackModel: "sonnet", // Use sonnet if opus is overloaded
 })
 
 // Debug mode with category filtering
-result, err := client.RunPrompt(ctx, "Test", &claude.RunOptions{
+result, err := cc.RunPrompt(ctx, "Test", &claude.RunOptions{
     Debug: "api,mcp", // Only debug api and mcp categories
 })
 ```

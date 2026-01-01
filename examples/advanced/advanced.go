@@ -21,7 +21,7 @@ type MCPConfig struct {
 
 func main() {
 	// Create a Claude client
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 
 	// Create an MCP configuration
 	mcpConfig := MCPConfig{
@@ -76,7 +76,7 @@ func main() {
 	defer cancel()
 
 	// Use streaming to show tool usage in real-time
-	messageCh, errCh := client.StreamPrompt(
+	messageCh, errCh := cc.StreamPrompt(
 		ctx,
 		"List all files in the current directory and show the contents of any go.mod files",
 		&claude.RunOptions{
