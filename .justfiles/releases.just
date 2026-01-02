@@ -56,7 +56,7 @@ check:
 # Create signed git tag (use -a instead of -s if GPG not configured)
 tag VERSION:
     @echo "Creating signed tag {{VERSION}}..."
-    git tag -s {{VERSION}} -m "Release {{VERSION}}"
+    git tag -a {{VERSION}} -m "Release {{VERSION}}"
     @echo "Tag {{VERSION}} created"
     @echo "Run 'just release push' to push to remote"
 

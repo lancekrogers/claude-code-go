@@ -1,8 +1,7 @@
 # Build Commands
 # Run `just build` to see all build commands
 
-# invocation_directory() returns the directory from which just was called
-PROJECT_DIR := invocation_directory()
+PROJECT_DIR := justfile_directory()
 BIN_DIR := PROJECT_DIR / "bin"
 
 [private]
