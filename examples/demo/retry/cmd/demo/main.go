@@ -17,6 +17,11 @@ var (
 	retryPolicy *claude.RetryPolicy
 	timeout     time.Duration
 	useEnhanced bool
+	// Retry statistics
+	totalAttempts   int
+	totalRetries    int
+	totalRetryTime  time.Duration
+	errorsEncountered []string
 )
 
 func isExitCommand(input string) bool {
@@ -43,6 +48,27 @@ func displayRetryStatus() {
 	fmt.Println("└─────────────────────────────────────────────────────────────┘")
 }
 
+func displayRetryStatistics() {
+	fmt.Println("\n📊 Cumulative Retry Statistics:")
+	fmt.Printf("  Total requests:    %d\n", totalAttempts)
+	fmt.Printf("  Total retries:     %d\n", totalRetries)
+	fmt.Printf("  Total retry time:  %v\n", totalRetryTime.Round(time.Millisecond))
+	if len(errorsEncountered) > 0 {
+		fmt.Printf("  Errors encountered: %d\n", len(errorsEncountered))
+		for i, err := range errorsEncountered {
+			if i >= 3 {
+				fmt.Printf("    ... and %d more\n", len(errorsEncountered)-3)
+				break
+			}
+			fmt.Printf("    - %s\n", err)
+		}
+	}
+	if totalAttempts > 0 {
+		successRate := float64(totalAttempts-len(errorsEncountered)) / float64(totalAttempts) * 100
+		fmt.Printf("  Success rate:      %.1f%%\n", successRate)
+	}
+}
+
 func formatTimeout(d time.Duration) string {
 	if d == 0 {
 		return "none"
@@ -52,18 +78,24 @@ func formatTimeout(d time.Duration) string {
 
 func displayHelp() {
 	fmt.Println("\n📚 Retry Commands:")
+	fmt.Println("  /test-retry      - Test retry behavior with timeout (demonstrates retries)")
 	fmt.Println("  /retries <n>     - Set max retry attempts (0-10)")
 	fmt.Println("  /delay <ms>      - Set base delay in milliseconds")
 	fmt.Println("  /maxdelay <ms>   - Set max delay in milliseconds")
 	fmt.Println("  /backoff <n>     - Set backoff factor (e.g., 2.0)")
 	fmt.Println("  /timeout <sec>   - Set request timeout in seconds (0=none)")
-	fmt.Println("  /enhanced on|off - Toggle enhanced mode (auto-retry)")
+	fmt.Println("  /enhanced on|off - Toggle retry visibility (default: on)")
 	fmt.Println("  /default         - Reset to default retry policy")
 	fmt.Println("  /aggressive      - Use aggressive retry (more retries, shorter delays)")
 	fmt.Println("  /conservative    - Use conservative retry (fewer retries, longer delays)")
 	fmt.Println("  /status          - Show current retry configuration")
+	fmt.Println("  /stats           - Show cumulative retry statistics")
 	fmt.Println("  /help            - Show this help")
 	fmt.Println("  exit             - Exit the demo")
+	fmt.Println()
+	fmt.Println("💡 Tip: Use /test-retry to see retry behavior in action!")
+	fmt.Println("   When enhanced mode is ON, you'll see each retry attempt logged")
+	fmt.Println("   with delays and backoff progression.")
 }
 
 func handleCommand(cmd string) bool {
@@ -159,7 +191,12 @@ func handleCommand(cmd string) bool {
 		}
 		fmt.Printf("✓ Enhanced mode: %v\n", useEnhanced)
 		if useEnhanced {
-			fmt.Println("  (Uses RunPromptWithRetry with automatic retry logic)")
+			fmt.Println("  ✅ Retry attempts will be logged with delays and backoff")
+			fmt.Println("  ✅ Statistics will track retry behavior")
+			fmt.Println("  ✅ You'll see: attempt numbers, wait times, success/failure")
+		} else {
+			fmt.Println("  ⚠️  Retry logic will run invisibly in the SDK")
+			fmt.Println("  ⚠️  You won't see retry attempts when they occur")
 		}
 		return true
 
@@ -194,6 +231,58 @@ func handleCommand(cmd string) bool {
 
 	case "/status":
 		displayRetryStatus()
+		return true
+
+	case "/stats":
+		displayRetryStatistics()
+		return true
+
+	case "/test-retry":
+		fmt.Println("\n🧪 Testing retry behavior...")
+		fmt.Println("   Making a simple request to demonstrate retry instrumentation")
+		fmt.Println("   (Retries occur automatically when API errors happen)")
+
+		if !useEnhanced {
+			fmt.Println("\n⚠️  Enhanced mode is OFF - retries won't be visible")
+			fmt.Println("   Run '/enhanced on' first to see retry attempts")
+			return true
+		}
+
+		testOpts := &claude.RunOptions{
+			Format:       claude.StreamJSONOutput,
+			SystemPrompt: "You are a helpful assistant. Answer very briefly.",
+			AllowedTools: []string{},
+			MaxTurns:     1,
+		}
+
+		fmt.Println("\n🔄 Making test request with retry instrumentation enabled...")
+		cc := claude.NewClient("claude")
+		ctx := context.Background()
+		result, err := runWithRetry(ctx, cc, "Say 'Hello'", testOpts, retryPolicy)
+
+		if err != nil {
+			fmt.Println("\n❌ Request failed (retries were attempted if error was retryable)")
+			fmt.Printf("   Error: %v\n", err)
+			fmt.Println("\n💡 The retry instrumentation showed you:")
+			fmt.Println("   • Each attempt number")
+			fmt.Println("   • Wait times between retries")
+			fmt.Println("   • Error classification (retryable vs non-retryable)")
+		} else {
+			fmt.Println("\n✅ Request succeeded!")
+			if result.Result != "" {
+				text := result.Result
+				if len(text) > 100 {
+					text = text[:100] + "..."
+				}
+				fmt.Printf("   Result: %s\n", text)
+			}
+			fmt.Println("\n💡 No retries were needed (request succeeded on first attempt)")
+			fmt.Println("   When errors DO occur, you'll see:")
+			fmt.Println("   • Retry attempt logging with delays")
+			fmt.Println("   • Exponential backoff progression")
+			fmt.Println("   • Success after retries or final failure")
+		}
+
 		return true
 
 	case "/help":
@@ -249,6 +338,80 @@ func classifyError(err error) string {
 	return "Unknown error type"
 }
 
+// runWithRetry implements retry logic with full visibility
+func runWithRetry(ctx context.Context, cc *claude.ClaudeClient, prompt string, opts *claude.RunOptions, policy *claude.RetryPolicy) (*claude.ClaudeResult, error) {
+	totalAttempts++
+	var lastErr error
+	attemptNum := 0
+	retriesUsed := 0
+	retryStartTime := time.Now()
+
+	for attemptNum <= policy.MaxRetries {
+		attemptNum++
+
+		if attemptNum > 1 {
+			// Calculate backoff delay
+			delay := policy.BaseDelay
+			for i := 1; i < attemptNum-1; i++ {
+				delay = time.Duration(float64(delay) * policy.BackoffFactor)
+				if delay > policy.MaxDelay {
+					delay = policy.MaxDelay
+					break
+				}
+			}
+
+			fmt.Printf("⏳ Waiting %v before retry (attempt %d/%d)...\n",
+				delay.Round(time.Millisecond), attemptNum, policy.MaxRetries+1)
+			time.Sleep(delay)
+			totalRetryTime += delay
+
+			fmt.Printf("🔄 Retrying request (attempt %d/%d)...\n",
+				attemptNum, policy.MaxRetries+1)
+			retriesUsed++
+		} else {
+			fmt.Println("🔄 Attempting request...")
+		}
+
+		result, err := cc.RunPromptCtx(ctx, prompt, opts)
+		if err == nil {
+			// Success!
+			if retriesUsed > 0 {
+				elapsed := time.Since(retryStartTime)
+				fmt.Printf("✅ Success on attempt %d (%d retries needed, %v total retry time)\n",
+					attemptNum, retriesUsed, elapsed.Round(time.Millisecond))
+				totalRetries += retriesUsed
+			} else {
+				fmt.Println("✅ Success on first attempt (no retries needed)")
+			}
+			return result, nil
+		}
+
+		lastErr = err
+		errorMsg := err.Error()
+		if claudeErr, ok := err.(*claude.ClaudeError); ok {
+			if !claudeErr.IsRetryable() {
+				fmt.Printf("❌ Non-retryable error: %v\n", err)
+				fmt.Printf("   %s\n", classifyError(err))
+				errorsEncountered = append(errorsEncountered, errorMsg)
+				return nil, err
+			}
+			fmt.Printf("❌ Retryable error (attempt %d): %v\n", attemptNum, err)
+			fmt.Printf("   %s\n", classifyError(err))
+		} else {
+			fmt.Printf("❌ Error (attempt %d): %v\n", attemptNum, err)
+		}
+
+		if attemptNum > policy.MaxRetries {
+			break
+		}
+	}
+
+	fmt.Printf("❌ Failed after %d attempts (used %d retries)\n", attemptNum, retriesUsed)
+	totalRetries += retriesUsed
+	errorsEncountered = append(errorsEncountered, lastErr.Error())
+	return nil, lastErr
+}
+
 func main() {
 	fmt.Println("╔════════════════════════════════════════════════════════════╗")
 	fmt.Println("║       Claude Code Go SDK - Retry & Error Handling Demo     ║")
@@ -259,13 +422,17 @@ func main() {
 	fmt.Println("  • Jitter to prevent thundering herd")
 	fmt.Println("  • Error classification (retryable vs non-retryable)")
 	fmt.Println("  • Context timeout support")
-	fmt.Println("  • Enhanced mode with automatic retry")
+	fmt.Println("  • Visible retry attempts with delay progression")
+	fmt.Println()
+	fmt.Println("ℹ️  Enhanced mode is ON - retry attempts will be logged as they occur")
+	fmt.Println("   Retries happen automatically when API errors occur (rate limits,")
+	fmt.Println("   network timeouts, etc.). Each retry attempt is logged with delays.")
 	fmt.Println()
 
 	// Initialize with default policy
 	retryPolicy = claude.DefaultRetryPolicy()
 	timeout = 0
-	useEnhanced = false
+	useEnhanced = true // Default to enhanced mode for retry visibility
 
 	displayHelp()
 	displayRetryStatus()
@@ -316,18 +483,14 @@ func main() {
 		start := time.Now()
 
 		if useEnhanced {
-			// Use the enhanced retry method
-			fmt.Println("🔄 Using enhanced mode with automatic retry...")
-			result, err := cc.RunPromptWithRetryCtx(ctx, input, opts, retryPolicy)
+			// Use enhanced retry mode with full visibility
+			fmt.Println("\n🔄 Using enhanced retry mode (visible retry logic)...")
+			result, err := runWithRetry(ctx, cc, input, opts, retryPolicy)
 			elapsed := time.Since(start)
 
-			if err != nil {
-				fmt.Printf("❌ Error after retries: %v\n", err)
-				fmt.Printf("   %s\n", classifyError(err))
-			} else {
+			if err == nil {
 				sessionID = result.SessionID
-				fmt.Printf("✅ Success!\n")
-				fmt.Printf("📊 Cost: $%.6f | Duration: %.1fs | Turns: %d\n",
+				fmt.Printf("\n📊 Cost: $%.6f | Duration: %.1fs | Turns: %d\n",
 					result.CostUSD, float64(result.DurationMS)/1000.0, result.NumTurns)
 				if result.Result != "" {
 					// Truncate long results
@@ -338,7 +501,7 @@ func main() {
 					fmt.Printf("💬 %s\n", text)
 				}
 			}
-			fmt.Printf("⏱️  Total time: %v\n", elapsed.Round(time.Millisecond))
+			fmt.Printf("\n⏱️  Total time: %v\n", elapsed.Round(time.Millisecond))
 		} else {
 			// Use streaming mode
 			messageCh, errCh := cc.StreamPrompt(ctx, input, opts)
