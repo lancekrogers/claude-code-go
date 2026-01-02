@@ -1,0 +1,39 @@
+#!/usr/bin/expect -f
+# Sessions demo - shows session management features
+
+set timeout 120
+log_user 1
+
+# Show the command being run, then execute it
+spawn -noecho bash -c "echo '\$ just demo sessions' && sleep 0.5 && cd $env(PROJECT_DIR) && just demo sessions"
+
+# Wait for initial help display and prompt
+expect ">>>"
+
+# Switch to custom session ID mode
+send "/custom\r"
+expect ">>>"
+
+# Send a simple query
+send "What is 2+2?\r"
+expect ">>>"
+
+# Show session status
+send "/status\r"
+expect ">>>"
+
+# Fork the session
+send "/fork\r"
+expect ">>>"
+
+# Ask another question in forked session
+send "What is 3+3?\r"
+expect ">>>"
+
+# Show session history
+send "/history\r"
+expect ">>>"
+
+# Exit
+send "exit\r"
+expect eof

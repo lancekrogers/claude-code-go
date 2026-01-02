@@ -14,17 +14,11 @@ coverage.html
 claude-go
 *.exe
 
-# Prevent any top-level binaries from examples/
-basic
-advanced
-testing
-demo
-demo-basic
-demo-streaming
-dangerous-example
-
 # Prevent any binary with common patterns in top-level
 *-example
 *-demo
 *_test
 *_test.exe
+
+# Demo recording intermediate files (only GIFs needed)
+*.cast

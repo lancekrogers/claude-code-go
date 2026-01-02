@@ -1,0 +1,27 @@
+#!/usr/bin/expect -f
+# Plugins demo - shows plugin system features
+
+set timeout 120
+log_user 1
+
+# Show the command being run, then execute it
+spawn -noecho bash -c "echo '\$ just demo plugins' && sleep 0.5 && cd $env(PROJECT_DIR) && just demo plugins"
+
+# Wait for initial display and prompt
+expect ">>>"
+
+# Send a query to trigger plugin hooks
+send "List files in current directory\r"
+expect ">>>"
+
+# Show metrics from MetricsPlugin
+send "metrics\r"
+expect ">>>"
+
+# Show audit log from AuditPlugin
+send "audit\r"
+expect ">>>"
+
+# Exit
+send "exit\r"
+expect eof

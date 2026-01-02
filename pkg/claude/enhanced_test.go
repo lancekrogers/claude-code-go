@@ -154,6 +154,51 @@ func TestRetryPolicy_calculateBackoff(t *testing.T) {
 	}
 }
 
+func TestRetryPolicy_calculateBackoffWithJitter(t *testing.T) {
+	policy := &RetryPolicy{
+		BaseDelay:     100 * time.Millisecond,
+		MaxDelay:      5 * time.Second,
+		BackoffFactor: 2.0,
+	}
+
+	// Test that jitter is within ±20% of base delay
+	t.Run("jitter_within_range", func(t *testing.T) {
+		// Run multiple times to verify randomness stays in range
+		for i := 0; i < 100; i++ {
+			got := policy.calculateBackoffWithJitter(1)
+			baseDelay := 100 * time.Millisecond
+			minDelay := time.Duration(float64(baseDelay) * 0.8) // -20%
+			maxDelay := time.Duration(float64(baseDelay) * 1.2) // +20%
+
+			if got < minDelay || got > maxDelay {
+				t.Errorf("calculateBackoffWithJitter(1) = %v, want between %v and %v", got, minDelay, maxDelay)
+			}
+		}
+	})
+
+	// Test that attempt 0 still returns 0 (no jitter on first attempt)
+	t.Run("zero_attempt", func(t *testing.T) {
+		got := policy.calculateBackoffWithJitter(0)
+		if got != 0 {
+			t.Errorf("calculateBackoffWithJitter(0) = %v, want 0", got)
+		}
+	})
+
+	// Test higher attempts also get jitter within range
+	t.Run("higher_attempt_jitter", func(t *testing.T) {
+		for i := 0; i < 50; i++ {
+			got := policy.calculateBackoffWithJitter(3)
+			baseDelay := 400 * time.Millisecond // 100ms * 2^2
+			minDelay := time.Duration(float64(baseDelay) * 0.8)
+			maxDelay := time.Duration(float64(baseDelay) * 1.2)
+
+			if got < minDelay || got > maxDelay {
+				t.Errorf("calculateBackoffWithJitter(3) = %v, want between %v and %v", got, minDelay, maxDelay)
+			}
+		}
+	})
+}
+
 func TestDefaultRetryPolicy(t *testing.T) {
 	policy := DefaultRetryPolicy()
 

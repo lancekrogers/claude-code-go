@@ -5,22 +5,32 @@
 # Claude Code Go SDK
 
 [![CI](https://github.com/lancekrogers/claude-code-go/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/lancekrogers/claude-code-go/actions/workflows/ci.yml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/lancekrogers/claude-code-go.svg)](https://pkg.go.dev/…)
+[![Go Reference](https://pkg.go.dev/badge/github.com/lancekrogers/claude-code-go.svg)](https://pkg.go.dev/github.com/lancekrogers/claude-code-go)
 
-A Go library for programmatically integrating the [Claude Code Command Line Interface](https://docs.anthropic.com/en/docs/claude-code) into Go applications. This SDK provides a Go-native interface to all Claude Code CLI features, enabling you to build AI-powered applications that leverage Claude's coding capabilities.
+A comprehensive Go library for programmatically integrating the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) into Go applications. Build AI-powered coding assistants, automated workflows, and intelligent agents with full control over Claude's capabilities.
 
 ## Features
 
-- **Full Claude Code CLI Wrapper**: Access all Claude Code features from your Go applications
-- **Streaming Support**: Real-time streaming of Claude's responses with context cancellation
-- **MCP Integration**: Model Context Protocol support for extending Claude with additional tools
-- **Security-Sensitive Features**: Controlled access to dangerous operations via separate package
-- **Stdin Processing**: Process files and other input sources through Claude
-- **Session Management**: Support for multi-turn conversations with automatic session handling
-- **Multiple Output Formats**: Text, JSON, and streaming JSON outputs
-- **Interactive Demo**: Ready-to-run REPL demonstrating SDK capabilities
-- **Convenience Methods**: Simplified APIs for common use cases
+### Core Capabilities
+
+- **Full CLI Wrapper**: Complete access to all Claude Code features
+- **Streaming Support**: Real-time response streaming with context cancellation
+- **Session Management**: Multi-turn conversations with custom IDs, forking, and persistence control
+- **MCP Integration**: Model Context Protocol support for extending Claude with external tools
+
+### Advanced Features
+
+- **Plugin System**: Extensible architecture with logging, metrics, audit, and tool filtering plugins
+- **Budget Tracking**: Cost control with spending limits, warnings, and callbacks
+- **Subagent Orchestration**: Specialized agents for different tasks (security, code review, testing)
+- **Retry & Error Handling**: Configurable retry policies with exponential backoff and jitter
+- **Permission Control**: Fine-grained tool permissions with allowlists, blocklists, and modes
+
+### Developer Experience
+
+- **9 Interactive Demos**: Ready-to-run examples showcasing every feature
 - **Comprehensive Testing**: Unit and integration tests with mock server support
+- **Multiple Output Formats**: Text, JSON, and streaming JSON outputs
 
 ## Installation
 
@@ -28,36 +38,12 @@ A Go library for programmatically integrating the [Claude Code Command Line Inte
 go get github.com/lancekrogers/claude-code-go
 ```
 
-## Quick Demo
-
-Try the interactive streaming demo to see the SDK's real-time capabilities:
-
-```bash
-# Clone the repository
-git clone https://github.com/lancekrogers/claude-code-go
-cd claude-code-go
-
-# Run the streaming demo (default - shows real-time tool execution)
-make demo
-# or: task demo
-
-# Alternative: Run the basic demo (simple JSON output)
-make demo-basic
-# or: task demo-basic
-```
-
-The **streaming demo** shows Claude's actions in real-time with tool execution visibility, perfect for learning how Claude Code works. The **basic demo** uses simple JSON output for understanding core SDK patterns.
-
 ## Prerequisites
 
-- **Claude Max Subscription**: Claude Code requires a Claude Max subscription
-  - **[Sign up for Claude Max](https://claude.ai/referral/UKHPp7nGJw)** to access Claude Code CLI
-  - Claude Max provides unlimited usage of Claude Code with advanced features
-- **Claude Code CLI**: Must be installed and accessible in your PATH
-  - Install from: <https://docs.anthropic.com/en/docs/claude-code/getting-started>
-  - The CLI handles authentication automatically when needed
-- **MCP Servers** (optional): For MCP functionality, install the necessary MCP servers
-  - See: <https://docs.anthropic.com/en/docs/claude-code/cli-usage#mcp-configuration>
+- **Claude Max Subscription**: Required for Claude Code CLI
+  - [Sign up for Claude Max](https://claude.ai/referral/UKHPp7nGJw)
+- **Claude Code CLI**: Installed and accessible in PATH
+  - [Installation Guide](https://docs.anthropic.com/en/docs/claude-code/getting-started)
 
 ## Quick Start
 
@@ -65,391 +51,549 @@ The **streaming demo** shows Claude's actions in real-time with tool execution v
 package main
 
 import (
- "fmt"
- "log"
+    "fmt"
+    "log"
 
- "github.com/lancekrogers/claude-code-go/pkg/claude"
+    "github.com/lancekrogers/claude-code-go/pkg/claude"
 )
 
 func main() {
- // Create a new Claude client
- client := claude.NewClient("claude")
+    cc := claude.NewClient("claude")
 
- // Run a simple prompt
- result, err := client.RunPrompt("Write a function to calculate Fibonacci numbers", nil)
- if err != nil {
-  log.Fatalf("Error: %v", err)
- }
+    result, err := cc.RunPrompt("Write a function to calculate Fibonacci numbers", nil)
+    if err != nil {
+        log.Fatalf("Error: %v", err)
+    }
 
- fmt.Println(result.Result)
+    fmt.Println(result.Result)
 }
 ```
 
-## Usage Examples
+## Interactive Demos
 
-### Basic JSON Output
+Try the interactive demos to explore SDK capabilities:
+
+```bash
+# Clone and run
+git clone https://github.com/lancekrogers/claude-code-go
+cd claude-code-go
+
+# Core demos
+just demo streaming    # Real-time streaming (default)
+just demo basic        # Basic JSON output
+
+# Feature demos
+just demo sessions     # Session management and forking
+just demo mcp          # MCP server integration
+just demo retry        # Retry and error handling
+just demo permissions  # Permission control system
+just demo budget       # Budget tracking with spending limits
+just demo plugins      # Plugin system with logging/metrics
+just demo subagents    # Multi-agent orchestration
+```
+
+See [Demo Showcase](#demo-showcase) below for animated GIFs of each demo.
+
+## Core Features
+
+### Basic Usage
 
 ```go
-client := claude.NewClient("claude")
-result, err := client.RunPrompt("Generate a hello world function", &claude.RunOptions{
- Format: claude.JSONOutput,
+cc := claude.NewClient("claude")
+
+// Simple prompt
+result, err := cc.RunPrompt("Generate a hello world function", &claude.RunOptions{
+    Format: claude.JSONOutput,
 })
-if err != nil {
- log.Fatalf("Error: %v", err)
-}
 
-fmt.Printf("Cost: $%.6f\n", result.CostUSD)
-fmt.Printf("Session ID: %s\n", result.SessionID)
-fmt.Println(result.Result)
-```
-
-### Custom System Prompt
-
-```go
-result, err := client.RunPrompt("Create a database schema", &claude.RunOptions{
- SystemPrompt: "You are a database architect. Use PostgreSQL best practices.",
-})
-```
-
-### Processing Files
-
-```go
-file, err := os.Open("mycode.go")
-if err != nil {
- log.Fatalf("Cannot open file: %v", err)
-}
-defer file.Close()
-
-result, err := client.RunFromStdin(file, "Review this code for bugs", nil)
-if err != nil {
- log.Fatalf("Error: %v", err)
-}
-
-fmt.Println(result.Result)
+// With custom system prompt
+result, err = cc.RunWithSystemPrompt(
+    "Create a database schema",
+    "You are a database architect. Use PostgreSQL best practices.",
+    nil,
+)
 ```
 
 ### Streaming Responses
 
 ```go
 ctx := context.Background()
-messageCh, errCh := client.StreamPrompt(ctx, "Build a React component", &claude.RunOptions{})
+messageCh, errCh := cc.StreamPrompt(ctx, "Build a React component", &claude.RunOptions{})
 
-// Handle errors
 go func() {
- for err := range errCh {
-  log.Printf("Error: %v", err)
- }
+    for err := range errCh {
+        log.Printf("Error: %v", err)
+    }
 }()
 
-// Process messages
 for msg := range messageCh {
- switch msg.Type {
- case "assistant":
-  fmt.Println("Claude:", msg.Result)
- case "result":
-  fmt.Printf("Done! Cost: $%.4f\n", msg.CostUSD)
- }
+    switch msg.Type {
+    case "assistant":
+        fmt.Println("Claude:", msg.Result)
+    case "result":
+        fmt.Printf("Done! Cost: $%.4f\n", msg.CostUSD)
+    }
 }
+```
+
+### Session Management
+
+```go
+// Generate a custom session ID
+sessionID := claude.GenerateSessionID()
+
+// Start a new session with custom ID
+result, err := cc.RunPrompt("Write a fibonacci function", &claude.RunOptions{
+    SessionID: sessionID,
+    Format:    claude.JSONOutput,
+})
+
+// Resume the conversation
+followup, err := cc.ResumeConversation("Now optimize it for performance", result.SessionID)
+
+// Fork a session (create a branch)
+forked, err := cc.RunPrompt("Try a different approach", &claude.RunOptions{
+    ResumeID:    result.SessionID,
+    ForkSession: true,
+})
+
+// Ephemeral session (no disk persistence)
+ephemeral, err := cc.RunPrompt("Quick question", &claude.RunOptions{
+    NoSessionPersistence: true,
+})
 ```
 
 ### MCP Integration
 
 ```go
-// Create MCP configuration
-mcpConfig := map[string]interface{}{
- "mcpServers": map[string]interface{}{
-  "filesystem": map[string]interface{}{
-   "command": "npx",
-   "args": []string{"-y", "@modelcontextprotocol/server-filesystem", "./"},
-  },
- },
-}
-
-// Write to temporary file
-mcpFile, _ := os.CreateTemp("", "mcp-*.json")
-defer os.Remove(mcpFile.Name())
-json.NewEncoder(mcpFile).Encode(mcpConfig)
-mcpFile.Close()
-
-// Run with MCP tools
-result, err := client.RunPrompt(
- "List all files in the current directory",
- &claude.RunOptions{
-  MCPConfigPath: mcpFile.Name(),
-  AllowedTools:  []string{"mcp__filesystem__list_directory"},
- },
+// Single MCP config
+result, err := cc.RunWithMCP(
+    "List files in the project",
+    "mcp-config.json",
+    []string{"mcp__filesystem__list_directory"},
 )
+
+// Multiple MCP configs
+result, err = cc.RunWithMCPConfigs("Use both tools", []string{
+    "filesystem-mcp.json",
+    "database-mcp.json",
+}, nil)
+
+// Strict mode (only use specified MCP servers)
+result, err = cc.RunWithStrictMCP("Isolated environment", []string{
+    "secure-mcp.json",
+}, nil)
 ```
 
-### Multi-turn Conversations
+## Advanced Features
+
+### Plugin System
 
 ```go
-// First turn
-result, err := client.RunPrompt("Write a fibonacci function", &claude.RunOptions{
- Format: claude.JSONOutput,
+// Create plugin manager
+pm := claude.NewPluginManager()
+
+// Add logging plugin
+logger := claude.NewLoggingPlugin(log.Printf)
+logger.SanitizeSecrets = true  // Redact API keys, tokens, etc.
+logger.TruncateLength = 500    // Limit log output
+pm.Register(logger, nil)
+
+// Add metrics plugin
+metrics := claude.NewMetricsPlugin()
+pm.Register(metrics, nil)
+
+// Add tool filter (block dangerous tools)
+filter := claude.NewToolFilterPlugin(map[string]string{
+    "Bash(rm*)": "Deletion commands blocked",
+})
+pm.Register(filter, nil)
+
+// Add audit plugin
+audit := claude.NewAuditPlugin(1000) // Keep last 1000 records
+pm.Register(audit, nil)
+
+// Use with client
+result, err := cc.RunPrompt("Do something", &claude.RunOptions{
+    PluginManager: pm,
 })
 
-sessionID := result.SessionID
+// Get metrics
+stats := metrics.GetMetrics()
+fmt.Printf("Total cost: $%.4f\n", stats["total_cost"])
 
-// Continue the conversation
-followup, err := client.ResumeConversation("Now optimize it for performance", sessionID)
+// Get audit records
+records := audit.GetRecords()
 ```
 
-### Convenience Methods
+### Budget Tracking
 
 ```go
-// Quick MCP integration
-result, err := client.RunWithMCP(
- "List files in the project",
- "mcp-config.json",
- []string{"mcp__filesystem__list_directory"},
-)
+// Create budget tracker with callbacks
+tracker := claude.NewBudgetTracker(&claude.BudgetConfig{
+    MaxBudgetUSD:     10.00, // $10 limit
+    WarningThreshold: 0.8,   // Warn at 80%
+    OnBudgetWarning: func(current, max float64) {
+        fmt.Printf("Warning: Budget at %.0f%%\n", (current/max)*100)
+    },
+    OnBudgetExceeded: func(current, max float64) {
+        fmt.Printf("Budget exceeded: $%.2f > $%.2f\n", current, max)
+    },
+})
 
-// Custom system prompt
-result, err = client.RunWithSystemPrompt(
- "Create a REST API",
- "You are a senior backend engineer",
- nil,
-)
+// Use with client
+result, err := cc.RunPrompt("Generate code", &claude.RunOptions{
+    MaxBudgetUSD:  10.00,
+    BudgetTracker: tracker,
+})
 
-// Continue most recent conversation
-result, err = client.ContinueConversation("Add error handling to the code")
+// Check budget status
+fmt.Printf("Spent: $%.4f, Remaining: $%.4f\n",
+    tracker.TotalSpent(), tracker.RemainingBudget())
+```
+
+### Subagent Orchestration
+
+```go
+// Define specialized agents
+agents := map[string]*claude.SubagentConfig{
+    "security": {
+        Description:   "Security analysis and vulnerability detection",
+        SystemPrompt:  "You are a security expert. Analyze code for vulnerabilities.",
+        AllowedTools:  []string{"Read(*)", "Grep(*)"},
+        Model:         "opus",
+    },
+    "testing": {
+        Description:   "Test generation and coverage analysis",
+        SystemPrompt:  "You are a testing expert. Generate comprehensive tests.",
+        AllowedTools:  []string{"Read(*)", "Write(*)", "Bash(go test*)"},
+    },
+}
+
+// Use agents
+result, err := cc.RunPrompt("Analyze this code", &claude.RunOptions{
+    Agents: agents,
+})
+```
+
+### Retry & Error Handling
+
+```go
+// Custom retry policy
+policy := &claude.RetryPolicy{
+    MaxRetries:    5,
+    BaseDelay:     100 * time.Millisecond,
+    MaxDelay:      10 * time.Second,
+    BackoffFactor: 2.0,
+}
+
+// With automatic retry
+result, err := cc.RunPromptWithRetry("Do something", nil, policy)
+
+// With timeout
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+
+result, err = cc.RunPromptCtx(ctx, "Quick task", &claude.RunOptions{
+    Timeout: 30 * time.Second,
+})
+
+// Error classification
+if err != nil {
+    if claudeErr, ok := err.(*claude.ClaudeError); ok {
+        if claudeErr.IsRetryable() {
+            // Handle retryable error
+        }
+        fmt.Printf("Error type: %s\n", claudeErr.Type)
+    }
+}
+```
+
+### Permission Control
+
+```go
+// Permission modes
+result, err := cc.RunPrompt("Edit files", &claude.RunOptions{
+    PermissionMode: claude.PermissionModeAcceptEdits, // Auto-approve edits
+})
+
+// Tool allowlisting (with glob patterns)
+result, err = cc.RunPrompt("Work with git", &claude.RunOptions{
+    AllowedTools: []string{
+        "Read(*)",
+        "Bash(git status*)",
+        "Bash(git log*)",
+        "Bash(git diff*)",
+    },
+})
+
+// Tool blocklisting
+result, err = cc.RunPrompt("Safe operations only", &claude.RunOptions{
+    DisallowedTools: []string{
+        "Bash(rm*)",
+        "Bash(curl*)",
+        "Write(*)",
+    },
+})
 ```
 
 ## API Reference
 
-### Core Types
+### RunOptions
 
 ```go
-// ClaudeClient is the main client for interacting with Claude Code
-type ClaudeClient struct {
- BinPath        string
- DefaultOptions *RunOptions
-}
-
-// RunOptions configures how Claude Code is executed
 type RunOptions struct {
- Format          OutputFormat
- SystemPrompt    string
- AppendPrompt    string
- MCPConfigPath   string
- AllowedTools    []string
- DisallowedTools []string
- PermissionTool  string
- ResumeID        string
- Continue        bool
- MaxTurns        int
- Verbose         bool
-}
+    // Output format
+    Format       OutputFormat  // text, json, stream-json
 
-// Output formats
-const (
- TextOutput       OutputFormat = "text"
- JSONOutput       OutputFormat = "json"
- StreamJSONOutput OutputFormat = "stream-json"
-)
+    // Prompts
+    SystemPrompt string        // Override default system prompt
+    AppendPrompt string        // Append to default system prompt
+
+    // Session control
+    SessionID            string // Custom session UUID
+    ResumeID             string // Resume existing session
+    Continue             bool   // Continue most recent conversation
+    ForkSession          bool   // Fork from resumed session
+    NoSessionPersistence bool   // Don't save to disk
+
+    // MCP configuration
+    MCPConfigPath   string   // Single MCP config path
+    MCPConfigs      []string // Multiple MCP configs
+    StrictMCPConfig bool     // Only use specified MCP servers
+
+    // Tool permissions
+    AllowedTools    []string       // Tools Claude can use
+    DisallowedTools []string       // Tools Claude cannot use
+    PermissionMode  PermissionMode // default, acceptEdits, bypassPermissions
+
+    // Model selection
+    Model      string // Full model name
+    ModelAlias string // sonnet, opus, haiku
+
+    // Execution control
+    MaxTurns int           // Limit agentic turns
+    Timeout  time.Duration // Request timeout
+
+    // Budget control
+    MaxBudgetUSD  float64        // Spending limit
+    BudgetTracker *BudgetTracker // Shared tracker
+
+    // Extensions
+    Agents        map[string]*SubagentConfig // Specialized agents
+    PluginManager *PluginManager             // Plugin system
+}
 ```
 
 ### Core Methods
 
 ```go
-// Create new client
-func NewClient(binPath string) *ClaudeClient
-
-// Execute prompts
+// Basic execution
 func (c *ClaudeClient) RunPrompt(prompt string, opts *RunOptions) (*ClaudeResult, error)
+func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *RunOptions) (*ClaudeResult, error)
+
+// Streaming
 func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *RunOptions) (<-chan Message, <-chan error)
+
+// Stdin processing
 func (c *ClaudeClient) RunFromStdin(stdin io.Reader, prompt string, opts *RunOptions) (*ClaudeResult, error)
-```
 
-### Convenience Methods
+// With retry
+func (c *ClaudeClient) RunPromptWithRetry(prompt string, opts *RunOptions, policy *RetryPolicy) (*ClaudeResult, error)
 
-```go
-// MCP integration
-func (c *ClaudeClient) RunWithMCP(prompt, mcpConfigPath string, allowedTools []string) (*ClaudeResult, error)
-
-// System prompts
-func (c *ClaudeClient) RunWithSystemPrompt(prompt, systemPrompt string, opts *RunOptions) (*ClaudeResult, error)
-
-// Conversation management
+// Session convenience
 func (c *ClaudeClient) ContinueConversation(prompt string) (*ClaudeResult, error)
 func (c *ClaudeClient) ResumeConversation(prompt, sessionID string) (*ClaudeResult, error)
+
+// MCP convenience
+func (c *ClaudeClient) RunWithMCP(prompt, configPath string, tools []string) (*ClaudeResult, error)
+func (c *ClaudeClient) RunWithMCPConfigs(prompt string, configs []string, opts *RunOptions) (*ClaudeResult, error)
+func (c *ClaudeClient) RunWithStrictMCP(prompt string, configs []string, opts *RunOptions) (*ClaudeResult, error)
 ```
 
 ## Security-Sensitive Features
 
-For advanced use cases that require bypassing Claude's safety controls, the SDK provides a separate `dangerous` package:
+For advanced use cases requiring bypassed safety controls:
 
 ```go
 import "github.com/lancekrogers/claude-code-go/pkg/claude/dangerous"
 
-// SECURITY REVIEW REQUIRED: Using dangerous Claude client
-// JUSTIFICATION: Automated deployment requires permission bypass
-// RISK ASSESSMENT: Running in isolated test environment
-// MITIGATION: Input validated, output logged
-
-client, err := dangerous.NewDangerousClient("claude")
+// SECURITY REVIEW REQUIRED
+cc, err := dangerous.NewDangerousClient("claude")
 if err != nil {
     // Fails unless CLAUDE_ENABLE_DANGEROUS="i-accept-all-risks"
-    // and not in production environment
     return err
 }
 
-// Bypass permission prompts (use with extreme caution)
-result, err := client.BYPASS_ALL_PERMISSIONS("trusted prompt", nil)
-
-// Inject environment variables (security risk)
-err = client.SET_ENVIRONMENT_VARIABLES(map[string]string{
-    "CUSTOM_VAR": "value",
-})
-
-// Enable MCP debugging (may expose sensitive data)
-err = client.ENABLE_MCP_DEBUG()
+// Bypass all permission prompts
+result, err := cc.BYPASS_ALL_PERMISSIONS("trusted prompt", nil)
 ```
 
-**⚠️ Security Requirements:**
+**Requirements:**
 
-- Must set `CLAUDE_ENABLE_DANGEROUS="i-accept-all-risks"`
-- Cannot be used in production environments
-- Requires explicit security review and justification
-
-See [pkg/claude/dangerous/README.md](pkg/claude/dangerous/README.md) for detailed usage.
-
-## Integration with Agent Frameworks
-
-This SDK is designed for easy integration with AI agent frameworks:
-
-```go
-type ClaudeAgent struct {
- client *claude.ClaudeClient
- ctx    context.Context
-}
-
-func NewClaudeAgent(ctx context.Context) *ClaudeAgent {
- return &ClaudeAgent{
-  client: claude.NewClient("claude"),
-  ctx:    ctx,
- }
-}
-
-func (a *ClaudeAgent) Execute(prompt string, tools []string) (string, error) {
- result, err := a.client.RunPrompt(prompt, &claude.RunOptions{
-  AllowedTools: tools,
-  MaxTurns:     10,
- })
- if err != nil {
-  return "", err
- }
- return result.Result, nil
-}
-```
+- Set `CLAUDE_ENABLE_DANGEROUS="i-accept-all-risks"`
+- Cannot run in production environments
+- See [pkg/claude/dangerous/README.md](pkg/claude/dangerous/README.md)
 
 ## Testing
 
-The SDK includes comprehensive testing with both unit tests and integration tests:
+```bash
+# All tests
+just test all
+
+# Unit tests only
+just test lib
+
+# Integration tests (mock server)
+just test integration
+
+# Coverage report
+just coverage
+```
+
+## Development
+
+[Just](https://github.com/casey/just) is the primary command runner:
 
 ```bash
-# Run unit tests
-make test              # or: task test
+# Show available commands
+just --list
 
-# Run dangerous package tests
-make test-dangerous    # or: task test-dangerous
+# Build everything
+just build all
 
-# Run integration tests with mock server
-make test-integration  # or: task test-integration
-
-# Run integration tests with real Claude CLI
-make test-integration-real  # or: task test-integration-real
-
-# Run all tests
-make test-local        # or: task test-local
-
-# Try the demo (interactive REPL)
-make demo              # or: task demo
-
-# Try dangerous features example (development only)
-export CLAUDE_ENABLE_DANGEROUS="i-accept-all-risks"
-export NODE_ENV="development"
-make run-dangerous     # or: task run-dangerous
+# Run linting
+just lint
 ```
 
 ## Official Documentation
 
-This Go SDK wraps the official Claude Code CLI. For comprehensive documentation:
+- [Claude Code Overview](https://docs.anthropic.com/en/docs/claude-code/overview)
+- [CLI Usage Reference](https://docs.anthropic.com/en/docs/claude-code/cli-usage)
+- [SDK Patterns](https://docs.anthropic.com/en/docs/claude-code/sdk)
+- [Getting Started](https://docs.anthropic.com/en/docs/claude-code/getting-started)
 
-- **[Claude Code Overview](https://docs.anthropic.com/en/docs/claude-code/overview)** - Introduction and concepts
-- **[CLI Usage](https://docs.anthropic.com/en/docs/claude-code/cli-usage)** - Complete CLI reference
-- **[SDK Guide](https://docs.anthropic.com/en/docs/claude-code/sdk)** - Official SDK patterns
-- **[Getting Started](https://docs.anthropic.com/en/docs/claude-code/getting-started)** - Installation
+## Demo Showcase
 
-## Development
+Animated demonstrations of the SDK features. Run any demo locally with `just demo <name>`.
 
-We provide both [Task](https://taskfile.dev) and Make for development automation. Use whichever you prefer:
+### Basic
 
-### Using Make (traditional)
+Fundamental SDK usage - create a client, run prompts, get structured responses.
 
-```bash
-make help          # Show all available commands
-make build         # Build the SDK and examples
-make demo          # Run interactive demo
-make test coverage # Run tests and generate coverage
-```
-
-### Using Task (modern alternative)
+![Basic Demo](docs/gif/basic.gif)
 
 ```bash
-task --list        # Show all available commands
-task build         # Build the SDK and examples
-task demo          # Run interactive demo
-task test coverage # Run tests and generate coverage
+just demo basic
 ```
 
-### Building Examples
+---
 
-**⚠️ Important:** Always use the build commands below to ensure binaries are placed in the `bin/` directory.
+### Streaming
+
+Real-time response streaming with message type handling and context cancellation.
+
+![Streaming Demo](docs/gif/streaming.gif)
 
 ```bash
-# ✅ Correct way to build examples
-task build-examples        # Build all examples
-task build-basic           # Build basic example only
-task build-advanced        # Build advanced example only
-
-# ❌ Avoid this - creates binaries in top-level directory
-go build ./examples/basic
-go build ./examples/advanced
+just demo streaming
 ```
 
-### Available Commands
+---
 
-| Make Command                 | Task Command                 | Description                          |
-| ---------------------------- | ---------------------------- | ------------------------------------ |
-| `make all`                   | `task`                       | Build and test the SDK               |
-| `make build-lib`             | `task build-lib`             | Build the core library               |
-| `make build-examples`        | `task build-examples`        | Build all example programs to `bin/` |
-| `make build-basic`           | `task build-basic`           | Build basic example to `bin/`        |
-| `make build-advanced`        | `task build-advanced`        | Build advanced example to `bin/`     |
-| `make demo`                  | `task demo`                  | Run the interactive demo             |
-| `make run-dangerous`         | `task run-dangerous`         | Run dangerous features example       |
-| `make test`                  | `task test`                  | Run unit tests                       |
-| `make test-dangerous`        | `task test-dangerous`        | Run dangerous package tests          |
-| `make test-integration`      | `task test-integration`      | Run integration tests (mock)         |
-| `make test-integration-real` | `task test-integration-real` | Run integration tests (real Claude)  |
-| `make coverage`              | `task coverage`              | Generate coverage report             |
-| `make clean`                 | `task clean`                 | Clean build artifacts                |
+### Sessions
 
-## Project Architecture
+Multi-turn conversations with custom session IDs, forking, and persistence control.
 
-This project is designed as a **Go SDK library** for wrapping the Claude Code CLI. It does not provide its own CLI - users should import the library into their Go applications.
+![Sessions Demo](docs/gif/sessions.gif)
+
+```bash
+just demo sessions
+```
+
+---
+
+### MCP
+
+Model Context Protocol integration for extending Claude with external tools.
+
+![MCP Demo](docs/gif/mcp.gif)
+
+```bash
+just demo mcp
+```
+
+---
+
+### Retry
+
+Configurable retry policies with exponential backoff and jitter.
+
+![Retry Demo](docs/gif/retry.gif)
+
+```bash
+just demo retry
+```
+
+---
+
+### Permissions
+
+Fine-grained tool access control with modes, allowlists, and blocklists.
+
+![Permissions Demo](docs/gif/permissions.gif)
+
+```bash
+just demo permissions
+```
+
+---
+
+### Budget
+
+Cost tracking with spending limits, warnings, and budget exceeded callbacks.
+
+![Budget Demo](docs/gif/budget.gif)
+
+```bash
+just demo budget
+```
+
+---
+
+### Plugins
+
+Extensible plugin system with logging, metrics, audit, and tool filtering.
+
+![Plugins Demo](docs/gif/plugins.gif)
+
+```bash
+just demo plugins
+```
+
+---
+
+### Subagents
+
+Specialized agent orchestration for complex multi-step tasks.
+
+![Subagents Demo](docs/gif/subagents.gif)
+
+```bash
+just demo subagents
+```
+
+---
 
 ## Contributing
 
-Contributions are welcome! Please see our [Contributing Guide](docs/CONTRIBUTING.md) for details on how to get started.
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License - see LICENSE file.
 
 ## Acknowledgments
 
 - Anthropic for creating Claude Code
-- The Go community for excellent tooling and testing support
+- The Go community for excellent tooling

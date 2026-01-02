@@ -25,7 +25,7 @@ func main() {
 
 	// Example 1: Basic dangerous client creation
 	fmt.Println("1. Creating dangerous client...")
-	client, err := createDangerousClient()
+	cc, err := createDangerousClient()
 	if err != nil {
 		log.Fatalf("Failed to create dangerous client: %v", err)
 	}
@@ -34,14 +34,14 @@ func main() {
 
 	// Example 2: Environment variable injection
 	fmt.Println("2. Setting environment variables...")
-	if err := demonstrateEnvironmentInjection(client); err != nil {
+	if err := demonstrateEnvironmentInjection(cc); err != nil {
 		log.Printf("Environment injection failed: %v", err)
 	}
 	fmt.Println()
 
 	// Example 3: MCP debugging
 	fmt.Println("3. Enabling MCP debug mode...")
-	if err := client.ENABLE_MCP_DEBUG(); err != nil {
+	if err := cc.ENABLE_MCP_DEBUG(); err != nil {
 		log.Printf("MCP debug failed: %v", err)
 	} else {
 		fmt.Println("✅ MCP debugging enabled")
@@ -50,7 +50,7 @@ func main() {
 
 	// Example 4: Show active security warnings
 	fmt.Println("4. Current security warnings:")
-	warnings := client.GetSecurityWarnings()
+	warnings := cc.GetSecurityWarnings()
 	for _, warning := range warnings {
 		fmt.Printf("⚠️  %s\n", warning)
 	}
@@ -68,7 +68,7 @@ func main() {
 
 	// Example 6: Clean up
 	fmt.Println("6. Resetting dangerous settings...")
-	client.ResetDangerousSettings()
+	cc.ResetDangerousSettings()
 	fmt.Println("✅ All dangerous settings cleared")
 	fmt.Println()
 
@@ -96,7 +96,7 @@ func createDangerousClient() (*dangerous.DangerousClient, error) {
 	return dangerous.NewDangerousClient("claude")
 }
 
-func demonstrateEnvironmentInjection(client *dangerous.DangerousClient) error {
+func demonstrateEnvironmentInjection(cc *dangerous.DangerousClient) error {
 	// Example environment variables (safe for demonstration)
 	envVars := map[string]string{
 		"DEMO_MODE":        "true",
@@ -110,12 +110,12 @@ func demonstrateEnvironmentInjection(client *dangerous.DangerousClient) error {
 	}
 
 	fmt.Println("Setting safe environment variables...")
-	if err := client.SET_ENVIRONMENT_VARIABLES(envVars); err != nil {
+	if err := cc.SET_ENVIRONMENT_VARIABLES(envVars); err != nil {
 		return err
 	}
 
 	fmt.Println("Setting potentially sensitive variables (will show warnings)...")
-	if err := client.SET_ENVIRONMENT_VARIABLES(sensitiveVars); err != nil {
+	if err := cc.SET_ENVIRONMENT_VARIABLES(sensitiveVars); err != nil {
 		return err
 	}
 
@@ -136,7 +136,7 @@ func automatedDeploymentExample() error {
 	//   - Network access restricted to deployment targets only
 	//   - All operations logged to security audit system
 	
-	client, err := dangerous.NewDangerousClient("claude")
+	cc, err := dangerous.NewDangerousClient("claude")
 	if err != nil {
 		return fmt.Errorf("deployment client creation failed: %w", err)
 	}
@@ -147,8 +147,8 @@ func automatedDeploymentExample() error {
 		"LOG_LEVEL":       "info",
 		"WORKSPACE":       "/deployment/workspace",
 	}
-	
-	if err := client.SET_ENVIRONMENT_VARIABLES(deploymentEnv); err != nil {
+
+	if err := cc.SET_ENVIRONMENT_VARIABLES(deploymentEnv); err != nil {
 		return fmt.Errorf("deployment environment setup failed: %w", err)
 	}
 

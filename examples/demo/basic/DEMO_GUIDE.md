@@ -11,7 +11,7 @@ The demo showcases Claude Code Go SDK by having Claude:
 
 ## Expected Demo Flow
 
-1. **Run from SDK root**: `make demo` (from project top-level directory)
+1. **Run from SDK root**: `just demo basic` (from project top-level directory)
 2. Claude explains approach (≤3 sentences)
 3. User says: "yes, please start coding"
 4. Claude creates `it_works/` directory
@@ -44,6 +44,7 @@ For `it_works/test-file.txt`: `14cc70b04a44bb7cc18ee779c386549ed10058a62c7e7875f
 ## Interactive Commands
 
 Try these after Claude creates the code:
+
 - "Can you also build a binary version?"
 - "Test it on the larger README file too"
 - "Show the file contents so I can verify"

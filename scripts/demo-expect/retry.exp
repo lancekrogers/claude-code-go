@@ -1,0 +1,31 @@
+#!/usr/bin/expect -f
+# Retry demo - shows retry and error handling features
+
+set timeout 120
+log_user 1
+
+# Show the command being run, then execute it
+spawn -noecho bash -c "echo '\$ just demo retry' && sleep 0.5 && cd $env(PROJECT_DIR) && just demo retry"
+
+# Wait for initial display and prompt
+expect ">>>"
+
+# Show current status
+send "/status\r"
+expect ">>>"
+
+# Switch to aggressive retry policy
+send "/aggressive\r"
+expect ">>>"
+
+# Show updated status
+send "/status\r"
+expect ">>>"
+
+# Send a simple query to demonstrate retry handling
+send "What is 5 times 7?\r"
+expect ">>>"
+
+# Exit
+send "exit\r"
+expect eof

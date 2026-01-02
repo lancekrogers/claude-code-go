@@ -100,12 +100,12 @@ func (e *ClaudeError) IsRetryable() bool {
 	if !e.Type.IsRetryable() {
 		return false
 	}
-	
+
 	// For MCP errors, check if it's a connection vs configuration issue
 	if e.Type == ErrorMCP {
 		return e.isMCPConnectionError()
 	}
-	
+
 	return true
 }
 
@@ -113,31 +113,31 @@ func (e *ClaudeError) IsRetryable() bool {
 // vs configuration issues (not retryable)
 func (e *ClaudeError) isMCPConnectionError() bool {
 	lowerMsg := strings.ToLower(e.Message)
-	
+
 	// Connection-related issues (retryable)
 	connectionKeywords := []string{
 		"connection", "connect", "timeout", "refused", "unreachable",
 		"network", "socket", "pipe", "broken pipe",
 	}
-	
+
 	for _, keyword := range connectionKeywords {
 		if strings.Contains(lowerMsg, keyword) {
 			return true
 		}
 	}
-	
+
 	// Configuration-related issues (not retryable)
 	configKeywords := []string{
 		"configuration", "config", "invalid", "not found", "permission",
 		"authentication", "unauthorized", "forbidden",
 	}
-	
+
 	for _, keyword := range configKeywords {
 		if strings.Contains(lowerMsg, keyword) {
 			return false
 		}
 	}
-	
+
 	// Default to retryable for unknown MCP errors
 	return true
 }
@@ -170,7 +170,7 @@ func (e *ClaudeError) RetryDelay() int {
 func ParseError(stderr string, exitCode int) *ClaudeError {
 	stderr = strings.TrimSpace(stderr)
 	lowerStderr := strings.ToLower(stderr)
-	
+
 	// Authentication errors
 	if containsAny(lowerStderr, []string{
 		"authentication", "api key", "unauthorized", "401", "forbidden", "403",
@@ -186,7 +186,7 @@ func ParseError(stderr string, exitCode int) *ClaudeError {
 			},
 		}
 	}
-	
+
 	// Rate limit errors
 	if containsAny(lowerStderr, []string{
 		"rate limit", "too many requests", "429", "quota exceeded",
@@ -200,7 +200,7 @@ func ParseError(stderr string, exitCode int) *ClaudeError {
 		if retryAfter > 0 {
 			details["retry_after"] = retryAfter
 		}
-		
+
 		return &ClaudeError{
 			Type:    ErrorRateLimit,
 			Message: "Rate limit exceeded - please wait before retrying",
@@ -208,7 +208,7 @@ func ParseError(stderr string, exitCode int) *ClaudeError {
 			Details: details,
 		}
 	}
-	
+
 	// Permission errors
 	if containsAny(lowerStderr, []string{
 		"permission denied", "not allowed", "tool not permitted",
@@ -224,7 +224,7 @@ func ParseError(stderr string, exitCode int) *ClaudeError {
 			},
 		}
 	}
-	
+
 	// MCP errors (check before network errors since MCP can have connection issues too)
 	if containsAny(lowerStderr, []string{
 		"mcp", "model context protocol", "mcp server", "mcp tool",
@@ -232,7 +232,7 @@ func ParseError(stderr string, exitCode int) *ClaudeError {
 	}) {
 		errorType := ErrorMCP
 		suggestion := "Check MCP server configuration and ensure servers are running"
-		
+
 		// Determine if it's a connection or configuration issue
 		if containsAny(lowerStderr, []string{
 			"connection", "connect", "unreachable", "timeout", "refused",
@@ -243,7 +243,7 @@ func ParseError(stderr string, exitCode int) *ClaudeError {
 		}) {
 			suggestion = "MCP configuration error - check your MCP config file"
 		}
-		
+
 		return &ClaudeError{
 			Type:    errorType,
 			Message: "MCP server error",
@@ -254,7 +254,7 @@ func ParseError(stderr string, exitCode int) *ClaudeError {
 			},
 		}
 	}
-	
+
 	// Network errors (after MCP check)
 	if containsAny(lowerStderr, []string{
 		"network", "connection", "timeout", "dns", "unreachable",
@@ -270,7 +270,7 @@ func ParseError(stderr string, exitCode int) *ClaudeError {
 			},
 		}
 	}
-	
+
 	// Timeout errors
 	if containsAny(lowerStderr, []string{
 		"timeout", "timed out", "deadline exceeded", "context deadline",
@@ -285,7 +285,7 @@ func ParseError(stderr string, exitCode int) *ClaudeError {
 			},
 		}
 	}
-	
+
 	// Session errors
 	if containsAny(lowerStderr, []string{
 		"session", "session not found", "invalid session", "session expired",
@@ -301,7 +301,7 @@ func ParseError(stderr string, exitCode int) *ClaudeError {
 			},
 		}
 	}
-	
+
 	// Validation errors (client-side)
 	if containsAny(lowerStderr, []string{
 		"invalid", "validation", "malformed", "bad request", "400",
@@ -317,7 +317,7 @@ func ParseError(stderr string, exitCode int) *ClaudeError {
 			},
 		}
 	}
-	
+
 	// Generic command error
 	message := "Command execution failed"
 	if stderr != "" {
@@ -327,7 +327,7 @@ func ParseError(stderr string, exitCode int) *ClaudeError {
 			message = strings.TrimSpace(lines[0])
 		}
 	}
-	
+
 	return &ClaudeError{
 		Type:    ErrorCommand,
 		Message: message,
@@ -357,7 +357,7 @@ func extractRetryAfter(stderr string) int {
 		`wait (\d+) seconds`,
 		`try again in (\d+)`,
 	}
-	
+
 	for _, pattern := range patterns {
 		re := regexp.MustCompile(`(?i)` + pattern)
 		matches := re.FindStringSubmatch(stderr)
@@ -367,7 +367,7 @@ func extractRetryAfter(stderr string) int {
 			}
 		}
 	}
-	
+
 	return 0
 }
 

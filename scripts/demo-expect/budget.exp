@@ -1,0 +1,23 @@
+#!/usr/bin/expect -f
+# Budget demo - shows cost tracking features
+
+set timeout 120
+log_user 1
+
+# Show the command being run, then execute it
+spawn -noecho bash -c "echo '\$ just demo budget' && sleep 0.5 && cd $env(PROJECT_DIR) && just demo budget"
+
+# Wait for initial display and prompt
+expect ">>>"
+
+# Send a simple query to trigger cost tracking
+send "What is the capital of France?\r"
+expect ">>>"
+
+# Send another query to accumulate costs
+send "List 3 programming languages\r"
+expect ">>>"
+
+# Exit
+send "exit\r"
+expect eof

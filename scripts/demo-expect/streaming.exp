@@ -1,0 +1,33 @@
+#!/usr/bin/expect -f
+# Streaming demo - shows real-time message streaming
+
+set timeout 180
+log_user 1
+
+# Show the command being run, then execute it
+spawn -noecho bash -c "echo '\$ just demo streaming' && sleep 0.5 && cd $env(PROJECT_DIR) && just demo streaming"
+
+# Wait for streaming output and the prompt
+expect {
+    ">>>" {
+        # Decline the coding task to keep demo short
+        send "no thanks, just demonstrate\r"
+    }
+    timeout {
+        puts "Timeout waiting for initial prompt"
+        exit 1
+    }
+}
+
+# Wait for streaming response and exit
+expect {
+    ">>>" {
+        send "exit\r"
+    }
+    timeout {
+        puts "Timeout waiting for second prompt"
+        exit 1
+    }
+}
+
+expect eof

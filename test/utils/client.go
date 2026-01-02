@@ -19,12 +19,12 @@ func GetTestClaudePath(t *testing.T) string {
 	if path := os.Getenv("CLAUDE_CODE_PATH"); path != "" {
 		return path
 	}
-	
+
 	// Check if mock server is preferred
 	if os.Getenv("USE_MOCK_SERVER") == "1" {
 		return CreateMockClaudeScript(t)
 	}
-	
+
 	return "claude" // Default Claude Code CLI
 }
 
@@ -42,12 +42,12 @@ func SkipIfNoClaudeCLI(t *testing.T) {
 	if os.Getenv("USE_MOCK_SERVER") == "1" {
 		return // Mock server tests don't need Claude CLI
 	}
-	
+
 	claudePath := GetTestClaudePath(t)
 	if _, err := exec.LookPath(claudePath); err != nil {
 		t.Skipf("Skipping test: Claude Code CLI not found at '%s'. Install Claude Code CLI or use mock server with USE_MOCK_SERVER=1", claudePath)
 	}
-	
+
 	// Test if Claude CLI is working (it will handle auth automatically)
 	cmd := exec.Command(claudePath, "--help")
 	if err := cmd.Run(); err != nil {
@@ -60,12 +60,12 @@ func RequireClaudeCLI(t *testing.T) {
 	if os.Getenv("USE_MOCK_SERVER") == "1" {
 		return // Mock server tests don't need Claude CLI
 	}
-	
+
 	claudePath := GetTestClaudePath(t)
 	if _, err := exec.LookPath(claudePath); err != nil {
 		t.Fatalf("Test requires Claude Code CLI at '%s'. Install from https://docs.anthropic.com/en/docs/claude-code/getting-started", claudePath)
 	}
-	
+
 	// Test if Claude CLI is working (it will handle auth automatically)
 	cmd := exec.Command(claudePath, "--help")
 	if err := cmd.Run(); err != nil {
@@ -95,16 +95,16 @@ func IsMockServerMode() bool {
 func CreateMockClaudeScript(t *testing.T) string {
 	tempDir := t.TempDir()
 	mockScript := filepath.Join(tempDir, "mock-claude.sh")
-	
+
 	content := `#!/bin/bash
 # Mock Claude CLI that forwards to HTTP server
 PORT=${MOCK_SERVER_PORT:-8080}
 curl -s -X POST "http://localhost:$PORT/claude" -d "$*"
 `
-	
+
 	if err := os.WriteFile(mockScript, []byte(content), 0755); err != nil {
 		t.Fatalf("Failed to create mock script: %v", err)
 	}
-	
+
 	return mockScript
 }

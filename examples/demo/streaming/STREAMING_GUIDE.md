@@ -7,6 +7,7 @@ This demo showcases the **real-time streaming capabilities** of the Claude Code 
 ## What You'll Experience
 
 ### 🔄 Real-time Tool Execution
+
 ```
 🔧 Running: mkdir it_works/
 📝 Creating file: it_works/keccac.go
@@ -14,11 +15,13 @@ This demo showcases the **real-time streaming capabilities** of the Claude Code 
 ```
 
 ### 💬 Live Assistant Messages
+
 - See Claude's responses stream in real-time
 - Watch as each tool is executed step-by-step
 - Understand the complete workflow
 
 ### 📊 Session Metrics
+
 ```
 ✅ Demo completed successfully!
 💰 Cost: $0.0234 | ⏱️ Duration: 12.3s | 🔄 Turns: 4
@@ -37,6 +40,7 @@ This demo showcases the **real-time streaming capabilities** of the Claude Code 
 ## Key SDK Features Demonstrated
 
 ### StreamJSONOutput Format
+
 ```go
 messageCh, errCh := client.StreamPrompt(ctx, input, &claude.RunOptions{
     Format: claude.StreamJSONOutput,
@@ -45,6 +49,7 @@ messageCh, errCh := client.StreamPrompt(ctx, input, &claude.RunOptions{
 ```
 
 ### Real-time Message Processing
+
 ```go
 for {
     select {
@@ -57,6 +62,7 @@ for {
 ```
 
 ### Message Type Handling
+
 - **System messages**: Session initialization
 - **Assistant messages**: Text responses and tool usage
 - **Result messages**: Final completion status and metrics
@@ -74,6 +80,7 @@ This demo teaches you how to:
 ## Production Use Cases
 
 Perfect for applications that need:
+
 - **Progress bars** showing AI task completion
 - **Activity logs** for debugging and monitoring  
 - **Real-time dashboards** for team collaboration
@@ -82,6 +89,7 @@ Perfect for applications that need:
 ## Interactive Commands
 
 Try these during the demo:
+
 - `"yes, please start coding"` - See the full workflow
 - `"can you also test with a larger file?"` - Additional testing
 - `"show me the final code"` - Code review
@@ -90,6 +98,7 @@ Try these during the demo:
 ## Technical Implementation
 
 The streaming demo demonstrates:
+
 - **Context management** for long-running operations
 - **Channel-based communication** for async operations  
 - **Error handling** in streaming scenarios

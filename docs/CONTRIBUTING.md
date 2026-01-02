@@ -15,6 +15,7 @@ For official Claude Code documentation and SDK patterns, see the [Claude Code SD
 ### SDK Library Focus
 
 **What this project IS:**
+
 - Go SDK library (`pkg/claude/`)
 - Subprocess wrapper around official Claude Code CLI
 - JSON/streaming response parser
@@ -22,6 +23,7 @@ For official Claude Code documentation and SDK patterns, see the [Claude Code SD
 - MCP tool integration
 
 **What this project IS NOT:**
+
 - CLI distribution or replacement
 - Standalone application for end users
 - Alternative to the official `claude` command
@@ -29,18 +31,22 @@ For official Claude Code documentation and SDK patterns, see the [Claude Code SD
 ### Key Design Decisions
 
 #### 1. No Custom CLI
+
 We **do not** provide CLI interfaces. Users should use the official `claude` command directly.
 
 **Rationale:**
+
 - Avoids user confusion
 - Reduces maintenance burden
 - Prevents circular dependencies
 - Maintains clear project scope
 
 #### 2. Subprocess Pattern
+
 The SDK executes `claude` CLI as subprocess and parses responses.
 
 **Implementation:**
+
 - Uses `exec.CommandContext()` with proper context handling
 - Builds command arguments programmatically
 - Parses JSON/text/streaming responses
@@ -49,11 +55,13 @@ The SDK executes `claude` CLI as subprocess and parses responses.
 ## 🛠️ Development Setup
 
 ### Prerequisites
+
 - Go 1.21+ (latest version recommended)
 - Claude Code CLI installed
-- Make or Task runner
+- just command runner (`brew install just`)
 
 ### Quick Start
+
 ```bash
 # Clone the repository
 git clone https://github.com/lancekrogers/claude-code-go
@@ -63,43 +71,51 @@ cd claude-code-go
 go mod download
 
 # Run tests
-make test-local
+just test all
 
 # Build examples
-make build-examples
+just build examples
 
 # Run integration tests
-make test-integration
+just test integration
 ```
 
 ### Development Commands
+
 ```bash
+# List all available commands
+just
+
 # Core development
-make build          # Build library and examples
-make test-local     # Run all tests
-make coverage       # Generate coverage report
+just build all      # Build library and examples
+just test all       # Run all tests
+just coverage report # Generate coverage report
 
 # Examples and demos
-make demo           # Run interactive demo
-make build-examples # Build all examples
+just demo           # List demo commands
+just demo streaming # Run streaming demo
+just build examples # Build all examples
 
 # Testing variants
-make test-lib       # Core library tests only
-make test-dangerous # Test dangerous package
-make test-integration # Integration tests with mock server
+just test unit      # Core library tests only
+just test dangerous # Test dangerous package
+just test integration # Integration tests with mock server
 ```
 
 ## 📝 Code Guidelines
 
 ### Go Standards
+
 - Follow [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
 - Use `gofmt` for formatting
 - Run `go vet` before submitting
 - Write comprehensive tests
 
 ### API Design
+
 - All blocking operations must accept `context.Context`
 - Provide both context-aware and convenience methods:
+
   ```go
   // Context-aware (preferred)
   func (c *Client) RunPromptCtx(ctx context.Context, prompt string, opts *RunOptions) (*Result, error)
@@ -109,9 +125,11 @@ make test-integration # Integration tests with mock server
       return c.RunPromptCtx(context.Background(), prompt, opts)
   }
   ```
+
 - Use proper error wrapping with `fmt.Errorf("operation failed: %w", err)`
 
 ### Testing Requirements
+
 - **Minimum 80% test coverage** for new code
 - Unit tests for all public methods
 - Integration tests for end-to-end workflows
@@ -119,6 +137,7 @@ make test-integration # Integration tests with mock server
 - Use table-driven tests where appropriate
 
 ### Dependencies
+
 - **Minimize external dependencies**
 - Only add dependencies that enhance core SDK functionality
 - No CLI frameworks or command-line parsing libraries
@@ -129,42 +148,82 @@ make test-integration # Integration tests with mock server
 ### Test Types
 
 #### Unit Tests (`pkg/claude/*_test.go`)
+
 - Test core SDK functionality
 - Mock command execution using dependency injection
 - Validate argument building and response parsing
 - Test error conditions and edge cases
 
 #### Integration Tests (`test/integration/`)
+
 - Test full end-to-end workflows
 - Use mock Claude server for reliable testing
 - Validate MCP integration
 - Test streaming functionality
 
 #### Example Tests
+
 - Ensure all examples compile and run
 - Validate usage patterns
 - Test documentation examples
 
 ### Running Tests
+
 ```bash
 # All tests (recommended)
-make test-local
+just test all
 
 # Specific test suites
-make test-lib              # Core library only
-make test-dangerous        # Dangerous package only
-make test-integration      # Integration tests with mock
+just test unit             # Core library only
+just test dangerous        # Dangerous package only
+just test integration      # Integration tests with mock
 
 # With coverage
-make coverage
+just coverage report
 open coverage/coverage.html
 ```
 
 ### Mock Server Testing
+
 We provide a mock Claude server for integration testing:
+
 - HTTP server simulating Claude Code responses
 - Enables testing without Claude CLI dependency
 - Located in `test/mockserver/`
+
+## 🎬 Demo GIF Generation
+
+Interactive demos showcase the SDK features. The GIFs are recordings of real Go demos running with actual Claude Code CLI interactions.
+
+### Prerequisites
+
+```bash
+brew install expect asciinema just
+cargo install --git https://github.com/asciinema/agg
+```
+
+### Generating GIFs
+
+```bash
+# Generate single demo GIF
+just demo gif basic
+
+# Generate all demo GIFs
+just demo gif-all
+
+# List available demos
+just demo gif-list
+```
+
+> **Note:** Recording demos makes real API calls via Claude Code CLI. Keep demos short to control costs.
+
+### Adding a New Demo
+
+1. Create interactive demo: `examples/demo/<name>/cmd/demo/main.go`
+2. Create expect script: `scripts/demo-expect/<name>.exp`
+3. Add build targets to `.justfiles/demos.just`
+4. Add documentation section to `docs/DEMOS.md`
+5. Generate the GIF: `just demo gif <name>`
 
 ## 📂 Project Structure
 
@@ -183,19 +242,21 @@ claude-code-go/
 │   ├── integration/     # End-to-end tests
 │   ├── mockserver/      # Mock Claude server
 │   └── fixtures/        # Test data
-├── Makefile             # Build automation
-├── Taskfile.yml         # Alternative task runner
+├── justfile             # Primary build automation
+├── .justfiles/          # Modular justfile components
 └── go.mod               # Go module definition
 ```
 
 ## 🚀 Contributing Process
 
 ### 1. Before Starting
+
 - Check existing issues and discussions
 - Discuss major changes in an issue first
 - Ensure your Go version meets requirements
 
 ### 2. Development Workflow
+
 ```bash
 # Fork and clone your fork
 git clone https://github.com/YOUR_USERNAME/claude-code-go
@@ -205,18 +266,19 @@ cd claude-code-go
 git checkout -b feature/your-feature-name
 
 # Make changes and test
-make test-local
-make build-examples
+just test all
+just build examples
 
 # Commit with clear messages
 git commit -m "Add streaming timeout support
 
 - Add context timeout handling in StreamPrompt
-- Update tests to verify timeout behavior  
+- Update tests to verify timeout behavior
 - Add example demonstrating timeout usage"
 ```
 
 ### 3. Pull Request Guidelines
+
 - **Clear title** describing the change
 - **Comprehensive description** with motivation and approach
 - **Link related issues** using "Fixes #123" or "Related to #456"
@@ -225,6 +287,7 @@ git commit -m "Add streaming timeout support
 - **Ensure CI passes** before requesting review
 
 ### 4. Code Review Process
+
 - Maintainers will review for design, correctness, and style
 - Address feedback promptly and thoroughly
 - Be responsive to questions and suggestions
@@ -233,6 +296,7 @@ git commit -m "Add streaming timeout support
 ## 📋 Common Contribution Areas
 
 ### High-Impact Contributions
+
 - **New convenience methods** for common use cases
 - **Improved error handling** and error messages
 - **Performance optimizations** for subprocess execution
@@ -240,12 +304,14 @@ git commit -m "Add streaming timeout support
 - **Enhanced MCP integration** and tool support
 
 ### Documentation Improvements
+
 - **Code examples** showing real-world usage
 - **API documentation** improvements
 - **Architecture diagrams** and explanations
 - **Testing guides** and best practices
 
 ### Testing and Quality
+
 - **Edge case testing** for error conditions
 - **Performance benchmarks** and load testing
 - **Cross-platform compatibility** testing
@@ -277,6 +343,7 @@ git commit -m "Add streaming timeout support
 ## 🎉 Recognition
 
 Contributors will be recognized in:
+
 - GitHub contributors page
 - Release notes for significant contributions
 - Project documentation and examples

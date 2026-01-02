@@ -1,0 +1,34 @@
+#!/usr/bin/expect -f
+# Basic demo - shows initial SDK interaction
+# The demo asks Claude to plan a coding task, we say "no" to skip execution
+
+set timeout 180
+log_user 1
+
+# Show the command being run, then execute it
+spawn -noecho bash -c "echo '\$ just demo basic' && sleep 0.5 && cd $env(PROJECT_DIR) && just demo basic"
+
+# Wait for Claude's initial response and the prompt
+expect {
+    ">>>" {
+        # Send "no" to decline starting the task (keeps demo short)
+        send "no thanks, just demonstrate\r"
+    }
+    timeout {
+        puts "Timeout waiting for initial prompt"
+        exit 1
+    }
+}
+
+# Wait for response and next prompt
+expect {
+    ">>>" {
+        send "exit\r"
+    }
+    timeout {
+        puts "Timeout waiting for second prompt"
+        exit 1
+    }
+}
+
+expect eof

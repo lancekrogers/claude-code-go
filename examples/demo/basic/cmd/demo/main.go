@@ -49,7 +49,7 @@ AFTER CODING
 
 func main() {
 	// Create Claude client
-	client := claude.NewClient("claude")
+	cc := claude.NewClient("claude")
 
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -57,7 +57,7 @@ func main() {
 
 	// First call with system prompt
 	fmt.Println("Starting demo conversation...")
-	result, err := client.RunWithSystemPromptCtx(
+	result, err := cc.RunWithSystemPromptCtx(
 		ctx,
 		"In <=3 sentences, describe your plan and ask if I want you to begin.",
 		systemPrompt,
@@ -116,7 +116,7 @@ func main() {
 		// Continue conversation with same session and permissions
 		// Create a new context with timeout for each request
 		requestCtx, requestCancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		result, err := client.RunPromptCtx(requestCtx, input, &claude.RunOptions{
+		result, err := cc.RunPromptCtx(requestCtx, input, &claude.RunOptions{
 			Format:   claude.JSONOutput,
 			ResumeID: sessionID,
 			AllowedTools: []string{

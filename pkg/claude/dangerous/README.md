@@ -10,14 +10,14 @@ This package provides access to Claude Code CLI features that were intentionally
 
 ```go
 // COMPLETELY DISABLES Claude's safety mechanisms
-result, err := client.BYPASS_ALL_PERMISSIONS("prompt", opts)
+result, err := cc.BYPASS_ALL_PERMISSIONS("prompt", opts)
 ```
 
 ### 🌍 Environment Variable Injection
 
 ```go
 // Can expose sensitive data to Claude process
-err := client.SET_ENVIRONMENT_VARIABLES(map[string]string{
+err := cc.SET_ENVIRONMENT_VARIABLES(map[string]string{
     "API_KEY": "secret",  // ⚠️ Security risk!
 })
 ```
@@ -26,7 +26,7 @@ err := client.SET_ENVIRONMENT_VARIABLES(map[string]string{
 
 ```go
 // May expose sensitive information in logs
-err := client.ENABLE_MCP_DEBUG()
+err := cc.ENABLE_MCP_DEBUG()
 ```
 
 ## Security Requirements
@@ -71,7 +71,7 @@ func main() {
     // RISK ASSESSMENT: Isolated test environment, controlled input
     // MITIGATION: Output logged, environment validated
 
-    client, err := dangerous.NewDangerousClient("claude")
+    cc, err := dangerous.NewDangerousClient("claude")
     if err != nil {
         // Will fail unless security requirements are met
         log.Fatal(err)
@@ -130,7 +130,7 @@ func deployApplication() error {
     // RISK ASSESSMENT: Container isolation, network restrictions
     // MITIGATION: Input validation, audit logging, limited scope
 
-    client, err := dangerous.NewDangerousClient("claude")
+    cc, err := dangerous.NewDangerousClient("claude")
     if err != nil {
         return err
     }
@@ -140,12 +140,12 @@ func deployApplication() error {
         "DEPLOYMENT_MODE": "automated",
         "LOG_LEVEL":       "info",
     }
-    if err := client.SET_ENVIRONMENT_VARIABLES(deployEnv); err != nil {
+    if err := cc.SET_ENVIRONMENT_VARIABLES(deployEnv); err != nil {
         return err
     }
 
     // Execute deployment with bypassed permissions
-    return client.BYPASS_ALL_PERMISSIONS("Deploy the application", &claude.RunOptions{
+    return cc.BYPASS_ALL_PERMISSIONS("Deploy the application", &claude.RunOptions{
         Format:   claude.JSONOutput,
         MaxTurns: 5,
     })
@@ -161,18 +161,18 @@ func runTestSuite() error {
     // RISK ASSESSMENT: Test environment only, controlled test data
     // MITIGATION: Test isolation, no sensitive data, output validation
 
-    client, err := dangerous.NewDangerousClient("claude")
+    cc, err := dangerous.NewDangerousClient("claude")
     if err != nil {
         return err
     }
 
     // Enable debug logging for test troubleshooting
-    if err := client.ENABLE_MCP_DEBUG(); err != nil {
+    if err := cc.ENABLE_MCP_DEBUG(); err != nil {
         return err
     }
 
     // Run tests without permission prompts
-    result, err := client.BYPASS_ALL_PERMISSIONS("Run the test suite", nil)
+    result, err := cc.BYPASS_ALL_PERMISSIONS("Run the test suite", nil)
     if err != nil {
         return err
     }

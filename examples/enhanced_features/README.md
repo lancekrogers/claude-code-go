@@ -23,6 +23,7 @@ go run main.go
 ## Key Features Shown
 
 ### Enhanced Tool Permission Syntax
+
 ```go
 AllowedTools: []string{
     "Bash(git log:*)",      // Allow git log with any arguments
@@ -33,6 +34,7 @@ AllowedTools: []string{
 ```
 
 ### Structured Error Handling
+
 ```go
 if claudeErr, ok := err.(*claude.ClaudeError); ok {
     fmt.Printf("Error Type: %s\n", claudeErr.Type)
@@ -44,6 +46,7 @@ if claudeErr, ok := err.(*claude.ClaudeError); ok {
 ```
 
 ### Intelligent Retry Logic
+
 ```go
 retryPolicy := &claude.RetryPolicy{
     MaxRetries:    3,
