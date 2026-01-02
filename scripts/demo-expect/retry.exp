@@ -10,11 +10,11 @@ spawn -noecho bash -c "echo '\$ just demo retry' && sleep 0.5 && cd $env(PROJECT
 # Wait for initial display and prompt
 expect ">>>"
 
-# Show current status
+# Show current status (enhanced mode should be on by default)
 send "/status\r"
 expect ">>>"
 
-# Switch to aggressive retry policy
+# Switch to aggressive retry policy for more retries
 send "/aggressive\r"
 expect ">>>"
 
@@ -22,8 +22,12 @@ expect ">>>"
 send "/status\r"
 expect ">>>"
 
-# Send a simple query to demonstrate retry handling
-send "What is 5 times 7?\r"
+# Test retry behavior with timeout to trigger real retries
+send "/test-retry\r"
+expect ">>>"
+
+# Show cumulative statistics after test
+send "/stats\r"
 expect ">>>"
 
 # Exit

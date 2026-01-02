@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -31,9 +32,47 @@ func isExitCommand(input string) bool {
 
 func displayMCPStatus() {
 	fmt.Println("\n┌─────────────────────────────────────────────────────────────┐")
-	fmt.Printf("│ MCP Config: %-48s │\n", truncatePath(configFile))
-	fmt.Printf("│ Strict Mode: %-47v │\n", strictMode)
-	fmt.Printf("│ Allowed Tools: %-45d │\n", len(allowedTools))
+
+	// MCP Status
+	if configFile != "" {
+		fmt.Println("│ MCP Status: 🟢 Configured                                   │")
+		fmt.Printf("│ Config File: %-47s │\n", truncatePath(configFile))
+	} else {
+		fmt.Println("│ MCP Status: ⚪ Not configured                                │")
+		fmt.Println("│ (Use /example to create sample config)                      │")
+	}
+
+	// Strict Mode
+	strictIcon := "⚪"
+	strictDesc := "off"
+	if strictMode {
+		strictIcon = "🔒"
+		strictDesc = "on (MCP servers only)"
+	}
+	fmt.Printf("│ Strict Mode: %s %-44s │\n", strictIcon, strictDesc)
+
+	// Tool Allowlist
+	if len(allowedTools) > 0 {
+		fmt.Printf("│ Allowed Tools: %-45d │\n", len(allowedTools))
+		// Show first 3 tools
+		maxShow := 3
+		for i, tool := range allowedTools {
+			if i >= maxShow {
+				remaining := len(allowedTools) - maxShow
+				fmt.Printf("│   ... and %d more%-42s │\n", remaining, "")
+				break
+			}
+			// Truncate long tool names
+			displayTool := tool
+			if len(displayTool) > 50 {
+				displayTool = displayTool[:47] + "..."
+			}
+			fmt.Printf("│   • %-56s │\n", displayTool)
+		}
+	} else {
+		fmt.Println("│ Allowed Tools: All tools enabled                            │")
+	}
+
 	fmt.Println("└─────────────────────────────────────────────────────────────┘")
 }
 
@@ -58,6 +97,30 @@ func displayHelp() {
 	fmt.Println("  /status         - Show current MCP status")
 	fmt.Println("  /help           - Show this help")
 	fmt.Println("  exit            - Exit the demo")
+}
+
+func checkPrerequisites() error {
+	// Check for npx
+	fmt.Print("🔍 Checking for npx... ")
+	_, err := exec.LookPath("npx")
+	if err != nil {
+		fmt.Println("❌")
+		return fmt.Errorf("npx not found - install Node.js first")
+	}
+	fmt.Println("✅")
+
+	// Check for Node.js
+	fmt.Print("🔍 Checking Node.js version... ")
+	cmd := exec.Command("node", "--version")
+	output, err := cmd.Output()
+	if err != nil {
+		fmt.Println("❌")
+		return fmt.Errorf("node not found")
+	}
+	fmt.Printf("✅ %s", strings.TrimSpace(string(output)))
+
+	fmt.Println("✅ Prerequisites met")
+	return nil
 }
 
 func createExampleConfig() (string, error) {
@@ -112,19 +175,35 @@ func handleCommand(cmd string) bool {
 		return true
 
 	case "/example":
+		// Check prerequisites but don't block on failure
+		fmt.Println("\n📝 Creating MCP configuration...")
+		if err := checkPrerequisites(); err != nil {
+			fmt.Println("⚠️  Note: Prerequisites not met (for actual MCP server usage):")
+			fmt.Printf("   %v\n", err)
+			fmt.Println("   (Creating config anyway for demonstration)")
+		} else {
+			fmt.Println("✅ Prerequisites verified")
+		}
+
+		// Always create the config, regardless of prerequisites
 		path, err := createExampleConfig()
 		if err != nil {
 			fmt.Printf("✗ Failed to create example config: %v\n", err)
 			return true
 		}
+
 		configFile = path
 		allowedTools = []string{
 			"mcp__filesystem__list_directory",
 			"mcp__filesystem__read_file",
 		}
 		fmt.Printf("✓ Created example config at: %s\n", path)
-		fmt.Println("  Configured filesystem MCP server")
-		fmt.Println("  Allowed tools: list_directory, read_file")
+		fmt.Println("  📦 Server: filesystem (via npx)")
+		fmt.Println("  🔧 Command: npx -y @modelcontextprotocol/server-filesystem .")
+		fmt.Println("  🛠️  Configured tools:")
+		fmt.Println("     • mcp__filesystem__list_directory")
+		fmt.Println("     • mcp__filesystem__read_file")
+		fmt.Println("\n💡 Try: 'List files in the current directory'")
 		return true
 
 	case "/strict":
@@ -150,10 +229,19 @@ func handleCommand(cmd string) bool {
 	case "/tools":
 		fmt.Println("\n🔧 Allowed MCP Tools:")
 		if len(allowedTools) == 0 {
-			fmt.Println("  (all tools allowed)")
-		}
-		for i, tool := range allowedTools {
-			fmt.Printf("  %d. %s\n", i+1, tool)
+			fmt.Println("  ⚠️  No allowlist configured - all tools are permitted")
+			fmt.Println("\n💡 Tip: Use /allow <tool> to restrict to specific tools")
+		} else {
+			for i, tool := range allowedTools {
+				// Parse tool name for better display
+				if strings.HasPrefix(tool, "mcp__") {
+					serverName := extractServerName(tool)
+					toolName := strings.TrimPrefix(tool, "mcp__"+serverName+"__")
+					fmt.Printf("  %d. 🔌 %s (server: %s)\n", i+1, toolName, serverName)
+				} else {
+					fmt.Printf("  %d. 🛠️  %s (built-in)\n", i+1, tool)
+				}
+			}
 		}
 		return true
 
@@ -185,6 +273,16 @@ func handleCommand(cmd string) bool {
 	return false
 }
 
+func extractServerName(toolName string) string {
+	// MCP tool names follow pattern: mcp__<server>__<tool>
+	// Example: mcp__filesystem__list_directory -> filesystem
+	parts := strings.Split(toolName, "__")
+	if len(parts) >= 2 {
+		return parts[1]
+	}
+	return "unknown"
+}
+
 func displayStreamingMessage(msg claude.Message) {
 	switch msg.Type {
 	case "system":
@@ -203,11 +301,13 @@ func displayStreamingMessage(msg claude.Message) {
 							}
 						} else if itemMap["type"] == "tool_use" {
 							if name, ok := itemMap["name"].(string); ok {
-								// Highlight MCP tools
+								// Highlight MCP tools with server info
 								if strings.HasPrefix(name, "mcp__") {
-									fmt.Printf("🔌 MCP Tool: %s\n", name)
+									serverName := extractServerName(name)
+									toolName := strings.TrimPrefix(name, "mcp__"+serverName+"__")
+									fmt.Printf("🔌 MCP Tool: %s (server: %s)\n", toolName, serverName)
 								} else {
-									fmt.Printf("🔧 Tool: %s\n", name)
+									fmt.Printf("🛠️  SDK Tool: %s (built-in)\n", name)
 								}
 							}
 						}

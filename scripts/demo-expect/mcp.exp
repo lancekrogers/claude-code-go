@@ -10,20 +10,24 @@ spawn -noecho bash -c "echo '\$ just demo mcp' && sleep 0.5 && cd $env(PROJECT_D
 # Wait for initial display and prompt
 expect ">>>"
 
-# Show help
-send "/help\r"
+# Create example MCP configuration
+send "/example\r"
 expect ">>>"
 
-# Show status
+# Show status with MCP configured
 send "/status\r"
+expect ">>>"
+
+# Show available MCP tools
+send "/tools\r"
 expect ">>>"
 
 # Toggle strict mode
 send "/strict on\r"
 expect ">>>"
 
-# Show tools
-send "/tools\r"
+# Show status with strict mode
+send "/status\r"
 expect ">>>"
 
 # Exit
