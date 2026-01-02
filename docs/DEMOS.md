@@ -4,17 +4,17 @@ Interactive demos showcasing the Claude Code Go SDK features. Each demo runs the
 
 ## Available Demos
 
-| Demo | Description | Run Command |
-|------|-------------|-------------|
-| [Basic](#basic) | Fundamental SDK usage patterns | `just demo basic` |
-| [Streaming](#streaming) | Real-time message streaming | `just demo streaming` |
-| [Sessions](#sessions) | Session management and forking | `just demo sessions` |
-| [MCP](#mcp) | Model Context Protocol integration | `just demo mcp` |
-| [Retry](#retry) | Automatic retry with backoff | `just demo retry` |
-| [Permissions](#permissions) | Tool access control | `just demo permissions` |
-| [Budget](#budget) | Cost tracking and limits | `just demo budget` |
-| [Plugins](#plugins) | Plugin system extensibility | `just demo plugins` |
-| [Subagents](#subagents) | Agent orchestration | `just demo subagents` |
+| Demo                        | Description                        | Run Command             |
+| --------------------------- | ---------------------------------- | ----------------------- |
+| [Basic](#basic)             | Fundamental SDK usage patterns     | `just demo basic`       |
+| [Streaming](#streaming)     | Real-time message streaming        | `just demo streaming`   |
+| [Sessions](#sessions)       | Session management and forking     | `just demo sessions`    |
+| [MCP](#mcp)                 | Model Context Protocol integration | `just demo mcp`         |
+| [Retry](#retry)             | Automatic retry with backoff       | `just demo retry`       |
+| [Permissions](#permissions) | Tool access control                | `just demo permissions` |
+| [Budget](#budget)           | Cost tracking and limits           | `just demo budget`      |
+| [Plugins](#plugins)         | Plugin system extensibility        | `just demo plugins`     |
+| [Subagents](#subagents)     | Agent orchestration                | `just demo subagents`   |
 
 ---
 
@@ -27,6 +27,7 @@ The basic demo shows how to create a Claude client, run prompts, and handle resp
 ![Basic Demo](gif/basic.gif)
 
 **Key Features:**
+
 - Creating a Claude client
 - Running simple prompts
 - Configuring RunOptions
@@ -45,6 +46,7 @@ Stream responses as they're generated for responsive applications. Handle differ
 ![Streaming Demo](gif/streaming.gif)
 
 **Key Features:**
+
 - StreamPrompt for real-time responses
 - Message type handling (system, assistant, result)
 - Error channel processing
@@ -63,6 +65,7 @@ Manage multi-turn conversations with explicit session IDs. Fork conversations to
 ![Sessions Demo](gif/sessions.gif)
 
 **Key Features:**
+
 - Explicit session ID management
 - Resume previous conversations
 - Fork sessions for branching
@@ -81,6 +84,7 @@ Extend Claude's capabilities with MCP servers. Configure HTTP, SSE, and Stdio se
 ![MCP Demo](gif/mcp.gif)
 
 **Key Features:**
+
 - MCPConfigBuilder fluent API
 - HTTP, SSE, and Stdio server types
 - Environment variable injection
@@ -99,6 +103,7 @@ Handle transient failures gracefully with configurable retry policies. Exponenti
 ![Retry Demo](gif/retry.gif)
 
 **Key Features:**
+
 - Configurable retry attempts
 - Exponential backoff
 - Jitter for distributed systems
@@ -117,6 +122,7 @@ Control which tools Claude can use with permission modes, whitelists, and custom
 ![Permissions Demo](gif/permissions.gif)
 
 **Key Features:**
+
 - Permission modes (Default, AcceptEdits, Bypass)
 - AllowedTools and DisallowedTools lists
 - Pre-built callbacks (ReadOnly, SafeBash, FilePath)
@@ -135,6 +141,7 @@ Track API costs across requests and enforce spending limits. Essential for cost-
 ![Budget Demo](gif/budget.gif)
 
 **Key Features:**
+
 - Per-request budget limits (MaxBudgetUSD)
 - Shared BudgetTracker across requests
 - Real-time cost monitoring
@@ -153,6 +160,7 @@ Extend SDK behavior with plugins for logging, metrics, filtering, and auditing. 
 ![Plugins Demo](gif/plugins.gif)
 
 **Key Features:**
+
 - Built-in plugins (Logging, Metrics, ToolFilter, Audit)
 - Plugin lifecycle hooks (BeforeRun, AfterRun)
 - Plugin manager for enable/disable
@@ -171,6 +179,7 @@ Orchestrate specialized AI agents for complex multi-step tasks. Decompose work i
 ![Subagents Demo](gif/subagents.gif)
 
 **Key Features:**
+
 - Subagent types (Explore, Plan, Code, Review)
 - Task decomposition patterns
 - Agent orchestration workflows
