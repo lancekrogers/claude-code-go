@@ -39,6 +39,26 @@ subagents: build-subagents
     @echo "Starting subagents demo..."
     {{BIN_DIR}}/demo-subagents
 
+# Build and run sessions demo
+sessions: build-sessions
+    @echo "Starting sessions demo..."
+    {{BIN_DIR}}/demo-sessions
+
+# Build and run MCP demo
+mcp: build-mcp
+    @echo "Starting MCP demo..."
+    {{BIN_DIR}}/demo-mcp
+
+# Build and run retry demo
+retry: build-retry
+    @echo "Starting retry demo..."
+    {{BIN_DIR}}/demo-retry
+
+# Build and run permissions demo
+permissions: build-permissions
+    @echo "Starting permissions demo..."
+    {{BIN_DIR}}/demo-permissions
+
 # Build and run dangerous features example
 dangerous: _check-dangerous build-dangerous
     @echo "Starting dangerous features example..."
@@ -84,6 +104,34 @@ build-subagents:
     cd {{PROJECT_DIR}}/examples/demo/subagents && go mod tidy && go build -o {{BIN_DIR}}/demo-subagents ./cmd/demo
     @echo "Built: {{BIN_DIR}}/demo-subagents"
 
+# Build sessions demo
+build-sessions:
+    @echo "Building sessions demo..."
+    @mkdir -p {{BIN_DIR}}
+    cd {{PROJECT_DIR}}/examples/demo/sessions && go mod tidy && go build -o {{BIN_DIR}}/demo-sessions ./cmd/demo
+    @echo "Built: {{BIN_DIR}}/demo-sessions"
+
+# Build MCP demo
+build-mcp:
+    @echo "Building MCP demo..."
+    @mkdir -p {{BIN_DIR}}
+    cd {{PROJECT_DIR}}/examples/demo/mcp && go mod tidy && go build -o {{BIN_DIR}}/demo-mcp ./cmd/demo
+    @echo "Built: {{BIN_DIR}}/demo-mcp"
+
+# Build retry demo
+build-retry:
+    @echo "Building retry demo..."
+    @mkdir -p {{BIN_DIR}}
+    cd {{PROJECT_DIR}}/examples/demo/retry && go mod tidy && go build -o {{BIN_DIR}}/demo-retry ./cmd/demo
+    @echo "Built: {{BIN_DIR}}/demo-retry"
+
+# Build permissions demo
+build-permissions:
+    @echo "Building permissions demo..."
+    @mkdir -p {{BIN_DIR}}
+    cd {{PROJECT_DIR}}/examples/demo/permissions && go mod tidy && go build -o {{BIN_DIR}}/demo-permissions ./cmd/demo
+    @echo "Built: {{BIN_DIR}}/demo-permissions"
+
 # Build dangerous example
 build-dangerous:
     @echo "Building dangerous example..."
@@ -99,7 +147,7 @@ build-enhanced:
     @echo "Built: {{BIN_DIR}}/enhanced-example"
 
 # Build all demos
-build-all: build-streaming build-basic build-budget build-plugins build-subagents build-dangerous build-enhanced
+build-all: build-streaming build-basic build-budget build-plugins build-subagents build-sessions build-mcp build-retry build-permissions build-dangerous build-enhanced
     @echo "All demos built"
 
 # Check dangerous environment requirements
