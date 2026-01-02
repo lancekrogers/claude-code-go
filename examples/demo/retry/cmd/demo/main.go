@@ -238,8 +238,9 @@ func handleCommand(cmd string) bool {
 		return true
 
 	case "/test-retry":
-		fmt.Println("\n🧪 Testing retry behavior with intentional timeout...")
-		fmt.Println("   This will make a request with a short timeout to trigger retries")
+		fmt.Println("\n🧪 Testing retry behavior...")
+		fmt.Println("   Making a simple request to demonstrate retry instrumentation")
+		fmt.Println("   (Retries occur automatically when API errors happen)")
 
 		if !useEnhanced {
 			fmt.Println("\n⚠️  Enhanced mode is OFF - retries won't be visible")
@@ -247,28 +248,27 @@ func handleCommand(cmd string) bool {
 			return true
 		}
 
-		// Create context with timeout that's long enough for command to start
-		// but short enough to timeout during API call
-		testCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
 		testOpts := &claude.RunOptions{
 			Format:       claude.StreamJSONOutput,
-			SystemPrompt: "You are a helpful assistant.",
-			AllowedTools: []string{"Read(*)", "Bash(ls*)"},
+			SystemPrompt: "You are a helpful assistant. Answer very briefly.",
+			AllowedTools: []string{},
 			MaxTurns:     1,
-			Timeout:      1 * time.Second, // Request timeout shorter than context timeout
 		}
 
-		fmt.Println("\n🔄 Using enhanced retry mode (visible retry logic)...")
+		fmt.Println("\n🔄 Making test request with retry instrumentation enabled...")
 		cc := claude.NewClient("claude")
-		result, err := runWithRetry(testCtx, cc, "What is 2+2?", testOpts, retryPolicy)
+		ctx := context.Background()
+		result, err := runWithRetry(ctx, cc, "Say 'Hello'", testOpts, retryPolicy)
 
 		if err != nil {
-			fmt.Println("\n✅ Test completed - retry behavior demonstrated!")
-			fmt.Printf("   Final error: %v\n", err)
+			fmt.Println("\n❌ Request failed (retries were attempted if error was retryable)")
+			fmt.Printf("   Error: %v\n", err)
+			fmt.Println("\n💡 The retry instrumentation showed you:")
+			fmt.Println("   • Each attempt number")
+			fmt.Println("   • Wait times between retries")
+			fmt.Println("   • Error classification (retryable vs non-retryable)")
 		} else {
-			fmt.Println("\n⚠️  Test request succeeded (no retries needed)")
+			fmt.Println("\n✅ Request succeeded!")
 			if result.Result != "" {
 				text := result.Result
 				if len(text) > 100 {
@@ -276,6 +276,11 @@ func handleCommand(cmd string) bool {
 				}
 				fmt.Printf("   Result: %s\n", text)
 			}
+			fmt.Println("\n💡 No retries were needed (request succeeded on first attempt)")
+			fmt.Println("   When errors DO occur, you'll see:")
+			fmt.Println("   • Retry attempt logging with delays")
+			fmt.Println("   • Exponential backoff progression")
+			fmt.Println("   • Success after retries or final failure")
 		}
 
 		return true
