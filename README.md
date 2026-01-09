@@ -1,13 +1,23 @@
-<p align="left">
+<p align="center">
   <img src="docs/assets/logo.svg" alt="Claude Code Go SDK" height="90">
 </p>
+<h1 align="center">Claude Code Go SDK</h1>
+<p align="center">
+  <a href="https://github.com/lancekrogers/claude-code-go/actions/workflows/ci.yml"><img src="https://github.com/lancekrogers/claude-code-go/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://pkg.go.dev/github.com/lancekrogers/claude-code-go"><img src="https://pkg.go.dev/badge/github.com/lancekrogers/claude-code-go.svg" alt="Go Reference"></a>
+</p>
 
-# Claude Code Go SDK
+A comprehensive Go library for programmatically integrating the Claude Code CLI into Go applications. Build AI-powered coding assistants, automated workflows, and intelligent agents with full control over Claude Code's capabilities.
 
-[![CI](https://github.com/lancekrogers/claude-code-go/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/lancekrogers/claude-code-go/actions/workflows/ci.yml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/lancekrogers/claude-code-go.svg)](https://pkg.go.dev/github.com/lancekrogers/claude-code-go)
+First Claude Code SDK, released before any official SDKs existed.
 
-A comprehensive Go library for programmatically integrating the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) into Go applications. Build AI-powered coding assistants, automated workflows, and intelligent agents with full control over Claude's capabilities.
+## Highlights
+
+- Full CLI wrapper with text/json/stream-json outputs
+- Streaming, sessions (resume/fork), and context-aware APIs
+- MCP integration with fine-grained tool permissions
+- Subagents, plugins, retries, and budget tracking for production workflows
+- 9 interactive demos and comprehensive tests
 
 ## Features
 
@@ -28,7 +38,7 @@ A comprehensive Go library for programmatically integrating the [Claude Code CLI
 
 ### Developer Experience
 
-- **9 Interactive Demos**: Ready-to-run examples showcasing every feature
+- **9 Interactive Demos**: Ready-to-run examples showcasing core workflows
 - **Comprehensive Testing**: Unit and integration tests with mock server support
 - **Multiple Output Formats**: Text, JSON, and streaming JSON outputs
 
@@ -37,13 +47,6 @@ A comprehensive Go library for programmatically integrating the [Claude Code CLI
 ```bash
 go get github.com/lancekrogers/claude-code-go
 ```
-
-## Prerequisites
-
-- **Claude Max Subscription**: Required for Claude Code CLI
-  - [Sign up for Claude Max](https://claude.ai/referral/UKHPp7nGJw)
-- **Claude Code CLI**: Installed and accessible in PATH
-  - [Installation Guide](https://docs.anthropic.com/en/docs/claude-code/getting-started)
 
 ## Quick Start
 
@@ -69,15 +72,19 @@ func main() {
 }
 ```
 
+## Prerequisites
+
+- **Claude Max Subscription**: Required for Claude Code CLI
+  - [Sign up for Claude Max](https://claude.ai/referral/UKHPp7nGJw)
+- **Claude Code CLI**: Installed and accessible in PATH
+
 ## Interactive Demos
 
-Try the interactive demos to explore SDK capabilities:
+![Streaming Demo](docs/gif/streaming.gif)
+
+See [docs/DEMOS.md](docs/DEMOS.md) for the full list, GIFs, and run commands.
 
 ```bash
-# Clone and run
-git clone https://github.com/lancekrogers/claude-code-go
-cd claude-code-go
-
 # Core demos
 just demo streaming    # Real-time streaming (default)
 just demo basic        # Basic JSON output
@@ -91,8 +98,6 @@ just demo budget       # Budget tracking with spending limits
 just demo plugins      # Plugin system with logging/metrics
 just demo subagents    # Multi-agent orchestration
 ```
-
-See [Demo Showcase](#demo-showcase) below for animated GIFs of each demo.
 
 ## Core Features
 
@@ -466,124 +471,11 @@ just build all
 just lint
 ```
 
-## Official Documentation
+## Documentation
 
-- [Claude Code Overview](https://docs.anthropic.com/en/docs/claude-code/overview)
-- [CLI Usage Reference](https://docs.anthropic.com/en/docs/claude-code/cli-usage)
-- [SDK Patterns](https://docs.anthropic.com/en/docs/claude-code/sdk)
-- [Getting Started](https://docs.anthropic.com/en/docs/claude-code/getting-started)
-
-## Demo Showcase
-
-Animated demonstrations of the SDK features. Run any demo locally with `just demo <name>`.
-
-### Basic
-
-Fundamental SDK usage - create a client, run prompts, get structured responses.
-
-![Basic Demo](docs/gif/basic.gif)
-
-```bash
-just demo basic
-```
-
----
-
-### Streaming
-
-Real-time response streaming with message type handling and context cancellation.
-
-![Streaming Demo](docs/gif/streaming.gif)
-
-```bash
-just demo streaming
-```
-
----
-
-### Sessions
-
-Multi-turn conversations with custom session IDs, forking, and persistence control.
-
-![Sessions Demo](docs/gif/sessions.gif)
-
-```bash
-just demo sessions
-```
-
----
-
-### MCP
-
-Model Context Protocol integration for extending Claude with external tools.
-
-![MCP Demo](docs/gif/mcp.gif)
-
-```bash
-just demo mcp
-```
-
----
-
-### Retry
-
-Configurable retry policies with exponential backoff and jitter.
-
-![Retry Demo](docs/gif/retry.gif)
-
-```bash
-just demo retry
-```
-
----
-
-### Permissions
-
-Fine-grained tool access control with modes, allowlists, and blocklists.
-
-![Permissions Demo](docs/gif/permissions.gif)
-
-```bash
-just demo permissions
-```
-
----
-
-### Budget
-
-Cost tracking with spending limits, warnings, and budget exceeded callbacks.
-
-![Budget Demo](docs/gif/budget.gif)
-
-```bash
-just demo budget
-```
-
----
-
-### Plugins
-
-Extensible plugin system with logging, metrics, audit, and tool filtering.
-
-![Plugins Demo](docs/gif/plugins.gif)
-
-```bash
-just demo plugins
-```
-
----
-
-### Subagents
-
-Specialized agent orchestration for complex multi-step tasks.
-
-![Subagents Demo](docs/gif/subagents.gif)
-
-```bash
-just demo subagents
-```
-
----
+- [docs/DEMOS.md](docs/DEMOS.md)
+- [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
+- [docs/RELEASE_NOTES_v1.0.0.md](docs/RELEASE_NOTES_v1.0.0.md)
 
 ## Contributing
 
