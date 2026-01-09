@@ -7,7 +7,7 @@
   <a href="https://pkg.go.dev/github.com/lancekrogers/claude-code-go"><img src="https://pkg.go.dev/badge/github.com/lancekrogers/claude-code-go.svg" alt="Go Reference"></a>
 </p>
 
-A comprehensive Go library for programmatically integrating the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) into Go applications. Build AI-powered coding assistants, automated workflows, and intelligent agents with full control over Claude Code's capabilities.
+A comprehensive Go library for programmatically integrating the Claude Code CLI into Go applications. Build AI-powered coding assistants, automated workflows, and intelligent agents with full control over Claude Code's capabilities.
 
 First Claude Code SDK, released before any official SDKs existed.
 
@@ -77,11 +77,10 @@ func main() {
 - **Claude Max Subscription**: Required for Claude Code CLI
   - [Sign up for Claude Max](https://claude.ai/referral/UKHPp7nGJw)
 - **Claude Code CLI**: Installed and accessible in PATH
-  - [Installation Guide](https://docs.anthropic.com/en/docs/claude-code/getting-started)
 
 ## Interactive Demos
 
-See `docs/DEMOS.md` for the full list, GIFs, and run commands.
+See [docs/DEMOS.md](docs/DEMOS.md) for the full list, GIFs, and run commands.
 
 ## Core Features
 
@@ -455,12 +454,11 @@ just build all
 just lint
 ```
 
-## Official Documentation
+## Documentation
 
-- [Claude Code Overview](https://docs.anthropic.com/en/docs/claude-code/overview)
-- [CLI Usage Reference](https://docs.anthropic.com/en/docs/claude-code/cli-usage)
-- [SDK Patterns](https://docs.anthropic.com/en/docs/claude-code/sdk)
-- [Getting Started](https://docs.anthropic.com/en/docs/claude-code/getting-started)
+- [docs/DEMOS.md](docs/DEMOS.md)
+- [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
+- [docs/RELEASE_NOTES_v1.0.0.md](docs/RELEASE_NOTES_v1.0.0.md)
 
 ## Contributing
 
