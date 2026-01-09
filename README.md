@@ -80,7 +80,24 @@ func main() {
 
 ## Interactive Demos
 
+![Streaming Demo](docs/gif/streaming.gif)
+
 See [docs/DEMOS.md](docs/DEMOS.md) for the full list, GIFs, and run commands.
+
+```bash
+# Core demos
+just demo streaming    # Real-time streaming (default)
+just demo basic        # Basic JSON output
+
+# Feature demos
+just demo sessions     # Session management and forking
+just demo mcp          # MCP server integration
+just demo retry        # Retry and error handling
+just demo permissions  # Permission control system
+just demo budget       # Budget tracking with spending limits
+just demo plugins      # Plugin system with logging/metrics
+just demo subagents    # Multi-agent orchestration
+```
 
 ## Core Features
 
