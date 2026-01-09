@@ -38,7 +38,7 @@ First Claude Code SDK, released before any official SDKs existed.
 
 ### Developer Experience
 
-- **9 Interactive Demos**: Ready-to-run examples showcasing every feature
+- **9 Interactive Demos**: Ready-to-run examples showcasing core workflows
 - **Comprehensive Testing**: Unit and integration tests with mock server support
 - **Multiple Output Formats**: Text, JSON, and streaming JSON outputs
 
