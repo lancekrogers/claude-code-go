@@ -238,6 +238,11 @@ func BuildArgs(prompt string, opts *RunOptions) []string {
 		args = append(args, "--permission-prompt-tool", opts.PermissionTool)
 	}
 
+	// Permission mode
+	if opts.PermissionMode != "" {
+		args = append(args, "--permission-mode", string(opts.PermissionMode))
+	}
+
 	if opts.ResumeID != "" {
 		args = append(args, "--resume", opts.ResumeID)
 	} else if opts.Continue {

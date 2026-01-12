@@ -61,6 +61,12 @@ const (
 	PermissionModeAcceptEdits PermissionMode = "acceptEdits"
 	// PermissionModeBypassPermissions skips all permission checks (use with caution)
 	PermissionModeBypassPermissions PermissionMode = "bypassPermissions"
+	// PermissionModeDelegate delegates permission decisions to external handler
+	PermissionModeDelegate PermissionMode = "delegate"
+	// PermissionModeDontAsk doesn't ask for permissions, proceeds automatically
+	PermissionModeDontAsk PermissionMode = "dontAsk"
+	// PermissionModePlan enables plan mode (read-only, no modifications)
+	PermissionModePlan PermissionMode = "plan"
 )
 
 // Allow returns a PermissionResult that allows the tool
