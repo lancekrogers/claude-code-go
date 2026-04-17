@@ -71,6 +71,9 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 	args := BuildArgs(prompt, opts)
 
 	cmd := execCommand(ctx, c.BinPath, args...)
+	if opts.WorkingDirectory != "" {
+		cmd.Dir = opts.WorkingDirectory
+	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -165,6 +168,9 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 	args := BuildArgs(prompt, opts)
 
 	cmd := execCommand(ctx, c.BinPath, args...)
+	if opts.WorkingDirectory != "" {
+		cmd.Dir = opts.WorkingDirectory
+	}
 	cmd.Stdin = stdin
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

@@ -119,6 +119,8 @@ type RunOptions struct {
 	// Additional CLI flags
 	// AddDirectories specifies additional directories to include in context
 	AddDirectories []string
+	// WorkingDirectory sets the process working directory for Claude CLI execution
+	WorkingDirectory string
 	// PrintMode enables print mode output (required for some flags)
 	PrintMode bool
 
