@@ -169,6 +169,48 @@ func TestSubagentConfig_ToRunOptions(t *testing.T) {
 			t.Errorf("MaxTurns = %d, want subagent's %d", opts.MaxTurns, 3)
 		}
 	})
+
+	t.Run("subagent WorkingDirectory overrides parent", func(t *testing.T) {
+		config := &SubagentConfig{
+			Description:      "Test agent",
+			Prompt:           "You are a test agent",
+			WorkingDirectory: "/tmp/subagent-wd",
+		}
+		parentOpts := &RunOptions{WorkingDirectory: "/tmp/parent-wd"}
+
+		opts := config.ToRunOptions(parentOpts)
+
+		if opts.WorkingDirectory != "/tmp/subagent-wd" {
+			t.Errorf("WorkingDirectory = %q, want subagent's %q", opts.WorkingDirectory, "/tmp/subagent-wd")
+		}
+	})
+
+	t.Run("WorkingDirectory inherits from parent when subagent empty", func(t *testing.T) {
+		config := &SubagentConfig{
+			Description: "Test agent",
+			Prompt:      "You are a test agent",
+		}
+		parentOpts := &RunOptions{WorkingDirectory: "/tmp/parent-wd"}
+
+		opts := config.ToRunOptions(parentOpts)
+
+		if opts.WorkingDirectory != "/tmp/parent-wd" {
+			t.Errorf("WorkingDirectory = %q, want inherited %q", opts.WorkingDirectory, "/tmp/parent-wd")
+		}
+	})
+
+	t.Run("WorkingDirectory empty when neither set", func(t *testing.T) {
+		config := &SubagentConfig{
+			Description: "Test agent",
+			Prompt:      "You are a test agent",
+		}
+
+		opts := config.ToRunOptions(nil)
+
+		if opts.WorkingDirectory != "" {
+			t.Errorf("WorkingDirectory = %q, want empty", opts.WorkingDirectory)
+		}
+	})
 }
 
 func TestNewSubagentManager(t *testing.T) {

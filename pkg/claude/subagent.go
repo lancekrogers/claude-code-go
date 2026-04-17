@@ -77,7 +77,11 @@ func (sc *SubagentConfig) ToRunOptions(parentOpts *RunOptions) *RunOptions {
 	}
 
 	// Use subagent's working directory or inherit from parent
-	// Note: WorkingDirectory would need to be added to RunOptions if needed
+	if sc.WorkingDirectory != "" {
+		opts.WorkingDirectory = sc.WorkingDirectory
+	} else if parentOpts != nil {
+		opts.WorkingDirectory = parentOpts.WorkingDirectory
+	}
 
 	// Inherit MCP config from parent
 	if parentOpts != nil {
