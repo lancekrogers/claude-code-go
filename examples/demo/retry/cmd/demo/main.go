@@ -18,9 +18,9 @@ var (
 	timeout     time.Duration
 	useEnhanced bool
 	// Retry statistics
-	totalAttempts   int
-	totalRetries    int
-	totalRetryTime  time.Duration
+	totalAttempts     int
+	totalRetries      int
+	totalRetryTime    time.Duration
 	errorsEncountered []string
 )
 
@@ -252,7 +252,6 @@ func handleCommand(cmd string) bool {
 			Format:       claude.StreamJSONOutput,
 			SystemPrompt: "You are a helpful assistant. Answer very briefly.",
 			AllowedTools: []string{},
-			MaxTurns:     1,
 		}
 
 		fmt.Println("\n🔄 Making test request with retry instrumentation enabled...")
@@ -466,7 +465,6 @@ func main() {
 			Format:       claude.StreamJSONOutput,
 			SystemPrompt: "You are a helpful assistant. Keep responses concise.",
 			AllowedTools: []string{"Read(*)", "Bash(ls*)", "Bash(pwd)"},
-			MaxTurns:     3,
 		}
 
 		if timeout > 0 {

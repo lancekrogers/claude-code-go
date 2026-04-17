@@ -83,7 +83,6 @@ func main() {
 			Format:        claude.StreamJSONOutput,
 			MCPConfigPath: mcpFile.Name(),
 			AllowedTools:  allowedTools,
-			MaxTurns:      5,
 		},
 	)
 

@@ -47,14 +47,37 @@ func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *Ru
 	// Claude CLI requires --verbose when using --output-format=stream-json with --print
 	streamOpts.Verbose = true
 
+	if err := PreprocessOptions(&streamOpts); err != nil {
+		errCh <- err
+		close(messageCh)
+		close(errCh)
+		return messageCh, errCh
+	}
+
 	args := BuildArgs(prompt, &streamOpts)
 
 	go func() {
 		defer close(messageCh)
 		defer close(errCh)
 
+		runCtx := ctx
+		var cancel context.CancelFunc
+		if streamOpts.Timeout > 0 {
+			runCtx, cancel = context.WithTimeout(ctx, streamOpts.Timeout)
+		} else {
+			runCtx, cancel = context.WithCancel(ctx)
+		}
+		defer cancel()
+
+		cleanupPlugins, err := preparePluginManager(runCtx, streamOpts.PluginManager)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		defer cleanupPlugins()
+
 		// Create a custom command that supports context
-		cmd := execCommand(ctx, c.BinPath, args...)
+		cmd := execCommand(runCtx, c.BinPath, args...)
 
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
@@ -94,12 +117,26 @@ func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *Ru
 				return
 			}
 
+			if err := applyMessageHooks(runCtx, &streamOpts, msg); err != nil {
+				cancel()
+				errCh <- err
+				return
+			}
+
+			if msg.Type == "result" {
+				if err := applyCompletionHooks(runCtx, &streamOpts, messageToResult(msg)); err != nil {
+					cancel()
+					errCh <- err
+					return
+				}
+			}
+
 			select {
 			case messageCh <- msg:
 				// Message sent successfully
-			case <-ctx.Done():
+			case <-runCtx.Done():
 				// Context was canceled
-				errCh <- ctx.Err()
+				errCh <- runCtx.Err()
 				return
 			}
 		}

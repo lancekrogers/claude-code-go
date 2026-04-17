@@ -31,7 +31,6 @@ func main() {
 	opts := &claude.RunOptions{
 		Format:        claude.JSONOutput,
 		BudgetTracker: tracker,
-		MaxTurns:      1,
 	}
 
 	// Run a few prompts and track spending
@@ -59,9 +58,6 @@ func main() {
 			log.Printf("Error: %v", err)
 			continue
 		}
-
-		// Manually track spending (in production, integrate into execution)
-		tracker.AddSpend(result.SessionID, result.CostUSD)
 
 		fmt.Printf("Cost: $%.6f | Total: $%.6f | Remaining: $%.6f\n",
 			result.CostUSD, tracker.TotalSpent(), tracker.RemainingBudget())

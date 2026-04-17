@@ -83,8 +83,8 @@ func isDevelopmentEnvironment() bool {
 	goEnv := os.Getenv("GO_ENV")
 	env := os.Getenv("ENVIRONMENT")
 
-	return nodeEnv != "production" && goEnv != "production" && 
-		   env != "production" && env != "prod"
+	return nodeEnv != "production" && goEnv != "production" &&
+		env != "production" && env != "prod"
 }
 
 func createDangerousClient() (*dangerous.DangerousClient, error) {
@@ -127,7 +127,7 @@ func demonstrateEnvironmentInjection(cc *dangerous.DangerousClient) error {
 func automatedDeploymentExample() error {
 	// SECURITY REVIEW REQUIRED: Using dangerous Claude client for deployment
 	// JUSTIFICATION: Automated deployment pipeline requires permission bypass
-	// RISK ASSESSMENT: 
+	// RISK ASSESSMENT:
 	//   - Deployment runs in isolated container with limited network access
 	//   - Input is validated and comes from trusted CI/CD system
 	//   - Output is logged and audited
@@ -135,7 +135,7 @@ func automatedDeploymentExample() error {
 	//   - Container has read-only filesystem except for deployment directories
 	//   - Network access restricted to deployment targets only
 	//   - All operations logged to security audit system
-	
+
 	cc, err := dangerous.NewDangerousClient("claude")
 	if err != nil {
 		return fmt.Errorf("deployment client creation failed: %w", err)
@@ -155,7 +155,6 @@ func automatedDeploymentExample() error {
 	// In a real deployment, you would execute the deployment prompt here
 	// result, err := client.BYPASS_ALL_PERMISSIONS(deploymentPrompt, &claude.RunOptions{
 	//     Format: claude.JSONOutput,
-	//     MaxTurns: 10,
 	// })
 
 	fmt.Println("Deployment configuration completed (actual deployment not executed in example)")

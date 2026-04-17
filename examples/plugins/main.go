@@ -76,15 +76,12 @@ func main() {
 	opts := &claude.RunOptions{
 		Format:        claude.JSONOutput,
 		PluginManager: pm,
-		MaxTurns:      1,
 	}
 
 	result, err := cc.RunPrompt("What is 5+5?", opts)
 	if err != nil {
 		log.Printf("Error: %v", err)
 	} else {
-		// Manually trigger OnComplete for demonstration
-		pm.OnComplete(ctx, result)
 		fmt.Printf("Result: %s\n", result.Result)
 	}
 

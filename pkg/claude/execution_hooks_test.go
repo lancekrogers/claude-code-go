@@ -1,0 +1,255 @@
+package claude
+
+import (
+	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sync"
+	"testing"
+)
+
+type lifecyclePlugin struct {
+	mu             sync.Mutex
+	initCount      int
+	shutdownCount  int
+	messageCount   int
+	completeCount  int
+	toolCalls      []string
+	lastToolInput  ToolInput
+	lastResultCost float64
+}
+
+func (p *lifecyclePlugin) Name() string    { return "lifecycle" }
+func (p *lifecyclePlugin) Version() string { return "test" }
+
+func (p *lifecyclePlugin) Initialize(ctx context.Context) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.initCount++
+	return nil
+}
+
+func (p *lifecyclePlugin) OnToolCall(ctx context.Context, toolName string, input ToolInput) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.toolCalls = append(p.toolCalls, toolName)
+	p.lastToolInput = input
+	return nil
+}
+
+func (p *lifecyclePlugin) OnMessage(ctx context.Context, msg Message) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.messageCount++
+	return nil
+}
+
+func (p *lifecyclePlugin) OnComplete(ctx context.Context, result *ClaudeResult) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.completeCount++
+	p.lastResultCost = result.CostUSD
+	return nil
+}
+
+func (p *lifecyclePlugin) Shutdown(ctx context.Context) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.shutdownCount++
+	return nil
+}
+
+func TestRunPromptCtx_AppliesLifecycleHooks(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	jsonOutput := `[{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"pwd"}}]},"session_id":"hook-session"},{"type":"result","subtype":"success","total_cost_usd":0.25,"duration_ms":12,"duration_api_ms":8,"is_error":false,"num_turns":1,"result":"done","session_id":"hook-session"}]`
+	execCommand = mockExecCommandContext(t, []string{"-p", "Hook test", "--output-format", "json"}, jsonOutput, 0)
+
+	pm := NewPluginManager()
+	plugin := &lifecyclePlugin{}
+	if err := pm.Register(plugin, nil); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	tracker := NewBudgetTracker(&BudgetConfig{MaxBudgetUSD: 1.0})
+	client := NewClient("claude")
+
+	result, err := client.RunPromptCtx(context.Background(), "Hook test", &RunOptions{
+		Format:        JSONOutput,
+		PluginManager: pm,
+		BudgetTracker: tracker,
+	})
+	if err != nil {
+		t.Fatalf("RunPromptCtx() error = %v", err)
+	}
+
+	if result.Result != "done" {
+		t.Fatalf("Result = %q, want %q", result.Result, "done")
+	}
+	if tracker.TotalSpent() != 0.25 {
+		t.Fatalf("TotalSpent = %f, want %f", tracker.TotalSpent(), 0.25)
+	}
+	if tracker.SessionSpent("hook-session") != 0.25 {
+		t.Fatalf("SessionSpent = %f, want %f", tracker.SessionSpent("hook-session"), 0.25)
+	}
+
+	plugin.mu.Lock()
+	defer plugin.mu.Unlock()
+
+	if plugin.initCount != 1 {
+		t.Fatalf("Initialize count = %d, want 1", plugin.initCount)
+	}
+	if plugin.shutdownCount != 1 {
+		t.Fatalf("Shutdown count = %d, want 1", plugin.shutdownCount)
+	}
+	if plugin.messageCount != 2 {
+		t.Fatalf("Message count = %d, want 2", plugin.messageCount)
+	}
+	if plugin.completeCount != 1 {
+		t.Fatalf("Complete count = %d, want 1", plugin.completeCount)
+	}
+	if len(plugin.toolCalls) != 1 || plugin.toolCalls[0] != "Bash" {
+		t.Fatalf("Tool calls = %v, want [Bash]", plugin.toolCalls)
+	}
+	if plugin.lastToolInput.Command != "pwd" {
+		t.Fatalf("Tool command = %q, want %q", plugin.lastToolInput.Command, "pwd")
+	}
+	if plugin.lastResultCost != 0.25 {
+		t.Fatalf("Result cost = %f, want %f", plugin.lastResultCost, 0.25)
+	}
+}
+
+func TestRunPromptCtx_DoesNotShutdownPreinitializedPluginManager(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	jsonOutput := `{"type":"result","subtype":"success","total_cost_usd":0.01,"duration_ms":5,"duration_api_ms":5,"is_error":false,"num_turns":1,"result":"ok","session_id":"sticky-session"}`
+	execCommand = mockExecCommandContext(t, []string{"-p", "Sticky hooks", "--output-format", "json"}, jsonOutput, 0)
+
+	pm := NewPluginManager()
+	plugin := &lifecyclePlugin{}
+	if err := pm.Register(plugin, nil); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+	if err := pm.Initialize(context.Background()); err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+	defer func() {
+		_ = pm.Shutdown(context.Background())
+	}()
+
+	client := NewClient("claude")
+	if _, err := client.RunPromptCtx(context.Background(), "Sticky hooks", &RunOptions{
+		Format:        JSONOutput,
+		PluginManager: pm,
+	}); err != nil {
+		t.Fatalf("RunPromptCtx() error = %v", err)
+	}
+
+	plugin.mu.Lock()
+	defer plugin.mu.Unlock()
+
+	if plugin.initCount != 1 {
+		t.Fatalf("Initialize count = %d, want 1", plugin.initCount)
+	}
+	if plugin.shutdownCount != 0 {
+		t.Fatalf("Shutdown count = %d, want 0", plugin.shutdownCount)
+	}
+}
+
+func TestStreamPrompt_AppliesLifecycleHooks(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	mockBinary := buildStreamingMockBinary(t)
+	execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		return exec.Command(mockBinary)
+	}
+
+	pm := NewPluginManager()
+	plugin := &lifecyclePlugin{}
+	if err := pm.Register(plugin, nil); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	tracker := NewBudgetTracker(&BudgetConfig{MaxBudgetUSD: 1.0})
+	client := NewClient("claude")
+	messageCh, errCh := client.StreamPrompt(context.Background(), "Stream hooks", &RunOptions{
+		PluginManager: pm,
+		BudgetTracker: tracker,
+	})
+
+	var gotMessages []Message
+	for msg := range messageCh {
+		gotMessages = append(gotMessages, msg)
+	}
+	for err := range errCh {
+		if err != nil {
+			t.Fatalf("StreamPrompt() error = %v", err)
+		}
+	}
+
+	if len(gotMessages) != 2 {
+		t.Fatalf("Expected 2 streamed messages, got %d", len(gotMessages))
+	}
+	if tracker.TotalSpent() != 0.4 {
+		t.Fatalf("TotalSpent = %f, want %f", tracker.TotalSpent(), 0.4)
+	}
+
+	plugin.mu.Lock()
+	defer plugin.mu.Unlock()
+
+	if plugin.initCount != 1 {
+		t.Fatalf("Initialize count = %d, want 1", plugin.initCount)
+	}
+	if plugin.shutdownCount != 1 {
+		t.Fatalf("Shutdown count = %d, want 1", plugin.shutdownCount)
+	}
+	if plugin.messageCount != 2 {
+		t.Fatalf("Message count = %d, want 2", plugin.messageCount)
+	}
+	if plugin.completeCount != 1 {
+		t.Fatalf("Complete count = %d, want 1", plugin.completeCount)
+	}
+	if len(plugin.toolCalls) != 1 || plugin.toolCalls[0] != "Read" {
+		t.Fatalf("Tool calls = %v, want [Read]", plugin.toolCalls)
+	}
+	if plugin.lastToolInput.FilePath != "README.md" {
+		t.Fatalf("Tool file path = %q, want %q", plugin.lastToolInput.FilePath, "README.md")
+	}
+}
+
+func buildStreamingMockBinary(t *testing.T) string {
+	t.Helper()
+
+	tempDir := t.TempDir()
+	mockSource := filepath.Join(tempDir, "mock_stream.go")
+	mockBinary := filepath.Join(tempDir, "mock_stream")
+
+	source := `package main
+import "fmt"
+func main() {
+	fmt.Println(` + "`" + `{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"Read","input":{"file_path":"README.md"}}]},"session_id":"stream-session"}` + "`" + `)
+	fmt.Println(` + "`" + `{"type":"result","subtype":"success","total_cost_usd":0.4,"duration_ms":20,"duration_api_ms":15,"is_error":false,"num_turns":1,"result":"stream-done","session_id":"stream-session"}` + "`" + `)
+}
+`
+
+	if err := os.WriteFile(mockSource, []byte(source), 0o755); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	build := exec.Command("go", "build", "-o", mockBinary, mockSource)
+	if err := build.Run(); err != nil {
+		t.Fatalf("go build error = %v", err)
+	}
+
+	return mockBinary
+}

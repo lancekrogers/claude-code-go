@@ -21,6 +21,27 @@ const (
 	StreamJSONOutput OutputFormat = "stream-json"
 )
 
+// InputFormat defines the input format for Claude Code requests.
+type InputFormat string
+
+const (
+	// TextInput sends plain text on stdin.
+	TextInput InputFormat = "text"
+	// StreamJSONInput sends streaming JSON events on stdin.
+	StreamJSONInput InputFormat = "stream-json"
+)
+
+// EffortLevel defines the Claude reasoning effort for the current session.
+type EffortLevel string
+
+const (
+	EffortLow    EffortLevel = "low"
+	EffortMedium EffortLevel = "medium"
+	EffortHigh   EffortLevel = "high"
+	EffortXHigh  EffortLevel = "xhigh"
+	EffortMax    EffortLevel = "max"
+)
+
 // RunOptions configures how Claude Code is executed
 type RunOptions struct {
 	// Format specifies the output format (text, json, stream-json)
@@ -37,43 +58,78 @@ type RunOptions struct {
 	// DisallowedTools is a list of tools that Claude is not allowed to use
 	// Supports both legacy format ("Bash") and enhanced format ("Bash(git log:*)")
 	DisallowedTools []string
-	// PermissionTool is the MCP tool for handling permission prompts
+	// Deprecated: Claude Code no longer exposes --permission-prompt-tool on the
+	// current CLI surface. This field is ignored and kept only for source
+	// compatibility.
 	PermissionTool string
 	// ResumeID is the session ID to resume
 	ResumeID string
 	// Continue indicates whether to continue the most recent conversation
 	Continue bool
-	// MaxTurns limits the number of agentic turns in non-interactive mode
+	// Deprecated: Claude Code no longer exposes --max-turns on the current CLI
+	// surface. This field is ignored and kept only for source compatibility.
 	MaxTurns int
 	// Verbose enables verbose logging
 	Verbose bool
 	// Model specifies the model to use (full model name)
 	Model string
+	// Agent selects the active named agent for the current request
+	Agent string
 
 	// Enhanced options for 100% CLI support
 	// ModelAlias specifies model using alias ("sonnet", "opus", "haiku")
 	ModelAlias string
+	// Effort specifies the reasoning effort level for the current session
+	Effort EffortLevel
 	// Timeout specifies the maximum duration for command execution
 	Timeout time.Duration
-	// ConfigFile specifies path to Claude configuration file
+	// Deprecated: Claude Code no longer exposes --config on the current CLI
+	// surface. This field is ignored and kept only for source compatibility.
 	ConfigFile string
 	// Help shows help information
 	Help bool
 	// Version shows version information
 	Version bool
-	// DisableAutoUpdate disables automatic updates
+	// Deprecated: Claude Code no longer exposes --disable-autoupdate on the
+	// current CLI surface. This field is ignored and kept only for source
+	// compatibility.
 	DisableAutoUpdate bool
-	// Theme specifies the UI theme
+	// Deprecated: Claude Code no longer exposes --theme on the current CLI
+	// surface. This field is ignored and kept only for source compatibility.
 	Theme string
+	// InputFormat specifies stdin input mode for print runs
+	InputFormat InputFormat
+	// IncludeHookEvents includes hook lifecycle events in stream-json output
+	IncludeHookEvents bool
 	// IncludePartialMessages enables streaming of partial message chunks as they arrive
 	// Only works with --print and --output-format=stream-json
 	IncludePartialMessages bool
+	// ReplayUserMessages re-emits user messages on stdout when using stream-json IO
+	ReplayUserMessages bool
+	// DebugFile writes debug logs to a specific file path
+	DebugFile string
+	// Bare enables Claude's minimal mode
+	Bare bool
+	// Brief enables the SendUserMessage tool for agent-to-user communication
+	Brief bool
+	// Betas includes beta headers in API requests
+	Betas []string
+	// Files downloads file resources at startup in file_id:path form
+	Files []string
+	// ExcludeDynamicSystemPromptSections moves machine-specific system sections
+	// into the first user message for better cache reuse
+	ExcludeDynamicSystemPromptSections bool
+	// AllowDangerouslySkipPermissions enables the bypass option without enabling
+	// it by default for the session
+	AllowDangerouslySkipPermissions bool
 
 	// PermissionMode controls default permission handling
-	// "default" - standard checks, "acceptEdits" - auto-approve edits, "bypassPermissions" - skip all
+	// Supported values: "default", "acceptEdits", "auto", "bypassPermissions", "dontAsk", and "plan"
 	PermissionMode PermissionMode
 	// PermissionCallback is called before each tool use to determine permission
-	// If nil, default behavior based on PermissionMode is used
+	// Deprecated: the current Claude CLI no longer exposes a wrapper-safe
+	// permission callback injection point. This field is retained only for
+	// source compatibility.
 	PermissionCallback PermissionCallback `json:"-"`
 
 	// MaxBudgetUSD sets the maximum spending limit in USD
@@ -87,6 +143,9 @@ type RunOptions struct {
 	// Each agent has its own description, prompt, allowed tools, and model
 	// The main agent uses descriptions to decide which subagent to invoke
 	Agents map[string]*SubagentConfig `json:"-"`
+	// AgentsJSON provides a raw JSON string for --agents. If set, it takes
+	// precedence over Agents.
+	AgentsJSON string
 
 	// PluginManager manages plugins that hook into the execution lifecycle
 	// Plugins can intercept tool calls, messages, and completion events
@@ -119,6 +178,16 @@ type RunOptions struct {
 	// Additional CLI flags
 	// AddDirectories specifies additional directories to include in context
 	AddDirectories []string
+	// SettingSources controls which setting sources Claude loads
+	SettingSources []string
+	// Settings specifies a settings file path or inline JSON string
+	Settings string
+	// Tools limits the available built-in tool set
+	Tools []string
+	// Name sets a display name for the current session
+	Name string
+	// PluginDirs loads plugins from one or more directories
+	PluginDirs []string
 	// PrintMode enables print mode output (required for some flags)
 	PrintMode bool
 
@@ -193,9 +262,43 @@ func PreprocessOptions(opts *RunOptions) error {
 		}
 	}
 
+	// Validate effort level
+	if opts.Effort != "" && !isValidEffortLevel(opts.Effort) {
+		return NewValidationError("Invalid effort level", "Effort", opts.Effort)
+	}
+
+	// Validate input format
+	if opts.InputFormat != "" && !isValidInputFormat(opts.InputFormat) {
+		return NewValidationError("Invalid input format", "InputFormat", opts.InputFormat)
+	}
+
+	// Validate permission mode
+	if opts.PermissionMode != "" {
+		if opts.PermissionMode == PermissionModeDelegate {
+			return NewValidationError("PermissionModeDelegate is deprecated and no longer supported by the Claude CLI", "PermissionMode", opts.PermissionMode)
+		}
+		if !isValidPermissionMode(opts.PermissionMode) {
+			return NewValidationError("Invalid permission mode", "PermissionMode", opts.PermissionMode)
+		}
+	}
+
+	// Validate settings sources
+	if len(opts.SettingSources) > 0 {
+		for _, source := range opts.SettingSources {
+			if !isValidSettingSource(source) {
+				return NewValidationError("Invalid setting source", "SettingSources", opts.SettingSources)
+			}
+		}
+	}
+
 	// Validate timeout
 	if opts.Timeout < 0 {
 		return NewValidationError("Timeout cannot be negative", "Timeout", opts.Timeout)
+	}
+
+	// Validate budget limit
+	if opts.MaxBudgetUSD < 0 {
+		return NewValidationError("MaxBudgetUSD cannot be negative", "MaxBudgetUSD", opts.MaxBudgetUSD)
 	}
 
 	// Validate session ID format if provided
@@ -214,6 +317,9 @@ func PreprocessOptions(opts *RunOptions) error {
 
 	// Validate subagent configurations
 	if len(opts.Agents) > 0 {
+		if opts.AgentsJSON != "" {
+			return NewValidationError("Agents and AgentsJSON are mutually exclusive", "AgentsJSON", opts.AgentsJSON)
+		}
 		for name, config := range opts.Agents {
 			if config == nil {
 				return NewValidationError("Subagent config cannot be nil", "Agents", name)
@@ -221,6 +327,19 @@ func PreprocessOptions(opts *RunOptions) error {
 			if err := config.Validate(); err != nil {
 				return NewValidationError(fmt.Sprintf("Invalid subagent '%s': %v", name, err), "Agents", name)
 			}
+		}
+	}
+
+	// Validate stream-specific combinations
+	if opts.IncludeHookEvents && opts.Format != StreamJSONOutput {
+		return NewValidationError("IncludeHookEvents requires stream-json output", "IncludeHookEvents", opts.IncludeHookEvents)
+	}
+	if opts.IncludePartialMessages && opts.Format != StreamJSONOutput {
+		return NewValidationError("IncludePartialMessages requires stream-json output", "IncludePartialMessages", opts.IncludePartialMessages)
+	}
+	if opts.ReplayUserMessages {
+		if opts.Format != StreamJSONOutput || opts.InputFormat != StreamJSONInput {
+			return NewValidationError("ReplayUserMessages requires stream-json input and output", "ReplayUserMessages", opts.ReplayUserMessages)
 		}
 	}
 
@@ -236,6 +355,43 @@ func isValidModelAlias(alias string) bool {
 		}
 	}
 	return false
+}
+
+func isValidEffortLevel(level EffortLevel) bool {
+	validLevels := []EffortLevel{EffortLow, EffortMedium, EffortHigh, EffortXHigh, EffortMax}
+	for _, valid := range validLevels {
+		if level == valid {
+			return true
+		}
+	}
+	return false
+}
+
+func isValidInputFormat(format InputFormat) bool {
+	return format == TextInput || format == StreamJSONInput
+}
+
+func isValidPermissionMode(mode PermissionMode) bool {
+	switch mode {
+	case PermissionModeDefault,
+		PermissionModeAcceptEdits,
+		PermissionModeAuto,
+		PermissionModeBypassPermissions,
+		PermissionModeDontAsk,
+		PermissionModePlan:
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidSettingSource(source string) bool {
+	switch source {
+	case "user", "project", "local":
+		return true
+	default:
+		return false
+	}
 }
 
 // isValidSessionID validates session ID format (should be UUID-like)

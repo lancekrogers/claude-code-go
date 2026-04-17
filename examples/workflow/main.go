@@ -66,14 +66,12 @@ func main() {
 			"Bash(sudo:*)",
 			"Bash(curl|sh:*)",
 		},
-		MaxTurns: 10,              // Limit iterations
-		Timeout:  5 * time.Minute, // Prevent runaway tasks
+		Timeout: 5 * time.Minute, // Prevent runaway tasks
 	}
 
 	fmt.Println("CI/CD Configuration:")
 	fmt.Printf("  Permission Mode: %s\n", ciOpts.PermissionMode)
 	fmt.Printf("  Allowed Tools: %v\n", ciOpts.AllowedTools)
-	fmt.Printf("  Max Turns: %d\n", ciOpts.MaxTurns)
 	fmt.Printf("  Timeout: %v\n", ciOpts.Timeout)
 	fmt.Println()
 
@@ -200,7 +198,6 @@ Batch processing pattern for CI:
       for i, task := range tasks {
           result, err := client.RunPromptCtx(ctx, task, &claude.RunOptions{
               Format:   claude.JSONOutput,
-              MaxTurns: 5,
               Timeout:  2 * time.Minute,
           })
 
@@ -385,7 +382,6 @@ Budget control for CI pipelines:
           Format:         claude.JSONOutput,
           PermissionMode: claude.PermissionModeAcceptEdits,
           MaxBudgetUSD:   *maxCost,
-          MaxTurns:       10,
           AllowedTools: []string{
               "Read", "Grep", "Glob",
               "Bash(go:*)", "Bash(git:*)",
@@ -465,12 +461,11 @@ Exit Codes:
 - 5: Rate limit
 
 Best Practices:
-1. Always set MaxTurns to prevent infinite loops
-2. Always set Timeout for pipeline predictability
-3. Use BudgetTracker to control costs
-4. Use AllowedTools to restrict operations
-5. Log all costs for billing visibility
-6. Handle errors with proper exit codes
-7. Output structured data for downstream tools
-8. Use ephemeral sessions (NoSessionPersistence) for stateless CI`)
+1. Always set Timeout for pipeline predictability
+2. Use BudgetTracker to control costs
+3. Use AllowedTools to restrict operations
+4. Log all costs for billing visibility
+5. Handle errors with proper exit codes
+6. Output structured data for downstream tools
+7. Use ephemeral sessions (NoSessionPersistence) for stateless CI`)
 }

@@ -18,15 +18,15 @@ func main() {
 	opts := &claude.RunOptions{
 		Format: claude.JSONOutput,
 		AllowedTools: []string{
-			"Bash(git log:*)",      // Allow git log with any arguments
-			"Bash(git status)",     // Allow only git status
-			"Read",                 // Allow all file reading
-			"Write(src/**)",        // Allow writing only to src directory
+			"Bash(git log:*)",  // Allow git log with any arguments
+			"Bash(git status)", // Allow only git status
+			"Read",             // Allow all file reading
+			"Write(src/**)",    // Allow writing only to src directory
 		},
 		DisallowedTools: []string{
-			"Bash(rm:*)",          // Explicitly block rm commands
+			"Bash(rm:*)", // Explicitly block rm commands
 		},
-		ModelAlias: "sonnet",      // Use model alias instead of full name
+		ModelAlias: "sonnet", // Use model alias instead of full name
 		Timeout:    30 * time.Second,
 		Verbose:    true,
 	}
@@ -80,9 +80,9 @@ func main() {
 	fmt.Println("🔍 Example 3: Input Validation")
 	invalidOpts := &claude.RunOptions{
 		AllowedTools: []string{
-			"InvalidTool()",        // This will trigger validation error
+			"InvalidTool()", // This will trigger validation error
 		},
-		ModelAlias: "invalid-model", // This will also fail validation
+		ModelAlias: "invalid-model",  // This will also fail validation
 		Timeout:    -5 * time.Second, // Negative timeout
 	}
 
@@ -106,12 +106,11 @@ func main() {
 			"Bash(git log:--oneline)", // Limited git log
 		},
 		DisallowedTools: []string{
-			"Bash(rm:*)",              // Block destructive operations
-			"Bash(sudo:*)",            // Block privilege escalation
-			"Write",                   // Block all writes (could be more specific)
+			"Bash(rm:*)",   // Block destructive operations
+			"Bash(sudo:*)", // Block privilege escalation
+			"Write",        // Block all writes (could be more specific)
 		},
 		ModelAlias: "sonnet",
-		MaxTurns:   5,                 // Limit agentic behavior
 		Timeout:    60 * time.Second,
 	}
 

@@ -59,9 +59,12 @@ const (
 	PermissionModeDefault PermissionMode = "default"
 	// PermissionModeAcceptEdits auto-approves file edit operations
 	PermissionModeAcceptEdits PermissionMode = "acceptEdits"
+	// PermissionModeAuto enables Claude's current automatic permission behavior.
+	PermissionModeAuto PermissionMode = "auto"
 	// PermissionModeBypassPermissions skips all permission checks (use with caution)
 	PermissionModeBypassPermissions PermissionMode = "bypassPermissions"
-	// PermissionModeDelegate delegates permission decisions to external handler
+	// Deprecated: Claude Code no longer supports delegate permission mode on the
+	// current CLI surface.
 	PermissionModeDelegate PermissionMode = "delegate"
 	// PermissionModeDontAsk doesn't ask for permissions, proceeds automatically
 	PermissionModeDontAsk PermissionMode = "dontAsk"

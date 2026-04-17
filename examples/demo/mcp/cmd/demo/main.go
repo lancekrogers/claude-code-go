@@ -371,7 +371,6 @@ func main() {
 		opts := &claude.RunOptions{
 			Format:       claude.StreamJSONOutput,
 			SystemPrompt: "You are a helpful assistant with access to MCP tools. Use them when appropriate.",
-			MaxTurns:     5,
 		}
 
 		// Add MCP configuration
