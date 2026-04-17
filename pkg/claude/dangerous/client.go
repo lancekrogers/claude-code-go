@@ -11,6 +11,9 @@ import (
 	"github.com/lancekrogers/claude-code-go/pkg/claude"
 )
 
+// execCommand is overridable in tests to mock subprocess execution.
+var execCommand = exec.CommandContext
+
 // DangerousClient provides access to unsafe Claude Code operations
 // WARNING: This client can bypass critical security controls
 // REQUIREMENT: Must set CLAUDE_ENABLE_DANGEROUS="i-accept-all-risks"
@@ -193,7 +196,10 @@ func (c *DangerousClient) runWithDangerousFlags(ctx context.Context, prompt stri
 	}
 
 	// Create command with context support
-	cmd := exec.CommandContext(ctx, c.ClaudeClient.BinPath, args...)
+	cmd := execCommand(ctx, c.ClaudeClient.BinPath, args...)
+	if opts != nil && opts.WorkingDirectory != "" {
+		cmd.Dir = opts.WorkingDirectory
+	}
 
 	// Set custom environment if requested
 	if useCustomEnv && len(c.envVars) > 0 {

@@ -46,6 +46,26 @@ func TestHelperProcess(t *testing.T) {
 	}
 	defer os.Exit(0)
 
+	if os.Getenv("GO_HELPER_PRINT_PWD") == "1" {
+		wd, err := os.Getwd()
+		if err != nil {
+			os.Stderr.WriteString(err.Error())
+			os.Exit(1)
+		}
+		os.Stdout.Write([]byte(wd))
+		return
+	}
+
+	if os.Getenv("GO_HELPER_STREAM_PWD") == "1" {
+		wd, err := os.Getwd()
+		if err != nil {
+			os.Stderr.WriteString(err.Error())
+			os.Exit(1)
+		}
+		os.Stdout.Write([]byte(`{"type":"result","subtype":"success","total_cost_usd":0.0,"duration_ms":1,"duration_api_ms":1,"is_error":false,"num_turns":1,"result":"` + wd + `","session_id":"test-session"}` + "\n"))
+		return
+	}
+
 	output := os.Getenv("GO_HELPER_OUTPUT")
 	exitCode := int(os.Getenv("GO_HELPER_EXIT_CODE")[0] - '0')
 
@@ -105,6 +125,184 @@ func TestRunPrompt(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected an error, got nil")
 	}
+}
+
+func TestRunPrompt_WorkingDirectory(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	wantDir := t.TempDir()
+	execCommand = func(_ context.Context, name string, arg ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestHelperProcess", "--", name}
+		cs = append(cs, arg...)
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Env = []string{
+			"GO_WANT_HELPER_PROCESS=1",
+			"GO_HELPER_PRINT_PWD=1",
+		}
+		return cmd
+	}
+
+	client := &ClaudeClient{BinPath: "claude"}
+	result, err := client.RunPrompt("Hello, Claude", &RunOptions{
+		Format:           TextOutput,
+		WorkingDirectory: wantDir,
+	})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	gotDir, err := filepath.EvalSymlinks(strings.TrimSpace(result.Result))
+	if err != nil {
+		t.Fatalf("EvalSymlinks(result) error = %v", err)
+	}
+	resolvedWantDir, err := filepath.EvalSymlinks(wantDir)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(wantDir) error = %v", err)
+	}
+	if gotDir != resolvedWantDir {
+		t.Fatalf("expected cwd %q, got %q", resolvedWantDir, gotDir)
+	}
+}
+
+func TestRunFromStdin_WorkingDirectory(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	wantDir := t.TempDir()
+	execCommand = func(_ context.Context, name string, arg ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestHelperProcess", "--", name}
+		cs = append(cs, arg...)
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Env = []string{
+			"GO_WANT_HELPER_PROCESS=1",
+			"GO_HELPER_PRINT_PWD=1",
+		}
+		return cmd
+	}
+
+	client := &ClaudeClient{BinPath: "claude"}
+	result, err := client.RunFromStdin(strings.NewReader("stdin input"), "Hello, Claude", &RunOptions{
+		Format:           TextOutput,
+		WorkingDirectory: wantDir,
+	})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	gotDir, err := filepath.EvalSymlinks(strings.TrimSpace(result.Result))
+	if err != nil {
+		t.Fatalf("EvalSymlinks(result) error = %v", err)
+	}
+	resolvedWantDir, err := filepath.EvalSymlinks(wantDir)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(wantDir) error = %v", err)
+	}
+	if gotDir != resolvedWantDir {
+		t.Fatalf("expected cwd %q, got %q", resolvedWantDir, gotDir)
+	}
+}
+
+// TestWorkingDirectory_EmptyInheritsParentCwd verifies that when WorkingDirectory
+// is empty, the Claude subprocess inherits the parent process's cwd across all
+// three entry points. Guards against accidentally always setting cmd.Dir.
+func TestWorkingDirectory_EmptyInheritsParentCwd(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	parentCwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("os.Getwd() error = %v", err)
+	}
+	resolvedParent, err := filepath.EvalSymlinks(parentCwd)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(parent) error = %v", err)
+	}
+
+	assertInheritedCwd := func(t *testing.T, got string) {
+		t.Helper()
+		resolved, err := filepath.EvalSymlinks(strings.TrimSpace(got))
+		if err != nil {
+			t.Fatalf("EvalSymlinks(result) error = %v", err)
+		}
+		if resolved != resolvedParent {
+			t.Fatalf("expected child to inherit parent cwd %q, got %q", resolvedParent, resolved)
+		}
+	}
+
+	t.Run("RunPrompt", func(t *testing.T) {
+		execCommand = func(_ context.Context, name string, arg ...string) *exec.Cmd {
+			cs := []string{"-test.run=TestHelperProcess", "--", name}
+			cs = append(cs, arg...)
+			cmd := exec.Command(os.Args[0], cs...)
+			cmd.Env = []string{
+				"GO_WANT_HELPER_PROCESS=1",
+				"GO_HELPER_PRINT_PWD=1",
+			}
+			return cmd
+		}
+
+		client := &ClaudeClient{BinPath: "claude"}
+		result, err := client.RunPrompt("Hello, Claude", &RunOptions{Format: TextOutput})
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+		assertInheritedCwd(t, result.Result)
+	})
+
+	t.Run("RunFromStdin", func(t *testing.T) {
+		execCommand = func(_ context.Context, name string, arg ...string) *exec.Cmd {
+			cs := []string{"-test.run=TestHelperProcess", "--", name}
+			cs = append(cs, arg...)
+			cmd := exec.Command(os.Args[0], cs...)
+			cmd.Env = []string{
+				"GO_WANT_HELPER_PROCESS=1",
+				"GO_HELPER_PRINT_PWD=1",
+			}
+			return cmd
+		}
+
+		client := &ClaudeClient{BinPath: "claude"}
+		result, err := client.RunFromStdin(strings.NewReader("in"), "Hello, Claude", &RunOptions{Format: TextOutput})
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+		assertInheritedCwd(t, result.Result)
+	})
+
+	t.Run("StreamPrompt", func(t *testing.T) {
+		execCommand = func(_ context.Context, name string, arg ...string) *exec.Cmd {
+			cs := []string{"-test.run=TestHelperProcess", "--", name}
+			cs = append(cs, arg...)
+			cmd := exec.Command(os.Args[0], cs...)
+			cmd.Env = []string{
+				"GO_WANT_HELPER_PROCESS=1",
+				"GO_HELPER_STREAM_PWD=1",
+			}
+			return cmd
+		}
+
+		client := &ClaudeClient{BinPath: "claude"}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		messageCh, errCh := client.StreamPrompt(ctx, "Test", &RunOptions{})
+
+		var got Message
+		for msg := range messageCh {
+			got = msg
+		}
+		for err := range errCh {
+			if err != nil {
+				t.Fatalf("Streaming error: %v", err)
+			}
+		}
+		assertInheritedCwd(t, got.Result)
+	})
 }
 
 func TestStreamPrompt(t *testing.T) {
@@ -1142,6 +1340,54 @@ func TestRunPromptCtx_ContextDeadlineExceeded(t *testing.T) {
 			t.Errorf("Expected fast timeout, but took %v", elapsed)
 		}
 	})
+}
+
+func TestStreamPrompt_WorkingDirectory(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	wantDir := t.TempDir()
+	execCommand = func(_ context.Context, name string, arg ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestHelperProcess", "--", name}
+		cs = append(cs, arg...)
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Env = []string{
+			"GO_WANT_HELPER_PROCESS=1",
+			"GO_HELPER_STREAM_PWD=1",
+		}
+		return cmd
+	}
+
+	client := &ClaudeClient{BinPath: "claude"}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	messageCh, errCh := client.StreamPrompt(ctx, "Test streaming", &RunOptions{
+		WorkingDirectory: wantDir,
+	})
+
+	var got Message
+	for msg := range messageCh {
+		got = msg
+	}
+	for err := range errCh {
+		if err != nil {
+			t.Fatalf("Streaming error: %v", err)
+		}
+	}
+	gotDir, err := filepath.EvalSymlinks(got.Result)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(result) error = %v", err)
+	}
+	resolvedWantDir, err := filepath.EvalSymlinks(wantDir)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(wantDir) error = %v", err)
+	}
+	if gotDir != resolvedWantDir {
+		t.Fatalf("expected cwd %q, got %q", resolvedWantDir, gotDir)
+	}
 }
 
 func TestStreamPrompt_ContextCancellation(t *testing.T) {
