@@ -3,11 +3,31 @@ package dangerous
 import (
 	"context"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/lancekrogers/claude-code-go/pkg/claude"
 )
+
+// TestHelperProcess isn't a real test - it's used to mock exec.Command in this package.
+func TestHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	defer os.Exit(0)
+
+	if os.Getenv("GO_HELPER_PRINT_PWD") == "1" {
+		wd, err := os.Getwd()
+		if err != nil {
+			os.Stderr.WriteString(err.Error())
+			os.Exit(1)
+		}
+		os.Stdout.Write([]byte(`{"type":"result","subtype":"success","total_cost_usd":0.0,"duration_ms":1,"duration_api_ms":1,"is_error":false,"num_turns":1,"result":"` + wd + `","session_id":"test-session"}` + "\n"))
+		return
+	}
+}
 
 func TestNewDangerousClient_RequiresEnvironmentVariable(t *testing.T) {
 	// Clear environment
@@ -519,5 +539,52 @@ func TestDangerousClient_ResetClearsAll(t *testing.T) {
 	}
 	if len(client.GetSecurityWarnings()) != 0 {
 		t.Errorf("Expected 0 warnings after reset, got %d", len(client.GetSecurityWarnings()))
+	}
+}
+
+func TestBYPASS_ALL_PERMISSIONS_CTX_WorkingDirectory(t *testing.T) {
+	originalDangerous := os.Getenv("CLAUDE_ENABLE_DANGEROUS")
+	defer os.Setenv("CLAUDE_ENABLE_DANGEROUS", originalDangerous)
+	os.Setenv("CLAUDE_ENABLE_DANGEROUS", "i-accept-all-risks")
+
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	wantDir := t.TempDir()
+	execCommand = func(_ context.Context, name string, arg ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestHelperProcess", "--", name}
+		cs = append(cs, arg...)
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Env = []string{
+			"GO_WANT_HELPER_PROCESS=1",
+			"GO_HELPER_PRINT_PWD=1",
+		}
+		return cmd
+	}
+
+	client, err := NewDangerousClient("claude")
+	if err != nil {
+		t.Fatalf("NewDangerousClient() error = %v", err)
+	}
+
+	result, err := client.BYPASS_ALL_PERMISSIONS_CTX(context.Background(), "Hello", &claude.RunOptions{
+		Format:           claude.JSONOutput,
+		WorkingDirectory: wantDir,
+	})
+	if err != nil {
+		t.Fatalf("BYPASS_ALL_PERMISSIONS_CTX() error = %v", err)
+	}
+	gotDir, err := filepath.EvalSymlinks(strings.TrimSpace(result.Result))
+	if err != nil {
+		t.Fatalf("EvalSymlinks(result) error = %v", err)
+	}
+	resolvedWantDir, err := filepath.EvalSymlinks(wantDir)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(wantDir) error = %v", err)
+	}
+	if gotDir != resolvedWantDir {
+		t.Fatalf("expected cwd %q, got %q", resolvedWantDir, gotDir)
 	}
 }

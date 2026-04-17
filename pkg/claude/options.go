@@ -188,6 +188,13 @@ type RunOptions struct {
 	Name string
 	// PluginDirs loads plugins from one or more directories
 	PluginDirs []string
+	// WorkingDirectory sets the process working directory (cmd.Dir) for the
+	// Claude CLI subprocess. If empty, the subprocess inherits the parent
+	// process's current directory (backward compatible). Must be an
+	// absolute path that exists at the time Run/Stream is called; otherwise
+	// exec will fail to start the subprocess. Set per call — no shared
+	// state across invocations.
+	WorkingDirectory string
 	// PrintMode enables print mode output (required for some flags)
 	PrintMode bool
 

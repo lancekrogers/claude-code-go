@@ -78,6 +78,9 @@ func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *Ru
 
 		// Create a custom command that supports context
 		cmd := execCommand(runCtx, c.BinPath, args...)
+		if streamOpts.WorkingDirectory != "" {
+			cmd.Dir = streamOpts.WorkingDirectory
+		}
 
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {

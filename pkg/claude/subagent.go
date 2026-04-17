@@ -60,7 +60,11 @@ func (sc *SubagentConfig) ToRunOptions(parentOpts *RunOptions) *RunOptions {
 		"subagent": cloneSubagentConfig(sc),
 	}
 
-	return buildAgentRunOptions("subagent", parentOpts, agents)
+	opts := buildAgentRunOptions("subagent", parentOpts, agents)
+	if sc.WorkingDirectory != "" {
+		opts.WorkingDirectory = sc.WorkingDirectory
+	}
+	return opts
 }
 
 // SubagentManager manages the lifecycle and execution of subagents
