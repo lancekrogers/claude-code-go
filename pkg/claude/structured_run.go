@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os/exec"
 	"strings"
@@ -83,17 +82,17 @@ func (c *ClaudeClient) executeStreamJSON(ctx context.Context, prompt string, std
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("failed to get stdout pipe: %w", err)
+		return newWrappedClaudeError(ErrorCommand, "failed to get stdout pipe", err)
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return fmt.Errorf("failed to get stderr pipe: %w", err)
+		return newWrappedClaudeError(ErrorCommand, "failed to get stderr pipe", err)
 	}
 
 	stderrBuf := new(bytes.Buffer)
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start command: %w", err)
+		return newWrappedClaudeError(ErrorCommand, "failed to start command", err)
 	}
 
 	stderrDone := make(chan struct{})
@@ -116,7 +115,7 @@ func (c *ClaudeClient) executeStreamJSON(ctx context.Context, prompt string, std
 			cancel()
 			_ = cmd.Wait()
 			<-stderrDone
-			return fmt.Errorf("failed to parse JSON message: %w", err)
+			return newWrappedClaudeError(ErrorValidation, "failed to parse JSON message", err)
 		}
 
 		if onMessage == nil {
@@ -135,7 +134,7 @@ func (c *ClaudeClient) executeStreamJSON(ctx context.Context, prompt string, std
 		cancel()
 		_ = cmd.Wait()
 		<-stderrDone
-		return fmt.Errorf("scanner error: %w", err)
+		return newWrappedClaudeError(ErrorCommand, "failed to scan stream output", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
@@ -155,4 +154,10 @@ func (c *ClaudeClient) executeStreamJSON(ctx context.Context, prompt string, std
 	<-stderrDone
 
 	return nil
+}
+
+func newWrappedClaudeError(errorType ErrorType, message string, err error) *ClaudeError {
+	claudeErr := NewClaudeError(errorType, message)
+	claudeErr.Original = err
+	return claudeErr
 }

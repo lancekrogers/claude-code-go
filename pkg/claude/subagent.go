@@ -56,13 +56,26 @@ func (sc *SubagentConfig) Validate() error {
 // ToRunOptions converts the SubagentConfig into a native Claude CLI
 // --agent/--agents selection and returns the corresponding RunOptions.
 // It preserves the subagent definition in Agents rather than flattening
-// Prompt/Tools into top-level SystemPrompt/AllowedTools fields.
+// Prompt/Tools into top-level SystemPrompt/AllowedTools fields. The returned
+// options select the synthetic agent name "subagent"; use ToNamedRunOptions
+// when the caller needs a stable custom agent key.
 func (sc *SubagentConfig) ToRunOptions(parentOpts *RunOptions) *RunOptions {
-	agents := map[string]*SubagentConfig{
-		"subagent": cloneSubagentConfig(sc),
+	return sc.ToNamedRunOptions("subagent", parentOpts)
+}
+
+// ToNamedRunOptions converts the SubagentConfig into native Claude CLI
+// --agent/--agents selection using the provided agent name. If agentName is
+// empty, it falls back to "subagent".
+func (sc *SubagentConfig) ToNamedRunOptions(agentName string, parentOpts *RunOptions) *RunOptions {
+	if agentName == "" {
+		agentName = "subagent"
 	}
 
-	opts := buildAgentRunOptions("subagent", parentOpts, agents)
+	agents := map[string]*SubagentConfig{
+		agentName: cloneSubagentConfig(sc),
+	}
+
+	opts := buildAgentRunOptions(agentName, parentOpts, agents)
 	if sc.WorkingDirectory != "" {
 		opts.WorkingDirectory = sc.WorkingDirectory
 	}

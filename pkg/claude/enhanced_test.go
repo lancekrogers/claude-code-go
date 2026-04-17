@@ -2,6 +2,8 @@ package claude
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 )
@@ -85,7 +87,14 @@ func TestPreprocessOptions(t *testing.T) {
 	}
 }
 
-func TestPreprocessOptions_RejectsDeprecatedFields(t *testing.T) {
+func TestPreprocessOptions_WarnsOnDeprecatedFields(t *testing.T) {
+	originalWarningf := deprecatedOptionWarningf
+	deprecatedOptionWarningf = func(format string, args ...interface{}) {}
+	defer func() {
+		deprecatedOptionWarningf = originalWarningf
+		deprecatedOptionWarned = sync.Map{}
+	}()
+
 	tests := []struct {
 		name  string
 		opts  *RunOptions
@@ -129,20 +138,75 @@ func TestPreprocessOptions_RejectsDeprecatedFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := PreprocessOptions(tt.opts)
-			if err == nil {
-				t.Fatal("Expected validation error but got nil")
+			var warnings []string
+			deprecatedOptionWarned = sync.Map{}
+			deprecatedOptionWarningf = func(format string, args ...interface{}) {
+				warnings = append(warnings, fmt.Sprintf(format, args...))
 			}
 
-			claudeErr, ok := err.(*ClaudeError)
-			if !ok {
-				t.Fatalf("Expected ClaudeError but got %T", err)
+			err := PreprocessOptions(tt.opts)
+			if err != nil {
+				t.Fatalf("Expected no validation error but got %v", err)
 			}
-			if claudeErr.Type != ErrorValidation {
-				t.Fatalf("Expected ErrorValidation, got %v", claudeErr.Type)
+			if len(warnings) != 1 {
+				t.Fatalf("Expected 1 warning, got %d: %v", len(warnings), warnings)
 			}
-			if !containsSubstring(err.Error(), tt.field) {
-				t.Fatalf("Expected error to mention %q, got %v", tt.field, err)
+			if !containsSubstring(warnings[0], tt.field) {
+				t.Fatalf("Expected warning to mention %q, got %v", tt.field, warnings[0])
+			}
+
+			// Log-once behavior for repeated use of the same deprecated field.
+			if err := PreprocessOptions(tt.opts); err != nil {
+				t.Fatalf("Expected no validation error on repeat but got %v", err)
+			}
+			if len(warnings) != 1 {
+				t.Fatalf("Expected warning count to stay at 1, got %d: %v", len(warnings), warnings)
+			}
+		})
+	}
+}
+
+func TestPreprocessOptions_AllowsInternalStructuredStreamFlags(t *testing.T) {
+	pm := NewPluginManager()
+	if err := pm.Register(&BasePlugin{PluginName: "noop", PluginVersion: "test"}, nil); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	tests := []struct {
+		name string
+		opts *RunOptions
+	}{
+		{
+			name: "IncludeHookEvents",
+			opts: &RunOptions{
+				Format:            JSONOutput,
+				PluginManager:     pm,
+				IncludeHookEvents: true,
+			},
+		},
+		{
+			name: "IncludePartialMessages",
+			opts: &RunOptions{
+				Format:                 JSONOutput,
+				PluginManager:          pm,
+				IncludePartialMessages: true,
+			},
+		},
+		{
+			name: "ReplayUserMessages",
+			opts: &RunOptions{
+				Format:             JSONOutput,
+				PluginManager:      pm,
+				InputFormat:        StreamJSONInput,
+				ReplayUserMessages: true,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := PreprocessOptions(tt.opts); err != nil {
+				t.Fatalf("PreprocessOptions() error = %v", err)
 			}
 		})
 	}

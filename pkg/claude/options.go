@@ -3,9 +3,11 @@ package claude
 import (
 	cryptorand "crypto/rand"
 	"fmt"
+	"log"
 	"math"
 	"math/rand"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -35,12 +37,20 @@ const (
 type EffortLevel string
 
 const (
-	EffortLow    EffortLevel = "low"
+	// EffortLow uses the least reasoning budget.
+	EffortLow EffortLevel = "low"
+	// EffortMedium uses the default reasoning budget.
 	EffortMedium EffortLevel = "medium"
-	EffortHigh   EffortLevel = "high"
-	EffortXHigh  EffortLevel = "xhigh"
-	EffortMax    EffortLevel = "max"
+	// EffortHigh uses an elevated reasoning budget.
+	EffortHigh EffortLevel = "high"
+	// EffortXHigh uses a very high reasoning budget.
+	EffortXHigh EffortLevel = "xhigh"
+	// EffortMax uses the highest available reasoning budget.
+	EffortMax EffortLevel = "max"
 )
+
+var deprecatedOptionWarningf = log.Printf
+var deprecatedOptionWarned sync.Map
 
 // RunOptions configures how Claude Code is executed
 type RunOptions struct {
@@ -59,14 +69,16 @@ type RunOptions struct {
 	// Supports both legacy format ("Bash") and enhanced format ("Bash(git log:*)")
 	DisallowedTools []string
 	// Deprecated: Claude Code no longer exposes --permission-prompt-tool on the
-	// current CLI surface. Setting this field returns a validation error.
+	// current CLI surface. Setting this field emits a one-time warning and is
+	// ignored during argument construction.
 	PermissionTool string
 	// ResumeID is the session ID to resume
 	ResumeID string
 	// Continue indicates whether to continue the most recent conversation
 	Continue bool
 	// Deprecated: Claude Code no longer exposes --max-turns on the current CLI
-	// surface. Setting this field returns a validation error.
+	// surface. Setting this field emits a one-time warning and is ignored during
+	// argument construction.
 	MaxTurns int
 	// Verbose enables verbose logging
 	Verbose bool
@@ -83,17 +95,20 @@ type RunOptions struct {
 	// Timeout specifies the maximum duration for command execution
 	Timeout time.Duration
 	// Deprecated: Claude Code no longer exposes --config on the current CLI
-	// surface. Setting this field returns a validation error.
+	// surface. Setting this field emits a one-time warning and is ignored during
+	// argument construction.
 	ConfigFile string
 	// Help shows help information
 	Help bool
 	// Version shows version information
 	Version bool
 	// Deprecated: Claude Code no longer exposes --disable-autoupdate on the
-	// current CLI surface. Setting this field returns a validation error.
+	// current CLI surface. Setting this field emits a one-time warning and is
+	// ignored during argument construction.
 	DisableAutoUpdate bool
 	// Deprecated: Claude Code no longer exposes --theme on the current CLI
-	// surface. Setting this field returns a validation error.
+	// surface. Setting this field emits a one-time warning and is ignored during
+	// argument construction.
 	Theme string
 	// InputFormat specifies stdin input mode for print runs
 	InputFormat InputFormat
@@ -126,8 +141,8 @@ type RunOptions struct {
 	PermissionMode PermissionMode
 	// PermissionCallback is called before each tool use to determine permission
 	// Deprecated: the current Claude CLI no longer exposes a wrapper-safe
-	// permission callback injection point. Setting this field returns a
-	// validation error.
+	// permission callback injection point. Setting this field emits a one-time
+	// warning and is ignored during argument construction.
 	PermissionCallback PermissionCallback `json:"-"`
 
 	// MaxBudgetUSD sets the maximum spending limit in USD
@@ -232,9 +247,7 @@ func PreprocessOptions(opts *RunOptions) error {
 		return nil
 	}
 
-	if err := validateDeprecatedOptions(opts); err != nil {
-		return err
-	}
+	warnDeprecatedOptions(opts)
 
 	// Validate and parse allowed tools
 	if len(opts.AllowedTools) > 0 {
@@ -340,14 +353,14 @@ func PreprocessOptions(opts *RunOptions) error {
 	}
 
 	// Validate stream-specific combinations
-	if opts.IncludeHookEvents && opts.Format != StreamJSONOutput {
+	if opts.IncludeHookEvents && !supportsStreamJSONOutput(opts) {
 		return NewValidationError("IncludeHookEvents requires stream-json output", "IncludeHookEvents", opts.IncludeHookEvents)
 	}
-	if opts.IncludePartialMessages && opts.Format != StreamJSONOutput {
+	if opts.IncludePartialMessages && !supportsStreamJSONOutput(opts) {
 		return NewValidationError("IncludePartialMessages requires stream-json output", "IncludePartialMessages", opts.IncludePartialMessages)
 	}
 	if opts.ReplayUserMessages {
-		if opts.Format != StreamJSONOutput || opts.InputFormat != StreamJSONInput {
+		if !supportsStreamJSONOutput(opts) || opts.InputFormat != StreamJSONInput {
 			return NewValidationError("ReplayUserMessages requires stream-json input and output", "ReplayUserMessages", opts.ReplayUserMessages)
 		}
 	}
@@ -355,23 +368,36 @@ func PreprocessOptions(opts *RunOptions) error {
 	return nil
 }
 
-func validateDeprecatedOptions(opts *RunOptions) error {
-	switch {
-	case opts.PermissionTool != "":
-		return NewValidationError("PermissionTool is deprecated and no longer supported by the Claude CLI", "PermissionTool", opts.PermissionTool)
-	case opts.MaxTurns != 0:
-		return NewValidationError("MaxTurns is deprecated and no longer supported by the Claude CLI", "MaxTurns", opts.MaxTurns)
-	case opts.ConfigFile != "":
-		return NewValidationError("ConfigFile is deprecated and no longer supported by the Claude CLI", "ConfigFile", opts.ConfigFile)
-	case opts.DisableAutoUpdate:
-		return NewValidationError("DisableAutoUpdate is deprecated and no longer supported by the Claude CLI", "DisableAutoUpdate", opts.DisableAutoUpdate)
-	case opts.Theme != "":
-		return NewValidationError("Theme is deprecated and no longer supported by the Claude CLI", "Theme", opts.Theme)
-	case opts.PermissionCallback != nil:
-		return NewValidationError("PermissionCallback is deprecated and no longer supported by the Claude CLI", "PermissionCallback", "set")
-	default:
-		return nil
+func supportsStreamJSONOutput(opts *RunOptions) bool {
+	return opts.Format == StreamJSONOutput || (opts.Format == JSONOutput && opts.PluginManager != nil)
+}
+
+func warnDeprecatedOptions(opts *RunOptions) {
+	if opts.PermissionTool != "" {
+		warnDeprecatedOption("PermissionTool")
 	}
+	if opts.MaxTurns != 0 {
+		warnDeprecatedOption("MaxTurns")
+	}
+	if opts.ConfigFile != "" {
+		warnDeprecatedOption("ConfigFile")
+	}
+	if opts.DisableAutoUpdate {
+		warnDeprecatedOption("DisableAutoUpdate")
+	}
+	if opts.Theme != "" {
+		warnDeprecatedOption("Theme")
+	}
+	if opts.PermissionCallback != nil {
+		warnDeprecatedOption("PermissionCallback")
+	}
+}
+
+func warnDeprecatedOption(field string) {
+	if _, loaded := deprecatedOptionWarned.LoadOrStore(field, true); loaded {
+		return
+	}
+	deprecatedOptionWarningf("claude: RunOptions.%s is deprecated, ignored by argv construction, and no longer supported by the current Claude CLI", field)
 }
 
 // isValidModelAlias checks if the model alias is supported

@@ -138,6 +138,25 @@ func TestSubagentConfig_ToRunOptions(t *testing.T) {
 		}
 	})
 
+	t.Run("named conversion", func(t *testing.T) {
+		config := &SubagentConfig{
+			Description: "Security agent",
+			Prompt:      "You review security issues",
+		}
+
+		opts := config.ToNamedRunOptions("security", nil)
+
+		if opts.Agent != "security" {
+			t.Errorf("Agent = %q, want %q", opts.Agent, "security")
+		}
+		if opts.Agents["security"] == nil {
+			t.Fatal("expected security agent entry to be present")
+		}
+		if opts.Agents["subagent"] != nil {
+			t.Fatal("did not expect fallback subagent key when custom name is supplied")
+		}
+	})
+
 	t.Run("inherits from parent", func(t *testing.T) {
 		config := &SubagentConfig{
 			Description: "Test agent",
