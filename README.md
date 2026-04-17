@@ -506,7 +506,7 @@ just lint
 
 - [docs/DEMOS.md](docs/DEMOS.md)
 - [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
-- [docs/PROMPT_SURFACE_NOTES_0.1.1.md](docs/PROMPT_SURFACE_NOTES_0.1.1.md)
+- [docs/RELEASE_NOTES_v1.2.0.md](docs/RELEASE_NOTES_v1.2.0.md)
 
 ## Contributing
 

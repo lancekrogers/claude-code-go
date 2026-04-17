@@ -1,7 +1,6 @@
-# Prompt Surface Notes (Planning Label 0.1.1)
+# v1.2.0 - Prompt Surface Refresh
 
-This document tracks the prompt-surface refresh work under the branch planning label `0.1.1`.
-It is not a published Go module tag or a promise about the eventual release semver.
+This release aligns the SDK with the current wrapper-safe `claude -p` surface.
 
 ## Highlights
 
@@ -9,7 +8,7 @@ It is not a published Go module tag or a promise about the eventual release semv
 - Stopped emitting removed flags such as `--permission-prompt-tool`, `--max-turns`, `--config`, `--disable-autoupdate`, and `--theme`.
 - Wired plugin lifecycle hooks, tool-use callbacks, and shared budget tracking into both JSON and stream-json execution paths.
 - Updated `SubagentManager` to execute through the real `--agent` and `--agents` prompt surface instead of a separate SDK-only shim.
-- Rewrote the README and release notes to scope the SDK honestly to `claude -p`.
+- Rewrote the README and examples to scope the SDK honestly to `claude -p`.
 
 ## Added Prompt Flags
 
@@ -48,4 +47,8 @@ It is not a published Go module tag or a promise about the eventual release semv
 
 ## Verification
 
-- `go test ./pkg/claude/...`
+- `just release check`
+
+## Full Changelog
+
+**[v1.1.0...v1.2.0](https://github.com/lancekrogers/claude-code-go/compare/v1.1.0...v1.2.0)**
