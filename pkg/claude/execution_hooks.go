@@ -3,7 +3,6 @@ package claude
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 )
 
@@ -83,7 +82,7 @@ func applyCompletionHooks(ctx context.Context, opts *RunOptions, result *ClaudeR
 	}
 
 	if tracker := opts.BudgetTracker; tracker != nil && result.CostUSD > 0 {
-		if err := tracker.AddSpend(result.SessionID, result.CostUSD); err != nil && !errors.Is(err, ErrBudgetExceeded) {
+		if err := tracker.AddSpend(result.SessionID, result.CostUSD); err != nil {
 			return err
 		}
 	}
@@ -97,26 +96,12 @@ func applyCompletionHooks(ctx context.Context, opts *RunOptions, result *ClaudeR
 	return nil
 }
 
-func preparePluginManager(ctx context.Context, pm *PluginManager) (func(), error) {
+func ensurePluginManagerInitialized(ctx context.Context, pm *PluginManager) error {
 	if pm == nil {
-		return func() {}, nil
+		return nil
 	}
 
-	pm.mu.RLock()
-	alreadyInitialized := pm.initialized
-	pm.mu.RUnlock()
-
-	if alreadyInitialized {
-		return func() {}, nil
-	}
-
-	if err := pm.Initialize(ctx); err != nil {
-		return nil, err
-	}
-
-	return func() {
-		_ = pm.Shutdown(ctx)
-	}, nil
+	return pm.Initialize(ctx)
 }
 
 type toolUseCall struct {

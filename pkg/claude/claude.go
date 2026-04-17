@@ -57,6 +57,10 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 		opts = c.DefaultOptions
 	}
 
+	if opts.PluginManager != nil && opts.Format == JSONOutput {
+		return c.runPromptWithStructuredHooks(ctx, prompt, nil, opts)
+	}
+
 	// Preprocess and validate options
 	if err := PreprocessOptions(opts); err != nil {
 		return nil, err
@@ -71,11 +75,9 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 
 	args := BuildArgs(prompt, opts)
 
-	cleanupPlugins, err := preparePluginManager(ctx, opts.PluginManager)
-	if err != nil {
+	if err := ensurePluginManagerInitialized(ctx, opts.PluginManager); err != nil {
 		return nil, err
 	}
-	defer cleanupPlugins()
 
 	cmd := execCommand(ctx, c.BinPath, args...)
 	if opts.WorkingDirectory != "" {
@@ -85,7 +87,7 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
 		// Enhanced error parsing
 		var exitCode int
@@ -106,7 +108,7 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 			return nil, err
 		}
 		if err := applyExecutionHooks(ctx, opts, messages, result); err != nil {
-			return nil, err
+			return result, err
 		}
 		return result, nil
 	}
@@ -117,7 +119,7 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 		IsError: false,
 	}
 	if err := applyCompletionHooks(ctx, opts, result); err != nil {
-		return nil, err
+		return result, err
 	}
 	return result, nil
 }
@@ -139,6 +141,10 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 		opts = c.DefaultOptions
 	}
 
+	if opts.PluginManager != nil && opts.Format == JSONOutput {
+		return c.runPromptWithStructuredHooks(ctx, prompt, stdin, opts)
+	}
+
 	// Preprocess and validate options
 	if err := PreprocessOptions(opts); err != nil {
 		return nil, err
@@ -153,11 +159,9 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 
 	args := BuildArgs(prompt, opts)
 
-	cleanupPlugins, err := preparePluginManager(ctx, opts.PluginManager)
-	if err != nil {
+	if err := ensurePluginManagerInitialized(ctx, opts.PluginManager); err != nil {
 		return nil, err
 	}
-	defer cleanupPlugins()
 
 	cmd := execCommand(ctx, c.BinPath, args...)
 	if opts.WorkingDirectory != "" {
@@ -168,7 +172,7 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
 		// Enhanced error parsing
 		var exitCode int
@@ -189,7 +193,7 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 			return nil, err
 		}
 		if err := applyExecutionHooks(ctx, opts, messages, result); err != nil {
-			return nil, err
+			return result, err
 		}
 		return result, nil
 	}
@@ -200,7 +204,7 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 		IsError: false,
 	}
 	if err := applyCompletionHooks(ctx, opts, result); err != nil {
-		return nil, err
+		return result, err
 	}
 	return result, nil
 }

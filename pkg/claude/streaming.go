@@ -1,14 +1,8 @@
 package claude
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
-	"io"
-	"os/exec"
-	"strings"
 )
 
 // Message represents a message from Claude Code in streaming mode
@@ -40,21 +34,13 @@ func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *Ru
 		opts = c.DefaultOptions
 	}
 
-	// Force stream-json format for streaming
-	streamOpts := *opts
-	streamOpts.Format = StreamJSONOutput
-
-	// Claude CLI requires --verbose when using --output-format=stream-json with --print
-	streamOpts.Verbose = true
-
-	if err := PreprocessOptions(&streamOpts); err != nil {
+	streamOpts, err := buildStreamJSONRunOptions(opts)
+	if err != nil {
 		errCh <- err
 		close(messageCh)
 		close(errCh)
 		return messageCh, errCh
 	}
-
-	args := BuildArgs(prompt, &streamOpts)
 
 	go func() {
 		defer close(messageCh)
@@ -69,99 +55,24 @@ func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *Ru
 		}
 		defer cancel()
 
-		cleanupPlugins, err := preparePluginManager(runCtx, streamOpts.PluginManager)
-		if err != nil {
-			errCh <- err
-			return
-		}
-		defer cleanupPlugins()
-
-		// Create a custom command that supports context
-		cmd := execCommand(runCtx, c.BinPath, args...)
-		if streamOpts.WorkingDirectory != "" {
-			cmd.Dir = streamOpts.WorkingDirectory
-		}
-
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			errCh <- fmt.Errorf("failed to get stdout pipe: %w", err)
-			return
-		}
-
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			errCh <- fmt.Errorf("failed to get stderr pipe: %w", err)
-			return
-		}
-
-		// Start capturing stderr in a goroutine
-		stderrBuf := new(bytes.Buffer)
-		go func() {
-			_, _ = io.Copy(stderrBuf, stderr)
-		}()
-
-		if err := cmd.Start(); err != nil {
-			errCh <- fmt.Errorf("failed to start command: %w", err)
-			return
-		}
-
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			line := scanner.Text()
-
-			// Skip empty lines
-			if strings.TrimSpace(line) == "" {
-				continue
-			}
-
-			var msg Message
-			if err := json.Unmarshal([]byte(line), &msg); err != nil {
-				errCh <- fmt.Errorf("failed to parse JSON message: %w", err)
-				return
-			}
-
-			if err := applyMessageHooks(runCtx, &streamOpts, msg); err != nil {
-				cancel()
-				errCh <- err
-				return
-			}
-
-			if msg.Type == "result" {
-				if err := applyCompletionHooks(runCtx, &streamOpts, messageToResult(msg)); err != nil {
-					cancel()
-					errCh <- err
-					return
-				}
+		if err := c.executeStreamJSON(runCtx, prompt, nil, streamOpts, func(msg Message) error {
+			if err := applyMessageHooks(runCtx, streamOpts, msg); err != nil {
+				return err
 			}
 
 			select {
 			case messageCh <- msg:
-				// Message sent successfully
 			case <-runCtx.Done():
-				// Context was canceled
-				errCh <- runCtx.Err()
-				return
-			}
-		}
-
-		if err := scanner.Err(); err != nil {
-			errCh <- fmt.Errorf("scanner error: %w", err)
-			return
-		}
-
-		if err := cmd.Wait(); err != nil {
-			// Enhanced error parsing for streaming
-			var exitCode int
-			if exitError, ok := err.(*exec.ExitError); ok {
-				exitCode = exitError.ExitCode()
-			} else {
-				exitCode = 1
+				return runCtx.Err()
 			}
 
-			claudeErr := ParseError(stderrBuf.String(), exitCode)
-			claudeErr.Original = err
-			errCh <- claudeErr
-			return
+			if msg.Type == "result" {
+				return applyCompletionHooks(runCtx, streamOpts, messageToResult(msg))
+			}
+
+			return nil
+		}); err != nil {
+			errCh <- err
 		}
 	}()
 

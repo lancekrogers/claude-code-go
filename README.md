@@ -221,8 +221,14 @@ pm.Register(filter, nil)
 audit := claude.NewAuditPlugin(1000) // Keep last 1000 records
 pm.Register(audit, nil)
 
+ctx := context.Background()
+if err := pm.Initialize(ctx); err != nil {
+    log.Fatal(err)
+}
+defer pm.Shutdown(ctx)
+
 // Use with client
-result, err := cc.RunPrompt("Do something", &claude.RunOptions{
+result, err := cc.RunPromptCtx(ctx, "Do something", &claude.RunOptions{
     PluginManager: pm,
 })
 

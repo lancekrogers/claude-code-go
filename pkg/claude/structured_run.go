@@ -1,0 +1,148 @@
+package claude
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os/exec"
+	"strings"
+)
+
+func buildStreamJSONRunOptions(opts *RunOptions) (*RunOptions, error) {
+	streamOpts := cloneRunOptions(opts)
+	streamOpts.Format = StreamJSONOutput
+
+	// Claude CLI requires --verbose when using --output-format=stream-json with --print.
+	streamOpts.Verbose = true
+
+	if err := PreprocessOptions(streamOpts); err != nil {
+		return nil, err
+	}
+
+	return streamOpts, nil
+}
+
+func (c *ClaudeClient) runPromptWithStructuredHooks(ctx context.Context, prompt string, stdin io.Reader, opts *RunOptions) (*ClaudeResult, error) {
+	streamOpts, err := buildStreamJSONRunOptions(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if streamOpts.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, streamOpts.Timeout)
+		defer cancel()
+	}
+
+	var result *ClaudeResult
+	err = c.executeStreamJSON(ctx, prompt, stdin, streamOpts, func(msg Message) error {
+		if err := applyMessageHooks(ctx, streamOpts, msg); err != nil {
+			return err
+		}
+
+		if msg.Type != "result" {
+			return nil
+		}
+
+		result = messageToResult(msg)
+		return applyCompletionHooks(ctx, streamOpts, result)
+	})
+	if err != nil {
+		if result != nil {
+			return result, err
+		}
+		return nil, err
+	}
+
+	if result == nil {
+		return nil, NewClaudeError(ErrorValidation, "no result message found in JSON response")
+	}
+
+	return result, nil
+}
+
+func (c *ClaudeClient) executeStreamJSON(ctx context.Context, prompt string, stdin io.Reader, opts *RunOptions, onMessage func(Message) error) error {
+	if err := ensurePluginManagerInitialized(ctx, opts.PluginManager); err != nil {
+		return err
+	}
+
+	args := BuildArgs(prompt, opts)
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	cmd := execCommand(runCtx, c.BinPath, args...)
+	if opts.WorkingDirectory != "" {
+		cmd.Dir = opts.WorkingDirectory
+	}
+	if stdin != nil {
+		cmd.Stdin = stdin
+	}
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get stdout pipe: %w", err)
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get stderr pipe: %w", err)
+	}
+
+	stderrBuf := new(bytes.Buffer)
+	go func() {
+		_, _ = io.Copy(stderrBuf, stderr)
+	}()
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start command: %w", err)
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		var msg Message
+		if err := json.Unmarshal([]byte(line), &msg); err != nil {
+			cancel()
+			_ = cmd.Wait()
+			return fmt.Errorf("failed to parse JSON message: %w", err)
+		}
+
+		if onMessage == nil {
+			continue
+		}
+
+		if err := onMessage(msg); err != nil {
+			cancel()
+			_ = cmd.Wait()
+			return err
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		cancel()
+		_ = cmd.Wait()
+		return fmt.Errorf("scanner error: %w", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		var exitCode int
+		if exitError, ok := err.(*exec.ExitError); ok {
+			exitCode = exitError.ExitCode()
+		} else {
+			exitCode = 1
+		}
+
+		claudeErr := ParseError(stderrBuf.String(), exitCode)
+		claudeErr.Original = err
+		return claudeErr
+	}
+
+	return nil
+}

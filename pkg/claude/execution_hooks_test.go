@@ -2,9 +2,11 @@ package claude
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -66,8 +68,9 @@ func TestRunPromptCtx_AppliesLifecycleHooks(t *testing.T) {
 		execCommand = originalExecCommand
 	}()
 
-	jsonOutput := `[{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"pwd"}}]},"session_id":"hook-session"},{"type":"result","subtype":"success","total_cost_usd":0.25,"duration_ms":12,"duration_api_ms":8,"is_error":false,"num_turns":1,"result":"done","session_id":"hook-session"}]`
-	execCommand = mockExecCommandContext(t, []string{"-p", "Hook test", "--output-format", "json"}, jsonOutput, 0)
+	jsonOutput := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"pwd"}}]},"session_id":"hook-session"}` + "\n" +
+		`{"type":"result","subtype":"success","total_cost_usd":0.25,"duration_ms":12,"duration_api_ms":8,"is_error":false,"num_turns":1,"result":"done","session_id":"hook-session"}` + "\n"
+	execCommand = mockExecCommandContext(t, []string{"-p", "Hook test", "--output-format", "stream-json", "--verbose"}, jsonOutput, 0)
 
 	pm := NewPluginManager()
 	plugin := &lifecyclePlugin{}
@@ -103,8 +106,8 @@ func TestRunPromptCtx_AppliesLifecycleHooks(t *testing.T) {
 	if plugin.initCount != 1 {
 		t.Fatalf("Initialize count = %d, want 1", plugin.initCount)
 	}
-	if plugin.shutdownCount != 1 {
-		t.Fatalf("Shutdown count = %d, want 1", plugin.shutdownCount)
+	if plugin.shutdownCount != 0 {
+		t.Fatalf("Shutdown count = %d, want 0", plugin.shutdownCount)
 	}
 	if plugin.messageCount != 2 {
 		t.Fatalf("Message count = %d, want 2", plugin.messageCount)
@@ -129,8 +132,8 @@ func TestRunPromptCtx_DoesNotShutdownPreinitializedPluginManager(t *testing.T) {
 		execCommand = originalExecCommand
 	}()
 
-	jsonOutput := `{"type":"result","subtype":"success","total_cost_usd":0.01,"duration_ms":5,"duration_api_ms":5,"is_error":false,"num_turns":1,"result":"ok","session_id":"sticky-session"}`
-	execCommand = mockExecCommandContext(t, []string{"-p", "Sticky hooks", "--output-format", "json"}, jsonOutput, 0)
+	jsonOutput := `{"type":"result","subtype":"success","total_cost_usd":0.01,"duration_ms":5,"duration_api_ms":5,"is_error":false,"num_turns":1,"result":"ok","session_id":"sticky-session"}` + "\n"
+	execCommand = mockExecCommandContext(t, []string{"-p", "Sticky hooks", "--output-format", "stream-json", "--verbose"}, jsonOutput, 0)
 
 	pm := NewPluginManager()
 	plugin := &lifecyclePlugin{}
@@ -160,6 +163,123 @@ func TestRunPromptCtx_DoesNotShutdownPreinitializedPluginManager(t *testing.T) {
 	}
 	if plugin.shutdownCount != 0 {
 		t.Fatalf("Shutdown count = %d, want 0", plugin.shutdownCount)
+	}
+}
+
+func TestRunPromptCtx_ReusesLazyInitializedPluginManager(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	jsonOutput := `{"type":"result","subtype":"success","total_cost_usd":0.01,"duration_ms":5,"duration_api_ms":5,"is_error":false,"num_turns":1,"result":"ok","session_id":"sticky-session"}` + "\n"
+	execCommand = mockExecCommandContext(t, []string{"-p", "Sticky hooks", "--output-format", "stream-json", "--verbose"}, jsonOutput, 0)
+
+	pm := NewPluginManager()
+	plugin := &lifecyclePlugin{}
+	if err := pm.Register(plugin, nil); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	client := NewClient("claude")
+	for i := 0; i < 2; i++ {
+		if _, err := client.RunPromptCtx(context.Background(), "Sticky hooks", &RunOptions{
+			Format:        JSONOutput,
+			PluginManager: pm,
+		}); err != nil {
+			t.Fatalf("RunPromptCtx() error = %v", err)
+		}
+	}
+
+	plugin.mu.Lock()
+	defer plugin.mu.Unlock()
+
+	if plugin.initCount != 1 {
+		t.Fatalf("Initialize count = %d, want 1", plugin.initCount)
+	}
+	if plugin.shutdownCount != 0 {
+		t.Fatalf("Shutdown count = %d, want 0", plugin.shutdownCount)
+	}
+}
+
+func TestRunFromStdinCtx_AppliesLifecycleHooks(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	jsonOutput := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"Read","input":{"file_path":"README.md"}}]},"session_id":"stdin-hook-session"}` + "\n" +
+		`{"type":"result","subtype":"success","total_cost_usd":0.05,"duration_ms":7,"duration_api_ms":5,"is_error":false,"num_turns":1,"result":"stdin-done","session_id":"stdin-hook-session"}` + "\n"
+	execCommand = mockExecCommandContext(t, []string{"-p", "Hook stdin", "--output-format", "stream-json", "--verbose"}, jsonOutput, 0)
+
+	pm := NewPluginManager()
+	plugin := &lifecyclePlugin{}
+	if err := pm.Register(plugin, nil); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	client := NewClient("claude")
+	result, err := client.RunFromStdinCtx(context.Background(), strings.NewReader("stdin body"), "Hook stdin", &RunOptions{
+		Format:        JSONOutput,
+		PluginManager: pm,
+	})
+	if err != nil {
+		t.Fatalf("RunFromStdinCtx() error = %v", err)
+	}
+	if result.Result != "stdin-done" {
+		t.Fatalf("Result = %q, want %q", result.Result, "stdin-done")
+	}
+
+	plugin.mu.Lock()
+	defer plugin.mu.Unlock()
+
+	if plugin.initCount != 1 {
+		t.Fatalf("Initialize count = %d, want 1", plugin.initCount)
+	}
+	if plugin.shutdownCount != 0 {
+		t.Fatalf("Shutdown count = %d, want 0", plugin.shutdownCount)
+	}
+	if plugin.messageCount != 2 {
+		t.Fatalf("Message count = %d, want 2", plugin.messageCount)
+	}
+	if plugin.completeCount != 1 {
+		t.Fatalf("Complete count = %d, want 1", plugin.completeCount)
+	}
+	if len(plugin.toolCalls) != 1 || plugin.toolCalls[0] != "Read" {
+		t.Fatalf("Tool calls = %v, want [Read]", plugin.toolCalls)
+	}
+	if plugin.lastToolInput.FilePath != "README.md" {
+		t.Fatalf("Tool file path = %q, want %q", plugin.lastToolInput.FilePath, "README.md")
+	}
+}
+
+func TestRunPromptCtx_BudgetExceededReturnsResultAndError(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	jsonOutput := `{"type":"result","subtype":"success","total_cost_usd":0.25,"duration_ms":12,"duration_api_ms":8,"is_error":false,"num_turns":1,"result":"done","session_id":"budget-session"}`
+	execCommand = mockExecCommandContext(t, []string{"-p", "Budget test", "--output-format", "json"}, jsonOutput, 0)
+
+	tracker := NewBudgetTracker(&BudgetConfig{MaxBudgetUSD: 0.10})
+	client := NewClient("claude")
+
+	result, err := client.RunPromptCtx(context.Background(), "Budget test", &RunOptions{
+		Format:        JSONOutput,
+		BudgetTracker: tracker,
+	})
+	if !errors.Is(err, ErrBudgetExceeded) {
+		t.Fatalf("RunPromptCtx() error = %v, want ErrBudgetExceeded", err)
+	}
+	if result == nil {
+		t.Fatal("RunPromptCtx() result = nil, want result")
+	}
+	if result.Result != "done" {
+		t.Fatalf("Result = %q, want %q", result.Result, "done")
+	}
+	if tracker.TotalSpent() != 0.25 {
+		t.Fatalf("TotalSpent = %f, want %f", tracker.TotalSpent(), 0.25)
 	}
 }
 
@@ -210,8 +330,8 @@ func TestStreamPrompt_AppliesLifecycleHooks(t *testing.T) {
 	if plugin.initCount != 1 {
 		t.Fatalf("Initialize count = %d, want 1", plugin.initCount)
 	}
-	if plugin.shutdownCount != 1 {
-		t.Fatalf("Shutdown count = %d, want 1", plugin.shutdownCount)
+	if plugin.shutdownCount != 0 {
+		t.Fatalf("Shutdown count = %d, want 0", plugin.shutdownCount)
 	}
 	if plugin.messageCount != 2 {
 		t.Fatalf("Message count = %d, want 2", plugin.messageCount)
@@ -224,6 +344,49 @@ func TestStreamPrompt_AppliesLifecycleHooks(t *testing.T) {
 	}
 	if plugin.lastToolInput.FilePath != "README.md" {
 		t.Fatalf("Tool file path = %q, want %q", plugin.lastToolInput.FilePath, "README.md")
+	}
+}
+
+func TestStreamPrompt_BudgetExceededReturnsResultBeforeError(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	mockBinary := buildStreamingMockBinary(t)
+	execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		return exec.Command(mockBinary)
+	}
+
+	tracker := NewBudgetTracker(&BudgetConfig{MaxBudgetUSD: 0.10})
+	client := NewClient("claude")
+	messageCh, errCh := client.StreamPrompt(context.Background(), "Stream hooks", &RunOptions{
+		BudgetTracker: tracker,
+	})
+
+	var gotMessages []Message
+	for msg := range messageCh {
+		gotMessages = append(gotMessages, msg)
+	}
+
+	var gotErr error
+	for err := range errCh {
+		if err != nil {
+			gotErr = err
+		}
+	}
+
+	if !errors.Is(gotErr, ErrBudgetExceeded) {
+		t.Fatalf("StreamPrompt() error = %v, want ErrBudgetExceeded", gotErr)
+	}
+	if len(gotMessages) != 2 {
+		t.Fatalf("Expected 2 streamed messages, got %d", len(gotMessages))
+	}
+	if gotMessages[len(gotMessages)-1].Type != "result" {
+		t.Fatalf("Last streamed message type = %q, want %q", gotMessages[len(gotMessages)-1].Type, "result")
+	}
+	if tracker.TotalSpent() != 0.4 {
+		t.Fatalf("TotalSpent = %f, want %f", tracker.TotalSpent(), 0.4)
 	}
 }
 
