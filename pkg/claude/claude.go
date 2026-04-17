@@ -51,43 +51,54 @@ func (c *ClaudeClient) RunPrompt(prompt string, opts *RunOptions) (*ClaudeResult
 	return c.RunPromptCtx(context.Background(), prompt, opts)
 }
 
-// RunPromptCtx executes a prompt with Claude Code and returns the result with context support
-func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *RunOptions) (*ClaudeResult, error) {
+func (c *ClaudeClient) resolveRunOptions(opts *RunOptions) *RunOptions {
 	if opts == nil {
 		opts = c.DefaultOptions
 	}
+	return cloneRunOptions(opts)
+}
 
-	if opts.PluginManager != nil && opts.Format == JSONOutput {
-		return c.runPromptWithStructuredHooks(ctx, prompt, nil, opts)
+func (c *ClaudeClient) prepareRunOptions(opts *RunOptions) (*RunOptions, error) {
+	prepared := c.resolveRunOptions(opts)
+	if err := PreprocessOptions(prepared); err != nil {
+		return nil, err
 	}
+	return prepared, nil
+}
 
-	// Preprocess and validate options
-	if err := PreprocessOptions(opts); err != nil {
+// RunPromptCtx executes a prompt with Claude Code and returns the result with context support
+func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *RunOptions) (*ClaudeResult, error) {
+	preparedOpts, err := c.prepareRunOptions(opts)
+	if err != nil {
 		return nil, err
 	}
 
+	if preparedOpts.PluginManager != nil && preparedOpts.Format == JSONOutput {
+		return c.runPromptWithStructuredHooks(ctx, prompt, nil, preparedOpts)
+	}
+
 	// Add timeout support if specified
-	if opts.Timeout > 0 {
+	if preparedOpts.Timeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+		ctx, cancel = context.WithTimeout(ctx, preparedOpts.Timeout)
 		defer cancel()
 	}
 
-	args := BuildArgs(prompt, opts)
+	args := BuildArgs(prompt, preparedOpts)
 
-	if err := ensurePluginManagerInitialized(ctx, opts.PluginManager); err != nil {
+	if err := ensurePluginManagerInitialized(ctx, preparedOpts.PluginManager); err != nil {
 		return nil, err
 	}
 
 	cmd := execCommand(ctx, c.BinPath, args...)
-	if opts.WorkingDirectory != "" {
-		cmd.Dir = opts.WorkingDirectory
+	if preparedOpts.WorkingDirectory != "" {
+		cmd.Dir = preparedOpts.WorkingDirectory
 	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		// Enhanced error parsing
 		var exitCode int
@@ -102,12 +113,12 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 		return nil, claudeErr
 	}
 
-	if opts.Format == JSONOutput {
+	if preparedOpts.Format == JSONOutput {
 		messages, result, err := parseJSONTranscript(stdout.Bytes())
 		if err != nil {
 			return nil, err
 		}
-		if err := applyExecutionHooks(ctx, opts, messages, result); err != nil {
+		if err := applyExecutionHooks(ctx, preparedOpts, messages, result); err != nil {
 			return result, err
 		}
 		return result, nil
@@ -118,7 +129,7 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 		Result:  stdout.String(),
 		IsError: false,
 	}
-	if err := applyCompletionHooks(ctx, opts, result); err != nil {
+	if err := applyCompletionHooks(ctx, preparedOpts, result); err != nil {
 		return result, err
 	}
 	return result, nil
@@ -137,42 +148,38 @@ func (c *ClaudeClient) RunFromStdin(stdin io.Reader, prompt string, opts *RunOpt
 
 // RunFromStdinCtx runs Claude Code with input from stdin with context support
 func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, prompt string, opts *RunOptions) (*ClaudeResult, error) {
-	if opts == nil {
-		opts = c.DefaultOptions
-	}
-
-	if opts.PluginManager != nil && opts.Format == JSONOutput {
-		return c.runPromptWithStructuredHooks(ctx, prompt, stdin, opts)
-	}
-
-	// Preprocess and validate options
-	if err := PreprocessOptions(opts); err != nil {
+	preparedOpts, err := c.prepareRunOptions(opts)
+	if err != nil {
 		return nil, err
 	}
 
+	if preparedOpts.PluginManager != nil && preparedOpts.Format == JSONOutput {
+		return c.runPromptWithStructuredHooks(ctx, prompt, stdin, preparedOpts)
+	}
+
 	// Add timeout support if specified
-	if opts.Timeout > 0 {
+	if preparedOpts.Timeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+		ctx, cancel = context.WithTimeout(ctx, preparedOpts.Timeout)
 		defer cancel()
 	}
 
-	args := BuildArgs(prompt, opts)
+	args := BuildArgs(prompt, preparedOpts)
 
-	if err := ensurePluginManagerInitialized(ctx, opts.PluginManager); err != nil {
+	if err := ensurePluginManagerInitialized(ctx, preparedOpts.PluginManager); err != nil {
 		return nil, err
 	}
 
 	cmd := execCommand(ctx, c.BinPath, args...)
-	if opts.WorkingDirectory != "" {
-		cmd.Dir = opts.WorkingDirectory
+	if preparedOpts.WorkingDirectory != "" {
+		cmd.Dir = preparedOpts.WorkingDirectory
 	}
 	cmd.Stdin = stdin
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		// Enhanced error parsing
 		var exitCode int
@@ -187,12 +194,12 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 		return nil, claudeErr
 	}
 
-	if opts.Format == JSONOutput {
+	if preparedOpts.Format == JSONOutput {
 		messages, result, err := parseJSONTranscript(stdout.Bytes())
 		if err != nil {
 			return nil, err
 		}
-		if err := applyExecutionHooks(ctx, opts, messages, result); err != nil {
+		if err := applyExecutionHooks(ctx, preparedOpts, messages, result); err != nil {
 			return result, err
 		}
 		return result, nil
@@ -203,7 +210,7 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 		Result:  stdout.String(),
 		IsError: false,
 	}
-	if err := applyCompletionHooks(ctx, opts, result); err != nil {
+	if err := applyCompletionHooks(ctx, preparedOpts, result); err != nil {
 		return result, err
 	}
 	return result, nil
@@ -324,11 +331,13 @@ func BuildArgs(prompt string, opts *RunOptions) []string {
 	}
 
 	if len(opts.Betas) > 0 {
+		// Variadic Cobra flag: one --betas flag followed by one or more values.
 		args = append(args, "--betas")
 		args = append(args, opts.Betas...)
 	}
 
 	if len(opts.Files) > 0 {
+		// Variadic Cobra flag: one --file flag followed by one or more specs.
 		args = append(args, "--file")
 		args = append(args, opts.Files...)
 	}

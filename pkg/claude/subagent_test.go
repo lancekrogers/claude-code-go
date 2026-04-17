@@ -130,6 +130,12 @@ func TestSubagentConfig_ToRunOptions(t *testing.T) {
 		if opts.Format != StreamJSONOutput {
 			t.Errorf("Format = %q, want %q", opts.Format, StreamJSONOutput)
 		}
+		if opts.SystemPrompt != "" {
+			t.Errorf("SystemPrompt = %q, want empty", opts.SystemPrompt)
+		}
+		if len(opts.AllowedTools) != 0 {
+			t.Errorf("AllowedTools = %v, want empty top-level slice", opts.AllowedTools)
+		}
 	})
 
 	t.Run("inherits from parent", func(t *testing.T) {

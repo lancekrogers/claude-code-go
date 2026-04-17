@@ -92,15 +92,19 @@ func (c *ClaudeClient) executeStreamJSON(ctx context.Context, prompt string, std
 	}
 
 	stderrBuf := new(bytes.Buffer)
-	go func() {
-		_, _ = io.Copy(stderrBuf, stderr)
-	}()
-
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start command: %w", err)
 	}
 
+	stderrDone := make(chan struct{})
+	go func() {
+		defer close(stderrDone)
+		_, _ = io.Copy(stderrBuf, stderr)
+	}()
+
 	scanner := bufio.NewScanner(stdout)
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 4*1024*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.TrimSpace(line) == "" {
@@ -111,6 +115,7 @@ func (c *ClaudeClient) executeStreamJSON(ctx context.Context, prompt string, std
 		if err := json.Unmarshal([]byte(line), &msg); err != nil {
 			cancel()
 			_ = cmd.Wait()
+			<-stderrDone
 			return fmt.Errorf("failed to parse JSON message: %w", err)
 		}
 
@@ -121,6 +126,7 @@ func (c *ClaudeClient) executeStreamJSON(ctx context.Context, prompt string, std
 		if err := onMessage(msg); err != nil {
 			cancel()
 			_ = cmd.Wait()
+			<-stderrDone
 			return err
 		}
 	}
@@ -128,10 +134,12 @@ func (c *ClaudeClient) executeStreamJSON(ctx context.Context, prompt string, std
 	if err := scanner.Err(); err != nil {
 		cancel()
 		_ = cmd.Wait()
+		<-stderrDone
 		return fmt.Errorf("scanner error: %w", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
+		<-stderrDone
 		var exitCode int
 		if exitError, ok := err.(*exec.ExitError); ok {
 			exitCode = exitError.ExitCode()
@@ -143,6 +151,8 @@ func (c *ClaudeClient) executeStreamJSON(ctx context.Context, prompt string, std
 		claudeErr.Original = err
 		return claudeErr
 	}
+
+	<-stderrDone
 
 	return nil
 }

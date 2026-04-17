@@ -3,6 +3,7 @@ package claude
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -390,6 +391,35 @@ func TestStreamPrompt_BudgetExceededReturnsResultBeforeError(t *testing.T) {
 	}
 }
 
+func TestRunPromptCtx_HandlesLargeStreamJSONMessages(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	mockBinary := buildLargeResultMockBinary(t, 128*1024)
+	execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		return exec.Command(mockBinary)
+	}
+
+	pm := NewPluginManager()
+	if err := pm.Register(&BasePlugin{PluginName: "noop", PluginVersion: "test"}, nil); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	client := NewClient("claude")
+	result, err := client.RunPromptCtx(context.Background(), "Large message", &RunOptions{
+		Format:        JSONOutput,
+		PluginManager: pm,
+	})
+	if err != nil {
+		t.Fatalf("RunPromptCtx() error = %v", err)
+	}
+	if len(result.Result) != 128*1024 {
+		t.Fatalf("Result length = %d, want %d", len(result.Result), 128*1024)
+	}
+}
+
 func buildStreamingMockBinary(t *testing.T) string {
 	t.Helper()
 
@@ -402,6 +432,48 @@ import "fmt"
 func main() {
 	fmt.Println(` + "`" + `{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"Read","input":{"file_path":"README.md"}}]},"session_id":"stream-session"}` + "`" + `)
 	fmt.Println(` + "`" + `{"type":"result","subtype":"success","total_cost_usd":0.4,"duration_ms":20,"duration_api_ms":15,"is_error":false,"num_turns":1,"result":"stream-done","session_id":"stream-session"}` + "`" + `)
+}
+`
+
+	if err := os.WriteFile(mockSource, []byte(source), 0o755); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	build := exec.Command("go", "build", "-o", mockBinary, mockSource)
+	if err := build.Run(); err != nil {
+		t.Fatalf("go build error = %v", err)
+	}
+
+	return mockBinary
+}
+
+func buildLargeResultMockBinary(t *testing.T, size int) string {
+	t.Helper()
+
+	tempDir := t.TempDir()
+	mockSource := filepath.Join(tempDir, "mock_large_stream.go")
+	mockBinary := filepath.Join(tempDir, "mock_large_stream")
+
+	source := `package main
+import (
+	"encoding/json"
+	"os"
+	"strings"
+)
+func main() {
+	payload := strings.Repeat("a", ` + fmt.Sprintf("%d", size) + `)
+	msg := map[string]any{
+		"type": "result",
+		"subtype": "success",
+		"total_cost_usd": 0.01,
+		"duration_ms": 1,
+		"duration_api_ms": 1,
+		"is_error": false,
+		"num_turns": 1,
+		"result": payload,
+		"session_id": "large-session",
+	}
+	_ = json.NewEncoder(os.Stdout).Encode(msg)
 }
 `
 

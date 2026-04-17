@@ -59,15 +59,14 @@ type RunOptions struct {
 	// Supports both legacy format ("Bash") and enhanced format ("Bash(git log:*)")
 	DisallowedTools []string
 	// Deprecated: Claude Code no longer exposes --permission-prompt-tool on the
-	// current CLI surface. This field is ignored and kept only for source
-	// compatibility.
+	// current CLI surface. Setting this field returns a validation error.
 	PermissionTool string
 	// ResumeID is the session ID to resume
 	ResumeID string
 	// Continue indicates whether to continue the most recent conversation
 	Continue bool
 	// Deprecated: Claude Code no longer exposes --max-turns on the current CLI
-	// surface. This field is ignored and kept only for source compatibility.
+	// surface. Setting this field returns a validation error.
 	MaxTurns int
 	// Verbose enables verbose logging
 	Verbose bool
@@ -84,18 +83,17 @@ type RunOptions struct {
 	// Timeout specifies the maximum duration for command execution
 	Timeout time.Duration
 	// Deprecated: Claude Code no longer exposes --config on the current CLI
-	// surface. This field is ignored and kept only for source compatibility.
+	// surface. Setting this field returns a validation error.
 	ConfigFile string
 	// Help shows help information
 	Help bool
 	// Version shows version information
 	Version bool
 	// Deprecated: Claude Code no longer exposes --disable-autoupdate on the
-	// current CLI surface. This field is ignored and kept only for source
-	// compatibility.
+	// current CLI surface. Setting this field returns a validation error.
 	DisableAutoUpdate bool
 	// Deprecated: Claude Code no longer exposes --theme on the current CLI
-	// surface. This field is ignored and kept only for source compatibility.
+	// surface. Setting this field returns a validation error.
 	Theme string
 	// InputFormat specifies stdin input mode for print runs
 	InputFormat InputFormat
@@ -128,8 +126,8 @@ type RunOptions struct {
 	PermissionMode PermissionMode
 	// PermissionCallback is called before each tool use to determine permission
 	// Deprecated: the current Claude CLI no longer exposes a wrapper-safe
-	// permission callback injection point. This field is retained only for
-	// source compatibility.
+	// permission callback injection point. Setting this field returns a
+	// validation error.
 	PermissionCallback PermissionCallback `json:"-"`
 
 	// MaxBudgetUSD sets the maximum spending limit in USD
@@ -151,8 +149,8 @@ type RunOptions struct {
 	// Plugins can intercept tool calls, messages, and completion events
 	PluginManager *PluginManager `json:"-"`
 
-	// Parsed tool permissions (computed from AllowedTools/DisallowedTools)
-	// This field is populated automatically and should not be set directly
+	// Parsed tool permissions (computed on internal processed copies of
+	// RunOptions used during execution). Callers should not set these directly.
 	ParsedAllowedTools    []ToolPermission `json:"-"`
 	ParsedDisallowedTools []ToolPermission `json:"-"`
 
@@ -232,6 +230,10 @@ func validateMCPTools(tools []string) error {
 func PreprocessOptions(opts *RunOptions) error {
 	if opts == nil {
 		return nil
+	}
+
+	if err := validateDeprecatedOptions(opts); err != nil {
+		return err
 	}
 
 	// Validate and parse allowed tools
@@ -351,6 +353,25 @@ func PreprocessOptions(opts *RunOptions) error {
 	}
 
 	return nil
+}
+
+func validateDeprecatedOptions(opts *RunOptions) error {
+	switch {
+	case opts.PermissionTool != "":
+		return NewValidationError("PermissionTool is deprecated and no longer supported by the Claude CLI", "PermissionTool", opts.PermissionTool)
+	case opts.MaxTurns != 0:
+		return NewValidationError("MaxTurns is deprecated and no longer supported by the Claude CLI", "MaxTurns", opts.MaxTurns)
+	case opts.ConfigFile != "":
+		return NewValidationError("ConfigFile is deprecated and no longer supported by the Claude CLI", "ConfigFile", opts.ConfigFile)
+	case opts.DisableAutoUpdate:
+		return NewValidationError("DisableAutoUpdate is deprecated and no longer supported by the Claude CLI", "DisableAutoUpdate", opts.DisableAutoUpdate)
+	case opts.Theme != "":
+		return NewValidationError("Theme is deprecated and no longer supported by the Claude CLI", "Theme", opts.Theme)
+	case opts.PermissionCallback != nil:
+		return NewValidationError("PermissionCallback is deprecated and no longer supported by the Claude CLI", "PermissionCallback", "set")
+	default:
+		return nil
+	}
 }
 
 // isValidModelAlias checks if the model alias is supported

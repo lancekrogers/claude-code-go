@@ -53,8 +53,10 @@ func (sc *SubagentConfig) Validate() error {
 	return nil
 }
 
-// ToRunOptions converts the SubagentConfig into a CLI-compatible agent
-// definition and selects it for execution.
+// ToRunOptions converts the SubagentConfig into a native Claude CLI
+// --agent/--agents selection and returns the corresponding RunOptions.
+// It preserves the subagent definition in Agents rather than flattening
+// Prompt/Tools into top-level SystemPrompt/AllowedTools fields.
 func (sc *SubagentConfig) ToRunOptions(parentOpts *RunOptions) *RunOptions {
 	agents := map[string]*SubagentConfig{
 		"subagent": cloneSubagentConfig(sc),

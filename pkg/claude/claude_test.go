@@ -868,6 +868,28 @@ func TestBuildArgs_EdgeCases(t *testing.T) {
 	}
 }
 
+func TestBuildArgs_VariadicFlagShape(t *testing.T) {
+	args := BuildArgs("test", &RunOptions{
+		Betas: []string{"beta-a", "beta-b"},
+		Files: []string{"file_abc:doc.txt", "file_def:img.png"},
+	})
+
+	expected := []string{
+		"-p", "test",
+		"--betas", "beta-a", "beta-b",
+		"--file", "file_abc:doc.txt", "file_def:img.png",
+	}
+
+	if len(args) != len(expected) {
+		t.Fatalf("Expected %d arguments, got %d: %v", len(expected), len(args), args)
+	}
+	for i, arg := range expected {
+		if args[i] != arg {
+			t.Fatalf("Expected arg[%d] = %q, got %q", i, arg, args[i])
+		}
+	}
+}
+
 func TestBuildArgs_NewFlags(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -969,6 +991,39 @@ func TestBuildArgs_NewFlags(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestRunPromptCtx_DoesNotMutateDefaultOptions(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	jsonOutput := `{"type":"result","subtype":"success","total_cost_usd":0.001,"duration_ms":1,"duration_api_ms":1,"is_error":false,"num_turns":1,"result":"ok","session_id":"opts-session"}`
+	execCommand = mockExecCommandContext(t, []string{
+		"-p", "Mutation test", "--output-format", "json", "--allowedTools", "Read", "--disallowedTools", "Write",
+	}, jsonOutput, 0)
+
+	defaultOpts := &RunOptions{
+		Format:          JSONOutput,
+		AllowedTools:    []string{"Read"},
+		DisallowedTools: []string{"Write"},
+	}
+	client := &ClaudeClient{
+		BinPath:        "claude",
+		DefaultOptions: defaultOpts,
+	}
+
+	if _, err := client.RunPromptCtx(context.Background(), "Mutation test", nil); err != nil {
+		t.Fatalf("RunPromptCtx() error = %v", err)
+	}
+
+	if defaultOpts.ParsedAllowedTools != nil {
+		t.Fatalf("ParsedAllowedTools mutated on caller options: %v", defaultOpts.ParsedAllowedTools)
+	}
+	if defaultOpts.ParsedDisallowedTools != nil {
+		t.Fatalf("ParsedDisallowedTools mutated on caller options: %v", defaultOpts.ParsedDisallowedTools)
 	}
 }
 

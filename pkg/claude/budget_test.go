@@ -73,11 +73,9 @@ func TestBudgetTracker_AddSpend(t *testing.T) {
 		})
 
 		_ = bt.AddSpend("session1", 6.0) // 60% of budget, exceeds 50% threshold
-		// Give goroutine time to execute
-		for i := 0; i < 100 && !warningCalled; i++ {
-			// Small busy wait for callback
+		if !warningCalled {
+			t.Fatal("expected warning callback to be invoked")
 		}
-		// Note: In real tests we'd use channels or sync primitives
 	})
 
 	t.Run("exceeded callback", func(t *testing.T) {
@@ -90,9 +88,8 @@ func TestBudgetTracker_AddSpend(t *testing.T) {
 		})
 
 		_ = bt.AddSpend("session1", 6.0)
-		// Give goroutine time to execute
-		for i := 0; i < 100 && !exceededCalled; i++ {
-			// Small busy wait for callback
+		if !exceededCalled {
+			t.Fatal("expected exceeded callback to be invoked")
 		}
 	})
 }

@@ -1,6 +1,7 @@
-# v0.1.1 - Prompt Surface Refresh
+# Prompt Surface Notes (Planning Label 0.1.1)
 
-This release updates `claude-code-go` to match the current Claude Code non-interactive `-p/--print` CLI surface more closely and removes drift from older flags that no longer exist in the upstream binary.
+This document tracks the prompt-surface refresh work under the branch planning label `0.1.1`.
+It is not a published Go module tag or a promise about the eventual release semver.
 
 ## Highlights
 
@@ -34,9 +35,14 @@ This release updates `claude-code-go` to match the current Claude Code non-inter
 - `Name`
 - `PluginDirs`
 
+## Behavior Changes
+
+- `SubagentConfig.ToRunOptions` now targets Claude's native `--agent` and `--agents` prompt surface. The returned `RunOptions` keeps the subagent definition in `Agents` and selects it with `Agent`; it no longer flattens the subagent prompt and tool list into top-level `SystemPrompt` and `AllowedTools`.
+- Deprecated top-level fields retained for source compatibility now fail validation when set, instead of being silently ignored at argv construction time.
+
 ## Compatibility Notes
 
-- `PermissionTool`, `MaxTurns`, `ConfigFile`, `DisableAutoUpdate`, `Theme`, and `PermissionCallback` remain in `RunOptions` for source compatibility but are deprecated and ignored by argument construction.
+- `PermissionTool`, `MaxTurns`, `ConfigFile`, `DisableAutoUpdate`, `Theme`, and `PermissionCallback` remain in `RunOptions` for source compatibility, but `PreprocessOptions` now rejects them with validation errors when they are set.
 - `PermissionModeDelegate` is now rejected during validation because the current Claude CLI no longer supports delegate permission mode.
 - The SDK still wraps the prompt-oriented `claude -p` workflow. Interactive sessions and management commands such as `auth`, `mcp`, `plugins`, `install`, and `update` are intentionally not wrapped here.
 

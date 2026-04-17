@@ -1,6 +1,7 @@
 package claude
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -79,6 +80,69 @@ func TestPreprocessOptions(t *testing.T) {
 				if err != nil {
 					t.Errorf("Expected no error but got: %v", err)
 				}
+			}
+		})
+	}
+}
+
+func TestPreprocessOptions_RejectsDeprecatedFields(t *testing.T) {
+	tests := []struct {
+		name  string
+		opts  *RunOptions
+		field string
+	}{
+		{
+			name:  "PermissionTool",
+			opts:  &RunOptions{PermissionTool: "perm-tool"},
+			field: "PermissionTool",
+		},
+		{
+			name:  "MaxTurns",
+			opts:  &RunOptions{MaxTurns: 3},
+			field: "MaxTurns",
+		},
+		{
+			name:  "ConfigFile",
+			opts:  &RunOptions{ConfigFile: "config.json"},
+			field: "ConfigFile",
+		},
+		{
+			name:  "DisableAutoUpdate",
+			opts:  &RunOptions{DisableAutoUpdate: true},
+			field: "DisableAutoUpdate",
+		},
+		{
+			name:  "Theme",
+			opts:  &RunOptions{Theme: "dark"},
+			field: "Theme",
+		},
+		{
+			name: "PermissionCallback",
+			opts: &RunOptions{
+				PermissionCallback: func(ctx context.Context, toolName string, input ToolInput) (PermissionResult, error) {
+					return Allow(), nil
+				},
+			},
+			field: "PermissionCallback",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := PreprocessOptions(tt.opts)
+			if err == nil {
+				t.Fatal("Expected validation error but got nil")
+			}
+
+			claudeErr, ok := err.(*ClaudeError)
+			if !ok {
+				t.Fatalf("Expected ClaudeError but got %T", err)
+			}
+			if claudeErr.Type != ErrorValidation {
+				t.Fatalf("Expected ErrorValidation, got %v", claudeErr.Type)
+			}
+			if !containsSubstring(err.Error(), tt.field) {
+				t.Fatalf("Expected error to mention %q, got %v", tt.field, err)
 			}
 		})
 	}
