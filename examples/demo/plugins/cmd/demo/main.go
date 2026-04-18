@@ -76,25 +76,17 @@ func displayStreamingMessage(msg claude.Message) {
 						} else if itemMap["type"] == "tool_use" {
 							if name, ok := itemMap["name"].(string); ok {
 								fmt.Printf("🔧 Tool: %s\n", name)
-								// Simulate plugin hook
-								pluginManager.OnToolCall(context.Background(), name, claude.ToolInput{})
 							}
 						}
 					}
 				}
 			}
 		}
-		pluginManager.OnMessage(context.Background(), msg)
 	case "result":
 		if msg.IsError {
 			fmt.Printf("❌ Error: %s\n", msg.Result)
 		} else {
 			fmt.Printf("✅ Complete - Cost: $%.6f | Turns: %d\n", msg.CostUSD, msg.NumTurns)
-			// Trigger plugin completion hooks
-			pluginManager.OnComplete(context.Background(), &claude.ClaudeResult{
-				CostUSD:  msg.CostUSD,
-				NumTurns: msg.NumTurns,
-			})
 		}
 	}
 }
@@ -172,7 +164,6 @@ func main() {
 			"Bash(cat*)",
 			"Glob(*)",
 		},
-		MaxTurns: 3,
 	}
 
 	var sessionID string

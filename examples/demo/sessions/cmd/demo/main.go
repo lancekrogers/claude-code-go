@@ -197,7 +197,6 @@ func main() {
 			Format:       claude.StreamJSONOutput,
 			SystemPrompt: "You are a helpful assistant. Keep responses concise.",
 			AllowedTools: []string{"Read(*)", "Bash(ls*)", "Bash(pwd)"},
-			MaxTurns:     3,
 		}
 
 		switch currentMode {

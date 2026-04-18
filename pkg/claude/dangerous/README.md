@@ -146,8 +146,7 @@ func deployApplication() error {
 
     // Execute deployment with bypassed permissions
     return cc.BYPASS_ALL_PERMISSIONS("Deploy the application", &claude.RunOptions{
-        Format:   claude.JSONOutput,
-        MaxTurns: 5,
+        Format: claude.JSONOutput,
     })
 }
 ```

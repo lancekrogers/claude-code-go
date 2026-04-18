@@ -53,44 +53,32 @@ func (sc *SubagentConfig) Validate() error {
 	return nil
 }
 
-// ToRunOptions converts the SubagentConfig to RunOptions for execution
+// ToRunOptions converts the SubagentConfig into a native Claude CLI
+// --agent/--agents selection and returns the corresponding RunOptions.
+// It preserves the subagent definition in Agents rather than flattening
+// Prompt/Tools into top-level SystemPrompt/AllowedTools fields. The returned
+// options select the synthetic agent name "subagent"; use ToNamedRunOptions
+// when the caller needs a stable custom agent key.
 func (sc *SubagentConfig) ToRunOptions(parentOpts *RunOptions) *RunOptions {
-	opts := &RunOptions{
-		SystemPrompt: sc.Prompt,
-		AllowedTools: sc.Tools,
-		Format:       StreamJSONOutput,
+	return sc.ToNamedRunOptions("subagent", parentOpts)
+}
+
+// ToNamedRunOptions converts the SubagentConfig into native Claude CLI
+// --agent/--agents selection using the provided agent name. If agentName is
+// empty, it falls back to "subagent".
+func (sc *SubagentConfig) ToNamedRunOptions(agentName string, parentOpts *RunOptions) *RunOptions {
+	if agentName == "" {
+		agentName = "subagent"
 	}
 
-	// Use subagent's model or inherit from parent
-	if sc.Model != "" {
-		opts.ModelAlias = sc.Model
-	} else if parentOpts != nil {
-		opts.ModelAlias = parentOpts.ModelAlias
-		opts.Model = parentOpts.Model
+	agents := map[string]*SubagentConfig{
+		agentName: cloneSubagentConfig(sc),
 	}
 
-	// Use subagent's max turns or inherit from parent
-	if sc.MaxTurns > 0 {
-		opts.MaxTurns = sc.MaxTurns
-	} else if parentOpts != nil {
-		opts.MaxTurns = parentOpts.MaxTurns
-	}
-
-	// Use subagent's working directory or inherit from parent
+	opts := buildAgentRunOptions(agentName, parentOpts, agents)
 	if sc.WorkingDirectory != "" {
 		opts.WorkingDirectory = sc.WorkingDirectory
-	} else if parentOpts != nil {
-		opts.WorkingDirectory = parentOpts.WorkingDirectory
 	}
-
-	// Inherit MCP config from parent
-	if parentOpts != nil {
-		opts.MCPConfigPath = parentOpts.MCPConfigPath
-		opts.PermissionMode = parentOpts.PermissionMode
-		opts.PermissionCallback = parentOpts.PermissionCallback
-		opts.BudgetTracker = parentOpts.BudgetTracker
-	}
-
 	return opts
 }
 
@@ -185,19 +173,24 @@ func (sm *SubagentManager) GetAgentDescriptions() map[string]string {
 
 // RunAgent executes a subagent with the given prompt
 func (sm *SubagentManager) RunAgent(ctx context.Context, agentName string, prompt string, parentOpts *RunOptions) (*ClaudeResult, error) {
-	config, ok := sm.GetAgent(agentName)
-	if !ok {
+	if _, ok := sm.GetAgent(agentName); !ok {
 		return nil, fmt.Errorf("unknown agent: %s", agentName)
 	}
 
-	opts := config.ToRunOptions(parentOpts)
-	return sm.client.RunPromptCtx(ctx, prompt, opts)
+	opts := sm.buildRunOptions(agentName, parentOpts)
+	result, err := sm.client.RunPromptCtx(ctx, prompt, opts)
+	if err != nil {
+		return nil, err
+	}
+	if result.SessionID != "" {
+		sm.SetSession(agentName, result.SessionID)
+	}
+	return result, nil
 }
 
 // StreamAgent executes a subagent and streams the results
 func (sm *SubagentManager) StreamAgent(ctx context.Context, agentName string, prompt string, parentOpts *RunOptions) (<-chan Message, <-chan error) {
-	config, ok := sm.GetAgent(agentName)
-	if !ok {
+	if _, ok := sm.GetAgent(agentName); !ok {
 		errCh := make(chan error, 1)
 		errCh <- fmt.Errorf("unknown agent: %s", agentName)
 		close(errCh)
@@ -206,8 +199,38 @@ func (sm *SubagentManager) StreamAgent(ctx context.Context, agentName string, pr
 		return msgCh, errCh
 	}
 
-	opts := config.ToRunOptions(parentOpts)
-	return sm.client.StreamPrompt(ctx, prompt, opts)
+	opts := sm.buildRunOptions(agentName, parentOpts)
+	innerMsgCh, innerErrCh := sm.client.StreamPrompt(ctx, prompt, opts)
+
+	msgCh := make(chan Message)
+	errCh := make(chan error, 1)
+
+	go func() {
+		defer close(msgCh)
+		defer close(errCh)
+
+		for innerMsgCh != nil || innerErrCh != nil {
+			select {
+			case msg, ok := <-innerMsgCh:
+				if !ok {
+					innerMsgCh = nil
+					continue
+				}
+				if msg.SessionID != "" {
+					sm.SetSession(agentName, msg.SessionID)
+				}
+				msgCh <- msg
+			case err, ok := <-innerErrCh:
+				if !ok {
+					innerErrCh = nil
+					continue
+				}
+				errCh <- err
+			}
+		}
+	}()
+
+	return msgCh, errCh
 }
 
 // SetSession stores a session ID for a subagent (for conversation continuity)
@@ -250,14 +273,20 @@ func (sm *SubagentManager) ResumeAgent(ctx context.Context, agentName string, pr
 		return nil, fmt.Errorf("no session found for agent: %s", agentName)
 	}
 
-	config, configOk := sm.GetAgent(agentName)
-	if !configOk {
+	if _, configOk := sm.GetAgent(agentName); !configOk {
 		return nil, fmt.Errorf("unknown agent: %s", agentName)
 	}
 
-	opts := config.ToRunOptions(parentOpts)
+	opts := sm.buildRunOptions(agentName, parentOpts)
 	opts.ResumeID = sessionID
-	return sm.client.RunPromptCtx(ctx, prompt, opts)
+	result, err := sm.client.RunPromptCtx(ctx, prompt, opts)
+	if err != nil {
+		return nil, err
+	}
+	if result.SessionID != "" {
+		sm.SetSession(agentName, result.SessionID)
+	}
+	return result, nil
 }
 
 // AgentCount returns the number of registered subagents
@@ -358,4 +387,97 @@ Generate well-structured, comprehensive documentation.`,
 		Tools: []string{"Read", "Grep", "Glob", "Write"},
 		Model: "sonnet",
 	}
+}
+
+func (sm *SubagentManager) buildRunOptions(agentName string, parentOpts *RunOptions) *RunOptions {
+	sm.mu.RLock()
+	agents := make(map[string]*SubagentConfig, len(sm.agents))
+	for name, config := range sm.agents {
+		agents[name] = cloneSubagentConfig(config)
+	}
+	sm.mu.RUnlock()
+
+	return buildAgentRunOptions(agentName, parentOpts, agents)
+}
+
+func buildAgentRunOptions(agentName string, parentOpts *RunOptions, agents map[string]*SubagentConfig) *RunOptions {
+	opts := cloneRunOptions(parentOpts)
+	if opts.Format == "" {
+		opts.Format = StreamJSONOutput
+	}
+	opts.Agent = agentName
+	opts.AgentsJSON = ""
+	opts.Agents = agents
+	return opts
+}
+
+func cloneRunOptions(opts *RunOptions) *RunOptions {
+	if opts == nil {
+		return &RunOptions{}
+	}
+
+	cloned := *opts
+
+	if opts.AllowedTools != nil {
+		cloned.AllowedTools = append([]string(nil), opts.AllowedTools...)
+	}
+	if opts.DisallowedTools != nil {
+		cloned.DisallowedTools = append([]string(nil), opts.DisallowedTools...)
+	}
+	if opts.MCPConfigs != nil {
+		cloned.MCPConfigs = append([]string(nil), opts.MCPConfigs...)
+	}
+	if opts.AddDirectories != nil {
+		cloned.AddDirectories = append([]string(nil), opts.AddDirectories...)
+	}
+	if opts.Betas != nil {
+		cloned.Betas = append([]string(nil), opts.Betas...)
+	}
+	if opts.Files != nil {
+		cloned.Files = append([]string(nil), opts.Files...)
+	}
+	if opts.SettingSources != nil {
+		cloned.SettingSources = append([]string(nil), opts.SettingSources...)
+	}
+	if opts.Tools != nil {
+		cloned.Tools = append([]string(nil), opts.Tools...)
+	}
+	if opts.PluginDirs != nil {
+		cloned.PluginDirs = append([]string(nil), opts.PluginDirs...)
+	}
+	if opts.ParsedAllowedTools != nil {
+		cloned.ParsedAllowedTools = append([]ToolPermission(nil), opts.ParsedAllowedTools...)
+	}
+	if opts.ParsedDisallowedTools != nil {
+		cloned.ParsedDisallowedTools = append([]ToolPermission(nil), opts.ParsedDisallowedTools...)
+	}
+	if opts.Agents != nil {
+		cloned.Agents = copySubagentConfigs(opts.Agents)
+	}
+
+	return &cloned
+}
+
+func copySubagentConfigs(agents map[string]*SubagentConfig) map[string]*SubagentConfig {
+	if len(agents) == 0 {
+		return nil
+	}
+
+	copied := make(map[string]*SubagentConfig, len(agents))
+	for name, config := range agents {
+		copied[name] = cloneSubagentConfig(config)
+	}
+	return copied
+}
+
+func cloneSubagentConfig(config *SubagentConfig) *SubagentConfig {
+	if config == nil {
+		return nil
+	}
+
+	cloned := *config
+	if config.Tools != nil {
+		cloned.Tools = append([]string(nil), config.Tools...)
+	}
+	return &cloned
 }

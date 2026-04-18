@@ -81,32 +81,45 @@ func (bt *BudgetTracker) CanSpend(amount float64) bool {
 // AddSpend adds spending to the tracker and returns an error if budget is exceeded
 func (bt *BudgetTracker) AddSpend(sessionID string, amount float64) error {
 	bt.mu.Lock()
-	defer bt.mu.Unlock()
 
 	bt.totalSpent += amount
 	bt.sessionSpent[sessionID] += amount
+
+	var warningCallback func(current, max float64)
+	var warningCurrent, warningMax float64
+	var exceededCallback func(current, max float64)
+	var exceededCurrent, exceededMax float64
+	var resultErr error
 
 	// Check warning threshold
 	if bt.config.MaxBudgetUSD > 0 && bt.config.WarningThreshold > 0 && !bt.warningEmitted {
 		warningAmount := bt.config.MaxBudgetUSD * bt.config.WarningThreshold
 		if bt.totalSpent >= warningAmount {
 			bt.warningEmitted = true
-			if bt.config.OnBudgetWarning != nil {
-				// Call callback outside of lock to prevent deadlocks
-				go bt.config.OnBudgetWarning(bt.totalSpent, bt.config.MaxBudgetUSD)
-			}
+			warningCallback = bt.config.OnBudgetWarning
+			warningCurrent = bt.totalSpent
+			warningMax = bt.config.MaxBudgetUSD
 		}
 	}
 
 	// Check if budget exceeded
 	if bt.config.MaxBudgetUSD > 0 && bt.totalSpent > bt.config.MaxBudgetUSD {
-		if bt.config.OnBudgetExceeded != nil {
-			go bt.config.OnBudgetExceeded(bt.totalSpent, bt.config.MaxBudgetUSD)
-		}
-		return ErrBudgetExceeded
+		exceededCallback = bt.config.OnBudgetExceeded
+		exceededCurrent = bt.totalSpent
+		exceededMax = bt.config.MaxBudgetUSD
+		resultErr = ErrBudgetExceeded
 	}
 
-	return nil
+	bt.mu.Unlock()
+
+	if warningCallback != nil {
+		warningCallback(warningCurrent, warningMax)
+	}
+	if exceededCallback != nil {
+		exceededCallback(exceededCurrent, exceededMax)
+	}
+
+	return resultErr
 }
 
 // Reset resets the tracker to zero spending

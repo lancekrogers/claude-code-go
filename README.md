@@ -7,15 +7,18 @@
   <a href="https://pkg.go.dev/github.com/lancekrogers/claude-code-go"><img src="https://pkg.go.dev/badge/github.com/lancekrogers/claude-code-go.svg" alt="Go Reference"></a>
 </p>
 
-A comprehensive Go library for programmatically integrating the Claude Code CLI into Go applications. Build AI-powered coding assistants, automated workflows, and intelligent agents with full control over Claude Code's capabilities.
+A comprehensive Go library for programmatically integrating the Claude Code CLI into Go applications. Build AI-powered coding assistants, automated workflows, and intelligent agents on top of Claude Code's non-interactive `-p/--print` surface.
 
 First Claude Code SDK, released before any official SDKs existed.
 
+This SDK intentionally wraps the prompt-oriented `claude -p` workflow. Interactive sessions and management subcommands such as `auth`, `mcp`, `plugins`, `install`, and `update` remain out of scope.
+
 ## Highlights
 
-- Full CLI wrapper with text/json/stream-json outputs
+- Current `claude -p` wrapper with text/json/stream-json outputs
 - Streaming, sessions (resume/fork), and context-aware APIs
 - MCP integration with fine-grained tool permissions
+- Current prompt flags including agents, effort, settings, tools, and budget controls
 - Subagents, plugins, retries, and budget tracking for production workflows
 - 9 interactive demos and comprehensive tests
 
@@ -23,7 +26,7 @@ First Claude Code SDK, released before any official SDKs existed.
 
 ### Core Capabilities
 
-- **Full CLI Wrapper**: Complete access to all Claude Code features
+- **Prompt Surface Wrapper**: Accurate coverage of the current non-interactive `claude -p` flag surface
 - **Streaming Support**: Real-time response streaming with context cancellation
 - **Session Management**: Multi-turn conversations with custom IDs, forking, and persistence control
 - **MCP Integration**: Model Context Protocol support for extending Claude with external tools
@@ -218,8 +221,14 @@ pm.Register(filter, nil)
 audit := claude.NewAuditPlugin(1000) // Keep last 1000 records
 pm.Register(audit, nil)
 
+ctx := context.Background()
+if err := pm.Initialize(ctx); err != nil {
+    log.Fatal(err)
+}
+defer pm.Shutdown(ctx)
+
 // Use with client
-result, err := cc.RunPrompt("Do something", &claude.RunOptions{
+result, err := cc.RunPromptCtx(ctx, "Do something", &claude.RunOptions{
     PluginManager: pm,
 })
 
@@ -263,20 +272,21 @@ fmt.Printf("Spent: $%.4f, Remaining: $%.4f\n",
 // Define specialized agents
 agents := map[string]*claude.SubagentConfig{
     "security": {
-        Description:   "Security analysis and vulnerability detection",
-        SystemPrompt:  "You are a security expert. Analyze code for vulnerabilities.",
-        AllowedTools:  []string{"Read(*)", "Grep(*)"},
-        Model:         "opus",
+        Description: "Security analysis and vulnerability detection",
+        Prompt:      "You are a security expert. Analyze code for vulnerabilities.",
+        Tools:       []string{"Read(*)", "Grep(*)"},
+        Model:       "opus",
     },
     "testing": {
-        Description:   "Test generation and coverage analysis",
-        SystemPrompt:  "You are a testing expert. Generate comprehensive tests.",
-        AllowedTools:  []string{"Read(*)", "Write(*)", "Bash(go test*)"},
+        Description: "Test generation and coverage analysis",
+        Prompt:      "You are a testing expert. Generate comprehensive tests.",
+        Tools:       []string{"Read(*)", "Write(*)", "Bash(go test*)"},
     },
 }
 
-// Use agents
+// Define agents and select one for this run
 result, err := cc.RunPrompt("Analyze this code", &claude.RunOptions{
+    Agent:  "security",
     Agents: agents,
 })
 ```
@@ -349,7 +359,8 @@ result, err = cc.RunPrompt("Safe operations only", &claude.RunOptions{
 ```go
 type RunOptions struct {
     // Output format
-    Format       OutputFormat  // text, json, stream-json
+    Format      OutputFormat // text, json, stream-json
+    InputFormat InputFormat  // text, stream-json (stdin with --print)
 
     // Prompts
     SystemPrompt string        // Override default system prompt
@@ -362,6 +373,11 @@ type RunOptions struct {
     ForkSession          bool   // Fork from resumed session
     NoSessionPersistence bool   // Don't save to disk
 
+    // Agent selection
+    Agent      string                      // Select a named agent for this run
+    Agents     map[string]*SubagentConfig  // Inline agent definitions for --agents
+    AgentsJSON string                      // Raw JSON passed directly to --agents
+
     // MCP configuration
     MCPConfigPath   string   // Single MCP config path
     MCPConfigs      []string // Multiple MCP configs
@@ -370,25 +386,40 @@ type RunOptions struct {
     // Tool permissions
     AllowedTools    []string       // Tools Claude can use
     DisallowedTools []string       // Tools Claude cannot use
-    PermissionMode  PermissionMode // default, acceptEdits, bypassPermissions
+    PermissionMode  PermissionMode // default, acceptEdits, auto, bypassPermissions, dontAsk, plan
 
     // Model selection
-    Model      string // Full model name
-    ModelAlias string // sonnet, opus, haiku
+    Model      string      // Full model name
+    ModelAlias string      // sonnet, opus, haiku
+    Effort     EffortLevel // low, medium, high, xhigh, max
 
-    // Execution control
-    MaxTurns int           // Limit agentic turns
-    Timeout  time.Duration // Request timeout
+    // CLI prompt surface
+    MaxBudgetUSD                  float64
+    Settings                      string
+    SettingSources                []string
+    Tools                         []string
+    Name                          string
+    PluginDirs                    []string
+    Bare                          bool
+    Brief                         bool
+    Betas                         []string
+    Files                         []string
+    Debug                         string
+    DebugFile                     string
+    IncludeHookEvents             bool
+    IncludePartialMessages        bool
+    ReplayUserMessages            bool
+    ExcludeDynamicSystemPromptSections bool
+    AllowDangerouslySkipPermissions bool
+    Timeout                       time.Duration
 
-    // Budget control
-    MaxBudgetUSD  float64        // Spending limit
+    // Lifecycle extensions
     BudgetTracker *BudgetTracker // Shared tracker
-
-    // Extensions
-    Agents        map[string]*SubagentConfig // Specialized agents
-    PluginManager *PluginManager             // Plugin system
+    PluginManager *PluginManager // Plugin hooks
 }
 ```
+
+Deprecated compatibility fields remain in `RunOptions` for now, but the SDK no longer emits removed CLI flags such as `--max-turns`, `--config`, `--disable-autoupdate`, `--theme`, or `--permission-prompt-tool`.
 
 ### Core Methods
 
@@ -475,7 +506,7 @@ just lint
 
 - [docs/DEMOS.md](docs/DEMOS.md)
 - [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
-- [docs/RELEASE_NOTES_v1.0.0.md](docs/RELEASE_NOTES_v1.0.0.md)
+- [docs/RELEASE_NOTES_v1.2.0.md](docs/RELEASE_NOTES_v1.2.0.md)
 
 ## Contributing
 

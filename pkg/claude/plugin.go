@@ -18,7 +18,8 @@ type Plugin interface {
 	Name() string
 	// Version returns the plugin version string
 	Version() string
-	// Initialize is called once when the plugin is registered
+	// Initialize is called once when the plugin manager is initialized,
+	// either explicitly or lazily on first use.
 	Initialize(ctx context.Context) error
 	// OnToolCall is called before each tool execution
 	// Return an error to abort the tool call
@@ -27,7 +28,7 @@ type Plugin interface {
 	OnMessage(ctx context.Context, msg Message) error
 	// OnComplete is called when execution finishes successfully
 	OnComplete(ctx context.Context, result *ClaudeResult) error
-	// Shutdown is called when the plugin manager is closed
+	// Shutdown is called when the plugin manager is explicitly closed.
 	Shutdown(ctx context.Context) error
 }
 

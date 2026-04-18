@@ -430,31 +430,37 @@ func TestBuildArgs(t *testing.T) {
 			name:   "All options",
 			prompt: "Complete test",
 			opts: &RunOptions{
-				Format:          JSONOutput,
-				SystemPrompt:    "Custom system prompt",
-				AppendPrompt:    "Additional instructions",
-				MCPConfigPath:   "/path/to/mcp.json",
-				AllowedTools:    []string{"tool1", "tool2"},
-				DisallowedTools: []string{"bad1", "bad2"},
-				PermissionTool:  "permit_tool",
-				ResumeID:        "session123",
-				MaxTurns:        5,
-				Verbose:         true,
-				Model:           "claude-3-5-sonnet-20240620",
+				Format:        JSONOutput,
+				Agent:         "reviewer",
+				AgentsJSON:    `{"reviewer":{"description":"Reviews code","prompt":"You are a reviewer"}}`,
+				SystemPrompt:  "Custom system prompt",
+				AppendPrompt:  "Additional instructions",
+				MCPConfigPath: "/path/to/mcp.json",
+				AllowedTools:  []string{"tool1", "tool2"},
+				DisallowedTools: []string{
+					"bad1", "bad2",
+				},
+				ResumeID: "session123",
+				Verbose:  true,
+				Model:    "claude-3-5-sonnet-20240620",
+				Effort:   EffortHigh,
+				Name:     "review-session",
 			},
 			expected: []string{
 				"-p", "Complete test",
 				"--output-format", "json",
+				"--agent", "reviewer",
+				"--agents", `{"reviewer":{"description":"Reviews code","prompt":"You are a reviewer"}}`,
 				"--system-prompt", "Custom system prompt",
 				"--append-system-prompt", "Additional instructions",
 				"--mcp-config", "/path/to/mcp.json",
 				"--allowedTools", "tool1,tool2",
 				"--disallowedTools", "bad1,bad2",
-				"--permission-prompt-tool", "permit_tool",
 				"--resume", "session123",
-				"--max-turns", "5",
 				"--verbose",
 				"--model", "claude-3-5-sonnet-20240620",
+				"--effort", "high",
+				"--name", "review-session",
 			},
 		},
 		{
@@ -862,6 +868,28 @@ func TestBuildArgs_EdgeCases(t *testing.T) {
 	}
 }
 
+func TestBuildArgs_VariadicFlagShape(t *testing.T) {
+	args := BuildArgs("test", &RunOptions{
+		Betas: []string{"beta-a", "beta-b"},
+		Files: []string{"file_abc:doc.txt", "file_def:img.png"},
+	})
+
+	expected := []string{
+		"-p", "test",
+		"--betas", "beta-a", "beta-b",
+		"--file", "file_abc:doc.txt", "file_def:img.png",
+	}
+
+	if len(args) != len(expected) {
+		t.Fatalf("Expected %d arguments, got %d: %v", len(expected), len(args), args)
+	}
+	for i, arg := range expected {
+		if args[i] != arg {
+			t.Fatalf("Expected arg[%d] = %q, got %q", i, arg, args[i])
+		}
+	}
+}
+
 func TestBuildArgs_NewFlags(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -869,50 +897,79 @@ func TestBuildArgs_NewFlags(t *testing.T) {
 		expected []string
 	}{
 		{
-			name: "Config file flag",
+			name: "Current print surface flags",
 			opts: &RunOptions{
-				ConfigFile: "/path/to/config.json",
+				Agent:                           "security",
+				AgentsJSON:                      `{"security":{"description":"Security review","prompt":"Review for vulnerabilities"}}`,
+				AllowDangerouslySkipPermissions: true,
+				Effort:                          EffortXHigh,
+				InputFormat:                     StreamJSONInput,
+				IncludeHookEvents:               true,
+				IncludePartialMessages:          true,
+				ReplayUserMessages:              true,
+				DebugFile:                       "/tmp/claude-debug.log",
 			},
-			expected: []string{"-p", "test", "--config", "/path/to/config.json"},
+			expected: []string{
+				"-p", "test",
+				"--agent", "security",
+				"--agents", `{"security":{"description":"Security review","prompt":"Review for vulnerabilities"}}`,
+				"--allow-dangerously-skip-permissions",
+				"--effort", "xhigh",
+				"--input-format", "stream-json",
+				"--include-hook-events",
+				"--include-partial-messages",
+				"--replay-user-messages",
+				"--debug-file", "/tmp/claude-debug.log",
+			},
 		},
 		{
-			name: "Help flag",
+			name: "Help and version flags",
 			opts: &RunOptions{
-				Help: true,
-			},
-			expected: []string{"-p", "test", "--help"},
-		},
-		{
-			name: "Version flag",
-			opts: &RunOptions{
+				Help:    true,
 				Version: true,
 			},
-			expected: []string{"-p", "test", "--version"},
+			expected: []string{"-p", "test", "--help", "--version"},
 		},
 		{
-			name: "Disable autoupdate flag",
+			name: "Context shaping flags",
 			opts: &RunOptions{
-				DisableAutoUpdate: true,
+				Bare:                               true,
+				Brief:                              true,
+				Betas:                              []string{"beta-a", "beta-b"},
+				Files:                              []string{"file_abc:doc.txt", "file_def:img.png"},
+				ExcludeDynamicSystemPromptSections: true,
 			},
-			expected: []string{"-p", "test", "--disable-autoupdate"},
+			expected: []string{
+				"-p", "test",
+				"--bare",
+				"--brief",
+				"--betas", "beta-a", "beta-b",
+				"--file", "file_abc:doc.txt", "file_def:img.png",
+				"--exclude-dynamic-system-prompt-sections",
+			},
 		},
 		{
-			name: "Theme flag",
+			name: "Settings and tool surface flags",
 			opts: &RunOptions{
-				Theme: "dark",
+				MaxBudgetUSD: 12.5,
+				SettingSources: []string{
+					"user", "project",
+				},
+				Settings:   `{"env":{"FOO":"bar"}}`,
+				Tools:      []string{"Bash", "Read", "Edit"},
+				Name:       "release-0-1-1",
+				PluginDirs: []string{"/plugins/a", "/plugins/b"},
 			},
-			expected: []string{"-p", "test", "--theme", "dark"},
-		},
-		{
-			name: "All new flags combined",
-			opts: &RunOptions{
-				ConfigFile:        "/config.json",
-				Help:              true,
-				Version:           true,
-				DisableAutoUpdate: true,
-				Theme:             "light",
+			expected: []string{
+				"-p", "test",
+				"--max-budget-usd", "12.5",
+				"--setting-sources", "user,project",
+				"--settings", `{"env":{"FOO":"bar"}}`,
+				"--tools", "Bash,Read,Edit",
+				"--name", "release-0-1-1",
+				"--plugin-dir", "/plugins/a",
+				"--plugin-dir", "/plugins/b",
 			},
-			expected: []string{"-p", "test", "--config", "/config.json", "--help", "--version", "--disable-autoupdate", "--theme", "light"},
 		},
 	}
 
@@ -934,6 +991,39 @@ func TestBuildArgs_NewFlags(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestRunPromptCtx_DoesNotMutateDefaultOptions(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	jsonOutput := `{"type":"result","subtype":"success","total_cost_usd":0.001,"duration_ms":1,"duration_api_ms":1,"is_error":false,"num_turns":1,"result":"ok","session_id":"opts-session"}`
+	execCommand = mockExecCommandContext(t, []string{
+		"-p", "Mutation test", "--output-format", "json", "--allowedTools", "Read", "--disallowedTools", "Write",
+	}, jsonOutput, 0)
+
+	defaultOpts := &RunOptions{
+		Format:          JSONOutput,
+		AllowedTools:    []string{"Read"},
+		DisallowedTools: []string{"Write"},
+	}
+	client := &ClaudeClient{
+		BinPath:        "claude",
+		DefaultOptions: defaultOpts,
+	}
+
+	if _, err := client.RunPromptCtx(context.Background(), "Mutation test", nil); err != nil {
+		t.Fatalf("RunPromptCtx() error = %v", err)
+	}
+
+	if defaultOpts.ParsedAllowedTools != nil {
+		t.Fatalf("ParsedAllowedTools mutated on caller options: %v", defaultOpts.ParsedAllowedTools)
+	}
+	if defaultOpts.ParsedDisallowedTools != nil {
+		t.Fatalf("ParsedDisallowedTools mutated on caller options: %v", defaultOpts.ParsedDisallowedTools)
 	}
 }
 

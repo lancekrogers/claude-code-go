@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -50,35 +51,54 @@ func (c *ClaudeClient) RunPrompt(prompt string, opts *RunOptions) (*ClaudeResult
 	return c.RunPromptCtx(context.Background(), prompt, opts)
 }
 
-// RunPromptCtx executes a prompt with Claude Code and returns the result with context support
-func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *RunOptions) (*ClaudeResult, error) {
+func (c *ClaudeClient) resolveRunOptions(opts *RunOptions) *RunOptions {
 	if opts == nil {
 		opts = c.DefaultOptions
 	}
+	return cloneRunOptions(opts)
+}
 
-	// Preprocess and validate options
-	if err := PreprocessOptions(opts); err != nil {
+func (c *ClaudeClient) prepareRunOptions(opts *RunOptions) (*RunOptions, error) {
+	prepared := c.resolveRunOptions(opts)
+	if err := PreprocessOptions(prepared); err != nil {
+		return nil, err
+	}
+	return prepared, nil
+}
+
+// RunPromptCtx executes a prompt with Claude Code and returns the result with context support
+func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *RunOptions) (*ClaudeResult, error) {
+	preparedOpts, err := c.prepareRunOptions(opts)
+	if err != nil {
 		return nil, err
 	}
 
+	if preparedOpts.PluginManager != nil && preparedOpts.Format == JSONOutput {
+		return c.runPromptWithStructuredHooks(ctx, prompt, nil, preparedOpts)
+	}
+
 	// Add timeout support if specified
-	if opts.Timeout > 0 {
+	if preparedOpts.Timeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+		ctx, cancel = context.WithTimeout(ctx, preparedOpts.Timeout)
 		defer cancel()
 	}
 
-	args := BuildArgs(prompt, opts)
+	args := BuildArgs(prompt, preparedOpts)
+
+	if err := ensurePluginManagerInitialized(ctx, preparedOpts.PluginManager); err != nil {
+		return nil, err
+	}
 
 	cmd := execCommand(ctx, c.BinPath, args...)
-	if opts.WorkingDirectory != "" {
-		cmd.Dir = opts.WorkingDirectory
+	if preparedOpts.WorkingDirectory != "" {
+		cmd.Dir = preparedOpts.WorkingDirectory
 	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		// Enhanced error parsing
 		var exitCode int
@@ -93,53 +113,32 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 		return nil, claudeErr
 	}
 
-	if opts.Format == JSONOutput {
-		result, err := parseJSONResponse(stdout.Bytes())
+	if preparedOpts.Format == JSONOutput {
+		messages, result, err := parseJSONTranscript(stdout.Bytes())
 		if err != nil {
 			return nil, err
+		}
+		if err := applyExecutionHooks(ctx, preparedOpts, messages, result); err != nil {
+			return result, err
 		}
 		return result, nil
 	}
 
 	// For text output, just return the raw text
-	return &ClaudeResult{
+	result := &ClaudeResult{
 		Result:  stdout.String(),
 		IsError: false,
-	}, nil
+	}
+	if err := applyCompletionHooks(ctx, preparedOpts, result); err != nil {
+		return result, err
+	}
+	return result, nil
 }
 
 // parseJSONResponse handles both array and single-object JSON formats from Claude CLI
 func parseJSONResponse(data []byte) (*ClaudeResult, error) {
-	// Claude CLI now returns a JSON array of messages
-	// We need to find the "result" type message
-	var messages []Message
-	if err := json.Unmarshal(data, &messages); err != nil {
-		// Try single object for backwards compatibility
-		var res ClaudeResult
-		if err2 := json.Unmarshal(data, &res); err2 != nil {
-			return nil, NewClaudeError(ErrorValidation, fmt.Sprintf("failed to parse JSON response: %v", err))
-		}
-		return &res, nil
-	}
-
-	// Find the result message in the array
-	for _, msg := range messages {
-		if msg.Type == "result" {
-			return &ClaudeResult{
-				Type:          msg.Type,
-				Subtype:       msg.Subtype,
-				Result:        msg.Result,
-				CostUSD:       msg.CostUSD,
-				DurationMS:    msg.DurationMS,
-				DurationAPIMS: msg.DurationAPIMS,
-				IsError:       msg.IsError,
-				NumTurns:      msg.NumTurns,
-				SessionID:     msg.SessionID,
-			}, nil
-		}
-	}
-
-	return nil, NewClaudeError(ErrorValidation, "no result message found in JSON response")
+	_, result, err := parseJSONTranscript(data)
+	return result, err
 }
 
 // RunFromStdin runs Claude Code with input from stdin
@@ -149,34 +148,38 @@ func (c *ClaudeClient) RunFromStdin(stdin io.Reader, prompt string, opts *RunOpt
 
 // RunFromStdinCtx runs Claude Code with input from stdin with context support
 func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, prompt string, opts *RunOptions) (*ClaudeResult, error) {
-	if opts == nil {
-		opts = c.DefaultOptions
-	}
-
-	// Preprocess and validate options
-	if err := PreprocessOptions(opts); err != nil {
+	preparedOpts, err := c.prepareRunOptions(opts)
+	if err != nil {
 		return nil, err
 	}
 
+	if preparedOpts.PluginManager != nil && preparedOpts.Format == JSONOutput {
+		return c.runPromptWithStructuredHooks(ctx, prompt, stdin, preparedOpts)
+	}
+
 	// Add timeout support if specified
-	if opts.Timeout > 0 {
+	if preparedOpts.Timeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+		ctx, cancel = context.WithTimeout(ctx, preparedOpts.Timeout)
 		defer cancel()
 	}
 
-	args := BuildArgs(prompt, opts)
+	args := BuildArgs(prompt, preparedOpts)
+
+	if err := ensurePluginManagerInitialized(ctx, preparedOpts.PluginManager); err != nil {
+		return nil, err
+	}
 
 	cmd := execCommand(ctx, c.BinPath, args...)
-	if opts.WorkingDirectory != "" {
-		cmd.Dir = opts.WorkingDirectory
+	if preparedOpts.WorkingDirectory != "" {
+		cmd.Dir = preparedOpts.WorkingDirectory
 	}
 	cmd.Stdin = stdin
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		// Enhanced error parsing
 		var exitCode int
@@ -191,19 +194,26 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 		return nil, claudeErr
 	}
 
-	if opts.Format == JSONOutput {
-		result, err := parseJSONResponse(stdout.Bytes())
+	if preparedOpts.Format == JSONOutput {
+		messages, result, err := parseJSONTranscript(stdout.Bytes())
 		if err != nil {
 			return nil, err
+		}
+		if err := applyExecutionHooks(ctx, preparedOpts, messages, result); err != nil {
+			return result, err
 		}
 		return result, nil
 	}
 
 	// For text output, just return the raw text
-	return &ClaudeResult{
+	result := &ClaudeResult{
 		Result:  stdout.String(),
 		IsError: false,
-	}, nil
+	}
+	if err := applyCompletionHooks(ctx, preparedOpts, result); err != nil {
+		return result, err
+	}
+	return result, nil
 }
 
 // BuildArgs constructs the command-line arguments for Claude Code
@@ -218,6 +228,22 @@ func BuildArgs(prompt string, opts *RunOptions) []string {
 
 	if opts.Format != "" {
 		args = append(args, "--output-format", string(opts.Format))
+	}
+
+	if opts.Agent != "" {
+		args = append(args, "--agent", opts.Agent)
+	}
+
+	if opts.AgentsJSON != "" {
+		args = append(args, "--agents", opts.AgentsJSON)
+	} else if len(opts.Agents) > 0 {
+		if data, err := jsonMarshalAgents(opts.Agents); err == nil {
+			args = append(args, "--agents", data)
+		}
+	}
+
+	if opts.AllowDangerouslySkipPermissions {
+		args = append(args, "--allow-dangerously-skip-permissions")
 	}
 
 	if opts.SystemPrompt != "" {
@@ -240,10 +266,6 @@ func BuildArgs(prompt string, opts *RunOptions) []string {
 		args = append(args, "--disallowedTools", strings.Join(opts.DisallowedTools, ","))
 	}
 
-	if opts.PermissionTool != "" {
-		args = append(args, "--permission-prompt-tool", opts.PermissionTool)
-	}
-
 	// Permission mode
 	if opts.PermissionMode != "" {
 		args = append(args, "--permission-mode", string(opts.PermissionMode))
@@ -253,10 +275,6 @@ func BuildArgs(prompt string, opts *RunOptions) []string {
 		args = append(args, "--resume", opts.ResumeID)
 	} else if opts.Continue {
 		args = append(args, "--continue")
-	}
-
-	if opts.MaxTurns > 0 {
-		args = append(args, "--max-turns", fmt.Sprintf("%d", opts.MaxTurns))
 	}
 
 	if opts.Verbose {
@@ -270,9 +288,8 @@ func BuildArgs(prompt string, opts *RunOptions) []string {
 		args = append(args, "--model", opts.Model)
 	}
 
-	// Configuration file
-	if opts.ConfigFile != "" {
-		args = append(args, "--config", opts.ConfigFile)
+	if opts.Effort != "" {
+		args = append(args, "--effort", string(opts.Effort))
 	}
 
 	// Help flag
@@ -285,14 +302,52 @@ func BuildArgs(prompt string, opts *RunOptions) []string {
 		args = append(args, "--version")
 	}
 
-	// Disable autoupdate
-	if opts.DisableAutoUpdate {
-		args = append(args, "--disable-autoupdate")
+	if opts.InputFormat != "" {
+		args = append(args, "--input-format", string(opts.InputFormat))
 	}
 
-	// Theme
-	if opts.Theme != "" {
-		args = append(args, "--theme", opts.Theme)
+	if opts.IncludeHookEvents {
+		args = append(args, "--include-hook-events")
+	}
+
+	if opts.IncludePartialMessages {
+		args = append(args, "--include-partial-messages")
+	}
+
+	if opts.ReplayUserMessages {
+		args = append(args, "--replay-user-messages")
+	}
+
+	if opts.DebugFile != "" {
+		args = append(args, "--debug-file", opts.DebugFile)
+	}
+
+	if opts.Bare {
+		args = append(args, "--bare")
+	}
+
+	if opts.Brief {
+		args = append(args, "--brief")
+	}
+
+	if len(opts.Betas) > 0 {
+		// Variadic Cobra flag: one --betas flag followed by one or more values.
+		args = append(args, "--betas")
+		args = append(args, opts.Betas...)
+	}
+
+	if len(opts.Files) > 0 {
+		// Variadic Cobra flag: one --file flag followed by one or more specs.
+		args = append(args, "--file")
+		args = append(args, opts.Files...)
+	}
+
+	if opts.ExcludeDynamicSystemPromptSections {
+		args = append(args, "--exclude-dynamic-system-prompt-sections")
+	}
+
+	if opts.MaxBudgetUSD > 0 {
+		args = append(args, "--max-budget-usd", strconv.FormatFloat(opts.MaxBudgetUSD, 'f', -1, 64))
 	}
 
 	// Session control flags
@@ -323,6 +378,26 @@ func BuildArgs(prompt string, opts *RunOptions) []string {
 		args = append(args, "--add-dir", dir)
 	}
 
+	if len(opts.SettingSources) > 0 {
+		args = append(args, "--setting-sources", strings.Join(opts.SettingSources, ","))
+	}
+
+	if opts.Settings != "" {
+		args = append(args, "--settings", opts.Settings)
+	}
+
+	if len(opts.Tools) > 0 {
+		args = append(args, "--tools", strings.Join(opts.Tools, ","))
+	}
+
+	if opts.Name != "" {
+		args = append(args, "--name", opts.Name)
+	}
+
+	for _, dir := range opts.PluginDirs {
+		args = append(args, "--plugin-dir", dir)
+	}
+
 	// Print mode
 	if opts.PrintMode {
 		args = append(args, "--print")
@@ -344,6 +419,14 @@ func BuildArgs(prompt string, opts *RunOptions) []string {
 	}
 
 	return args
+}
+
+func jsonMarshalAgents(agents map[string]*SubagentConfig) (string, error) {
+	data, err := json.Marshal(agents)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 // RunWithMCP is a convenience method for running Claude with MCP configuration

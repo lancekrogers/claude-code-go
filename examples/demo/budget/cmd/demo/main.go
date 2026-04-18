@@ -82,8 +82,6 @@ func displayStreamingMessage(msg claude.Message) {
 		if msg.IsError {
 			fmt.Printf("❌ Error: %s\n", msg.Result)
 		} else {
-			// Track the cost
-			budgetTracker.AddSpend(msg.SessionID, msg.CostUSD)
 			fmt.Printf("📊 Cost: $%.6f | Duration: %.1fs | Turns: %d\n",
 				msg.CostUSD, float64(msg.DurationMS)/1000.0, msg.NumTurns)
 			displayBudgetStatus()
@@ -134,7 +132,6 @@ func main() {
 			"Bash(pwd)",
 			"Bash(echo*)",
 		},
-		MaxTurns: 3,
 	}
 
 	var sessionID string

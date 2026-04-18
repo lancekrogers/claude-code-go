@@ -105,20 +105,55 @@ func TestSubagentConfig_ToRunOptions(t *testing.T) {
 
 		opts := config.ToRunOptions(nil)
 
-		if opts.SystemPrompt != config.Prompt {
-			t.Errorf("SystemPrompt = %q, want %q", opts.SystemPrompt, config.Prompt)
+		if opts.Agent != "subagent" {
+			t.Errorf("Agent = %q, want %q", opts.Agent, "subagent")
 		}
-		if len(opts.AllowedTools) != len(config.Tools) {
-			t.Errorf("AllowedTools length = %d, want %d", len(opts.AllowedTools), len(config.Tools))
+		if opts.Agents == nil {
+			t.Fatal("Agents should be populated")
 		}
-		if opts.ModelAlias != "haiku" {
-			t.Errorf("ModelAlias = %q, want %q", opts.ModelAlias, "haiku")
+		selected := opts.Agents["subagent"]
+		if selected == nil {
+			t.Fatal("selected agent config should be present")
 		}
-		if opts.MaxTurns != 5 {
-			t.Errorf("MaxTurns = %d, want %d", opts.MaxTurns, 5)
+		if selected.Prompt != config.Prompt {
+			t.Errorf("Prompt = %q, want %q", selected.Prompt, config.Prompt)
+		}
+		if len(selected.Tools) != len(config.Tools) {
+			t.Errorf("Tools length = %d, want %d", len(selected.Tools), len(config.Tools))
+		}
+		if selected.Model != "haiku" {
+			t.Errorf("Model = %q, want %q", selected.Model, "haiku")
+		}
+		if selected.MaxTurns != 5 {
+			t.Errorf("MaxTurns = %d, want %d", selected.MaxTurns, 5)
 		}
 		if opts.Format != StreamJSONOutput {
 			t.Errorf("Format = %q, want %q", opts.Format, StreamJSONOutput)
+		}
+		if opts.SystemPrompt != "" {
+			t.Errorf("SystemPrompt = %q, want empty", opts.SystemPrompt)
+		}
+		if len(opts.AllowedTools) != 0 {
+			t.Errorf("AllowedTools = %v, want empty top-level slice", opts.AllowedTools)
+		}
+	})
+
+	t.Run("named conversion", func(t *testing.T) {
+		config := &SubagentConfig{
+			Description: "Security agent",
+			Prompt:      "You review security issues",
+		}
+
+		opts := config.ToNamedRunOptions("security", nil)
+
+		if opts.Agent != "security" {
+			t.Errorf("Agent = %q, want %q", opts.Agent, "security")
+		}
+		if opts.Agents["security"] == nil {
+			t.Fatal("expected security agent entry to be present")
+		}
+		if opts.Agents["subagent"] != nil {
+			t.Fatal("did not expect fallback subagent key when custom name is supplied")
 		}
 	})
 
@@ -162,11 +197,18 @@ func TestSubagentConfig_ToRunOptions(t *testing.T) {
 
 		opts := config.ToRunOptions(parentOpts)
 
-		if opts.ModelAlias != "haiku" {
-			t.Errorf("ModelAlias = %q, want subagent's %q", opts.ModelAlias, "haiku")
+		selected := opts.Agents["subagent"]
+		if selected == nil {
+			t.Fatal("selected agent config should be present")
 		}
-		if opts.MaxTurns != 3 {
-			t.Errorf("MaxTurns = %d, want subagent's %d", opts.MaxTurns, 3)
+		if selected.Model != "haiku" {
+			t.Errorf("Model = %q, want subagent's %q", selected.Model, "haiku")
+		}
+		if selected.MaxTurns != 3 {
+			t.Errorf("MaxTurns = %d, want subagent's %d", selected.MaxTurns, 3)
+		}
+		if opts.ModelAlias != "opus" {
+			t.Errorf("ModelAlias = %q, want inherited parent %q", opts.ModelAlias, "opus")
 		}
 	})
 

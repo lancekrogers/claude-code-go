@@ -192,7 +192,6 @@ Provide practical examples and explain the "Go way" of solving problems.`,
 
 	// Create parent options with budget tracking and permissions
 	parentOpts := &claude.RunOptions{
-		MaxTurns:       3,
 		BudgetTracker:  claude.NewBudgetTracker(&claude.BudgetConfig{MaxBudgetUSD: 1.00}),
 		PermissionMode: claude.PermissionModeDefault,
 	}
@@ -202,8 +201,7 @@ Provide practical examples and explain the "Go way" of solving problems.`,
 	fmt.Println("  - Budget tracking (from parent)")
 	fmt.Println("  - Permission mode (from parent)")
 	fmt.Println("  - MCP config path (from parent)")
-	fmt.Println("  - Max turns (uses subagent's if specified, otherwise parent's)")
-	fmt.Println("  - Model (uses subagent's if specified, otherwise parent's)")
+	fmt.Println("  - Top-level model settings (when the selected agent does not override them)")
 
 	// This would run with inherited settings:
 	// result, err := manager.RunAgent(ctx, "security", "Review this code", parentOpts)

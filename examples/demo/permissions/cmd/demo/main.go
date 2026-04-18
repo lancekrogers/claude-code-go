@@ -378,7 +378,6 @@ func main() {
 		opts := &claude.RunOptions{
 			Format:         claude.StreamJSONOutput,
 			SystemPrompt:   "You are a helpful assistant. Keep responses concise.",
-			MaxTurns:       3,
 			PermissionMode: permissionMode,
 		}
 
