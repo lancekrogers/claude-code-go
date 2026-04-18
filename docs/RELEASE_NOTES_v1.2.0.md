@@ -36,18 +36,23 @@ This release aligns the SDK with the current wrapper-safe `claude -p` surface.
 
 ## Behavior Changes
 
-- `SubagentConfig.ToRunOptions` now targets Claude's native `--agent` and `--agents` prompt surface. The returned `RunOptions` keeps the subagent definition in `Agents` and selects it with `Agent`; it no longer flattens the subagent prompt and tool list into top-level `SystemPrompt` and `AllowedTools`.
+- Behavioral change, not source-breaking: `SubagentConfig.ToRunOptions` now targets Claude's native `--agent` and `--agents` prompt surface. The returned `RunOptions` keeps the subagent definition in `Agents` and selects it with `Agent`; it no longer populates top-level `SystemPrompt` and `AllowedTools`. Integrators upgrading from `v1.1.0` should audit call sites that inspected those top-level fields on the returned value.
 - Deprecated top-level fields retained for source compatibility now emit one-time warnings when set, instead of being silently ignored at argv construction time.
 
 ## Compatibility Notes
 
 - `PermissionTool`, `MaxTurns`, `ConfigFile`, `DisableAutoUpdate`, `Theme`, and `PermissionCallback` remain in `RunOptions` for source compatibility. `PreprocessOptions` emits one-time warnings when they are set, and argv construction still ignores them because the current Claude CLI no longer supports them.
-- `PermissionModeDelegate` is now rejected during validation because the current Claude CLI no longer supports delegate permission mode.
+- `PermissionModeDelegate` is now rejected during validation because the current Claude CLI no longer supports delegate permission mode. Unlike the deprecated top-level flags above, there is no safe warn-and-ignore fallback for a permission mode selection, so the SDK fails fast instead.
 - The SDK still wraps the prompt-oriented `claude -p` workflow. Interactive sessions and management commands such as `auth`, `mcp`, `plugins`, `install`, and `update` are intentionally not wrapped here.
 
 ## Verification
 
 - `just release check`
+- `go test ./...`
+
+## Release Process
+
+- Publish this release with `just release publish v1.2.0` after the merge commit is on `main`.
 
 ## Full Changelog
 
