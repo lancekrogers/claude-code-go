@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 func parseJSONTranscript(data []byte) ([]Message, *ClaudeResult, error) {
@@ -21,19 +22,41 @@ func parseJSONTranscript(data []byte) ([]Message, *ClaudeResult, error) {
 		return nil, nil, NewClaudeError(ErrorValidation, fmt.Sprintf("failed to parse JSON response: %v", err))
 	}
 
-	return nil, &result, nil
+	normalized, err := normalizeResult(&result, "")
+	if err != nil {
+		return nil, nil, err
+	}
+	return nil, normalized, nil
 }
 
 func extractResultFromMessages(messages []Message) (*ClaudeResult, error) {
+	var assistantText strings.Builder
 	for _, msg := range messages {
+		if text, ok := msg.AssistantText(); ok {
+			assistantText.WriteString(text)
+		}
 		if msg.Type != "result" {
 			continue
 		}
 
-		return messageToResult(msg), nil
+		return normalizeResult(messageToResult(msg), assistantText.String())
 	}
 
 	return nil, NewClaudeError(ErrorValidation, "no result message found in JSON response")
+}
+
+func normalizeResult(result *ClaudeResult, fallback string) (*ClaudeResult, error) {
+	if result == nil {
+		return nil, NewClaudeError(ErrorValidation, "nil result message")
+	}
+	if result.Result != "" || result.IsError {
+		return result, nil
+	}
+	if fallback != "" {
+		result.Result = fallback
+		return result, nil
+	}
+	return nil, NewClaudeError(ErrorValidation, "empty result message in JSON response")
 }
 
 func messageToResult(msg Message) *ClaudeResult {
@@ -104,19 +127,14 @@ func ensurePluginManagerInitialized(ctx context.Context, pm *PluginManager) erro
 	return pm.Initialize(ctx)
 }
 
-type toolUseCall struct {
-	Name  string
-	Input ToolInput
-}
-
 func emitToolUseHooks(ctx context.Context, pm *PluginManager, msg Message) error {
-	if pm == nil || len(msg.Message) == 0 {
+	if pm == nil {
 		return nil
 	}
 
-	toolCalls, err := extractToolUses(msg.Message)
-	if err != nil {
-		return err
+	toolCalls, ok := msg.ToolUses()
+	if !ok {
+		return nil
 	}
 
 	for _, call := range toolCalls {
@@ -126,38 +144,6 @@ func emitToolUseHooks(ctx context.Context, pm *PluginManager, msg Message) error
 	}
 
 	return nil
-}
-
-func extractToolUses(raw json.RawMessage) ([]toolUseCall, error) {
-	var envelope map[string]interface{}
-	if err := json.Unmarshal(raw, &envelope); err != nil {
-		return nil, nil
-	}
-
-	content, ok := envelope["content"].([]interface{})
-	if !ok {
-		return nil, nil
-	}
-
-	toolCalls := make([]toolUseCall, 0)
-	for _, item := range content {
-		itemMap, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		if itemType, _ := itemMap["type"].(string); itemType != "tool_use" {
-			continue
-		}
-
-		name, _ := itemMap["name"].(string)
-		inputMap, _ := itemMap["input"].(map[string]interface{})
-		toolCalls = append(toolCalls, toolUseCall{
-			Name:  name,
-			Input: decodeToolInput(inputMap),
-		})
-	}
-
-	return toolCalls, nil
 }
 
 func decodeToolInput(raw map[string]interface{}) ToolInput {

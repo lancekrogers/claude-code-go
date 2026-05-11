@@ -3,6 +3,7 @@ package claude
 import (
 	"context"
 	"encoding/json"
+	"strings"
 )
 
 // Message represents a message from Claude Code in streaming mode
@@ -55,7 +56,21 @@ func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *Ru
 		}
 		defer cancel()
 
+		var assistantText strings.Builder
+		seenResult := false
 		if err := c.executeStreamJSON(runCtx, prompt, nil, streamOpts, func(msg Message) error {
+			if text, ok := msg.AssistantText(); ok {
+				assistantText.WriteString(text)
+			}
+			if msg.Type == "result" {
+				seenResult = true
+				result, err := normalizeResult(messageToResult(msg), assistantText.String())
+				if err != nil {
+					return err
+				}
+				msg.Result = result.Result
+			}
+
 			if err := applyMessageHooks(runCtx, streamOpts, msg); err != nil {
 				return err
 			}
@@ -73,6 +88,11 @@ func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *Ru
 			return nil
 		}); err != nil {
 			errCh <- err
+			return
+		}
+
+		if !seenResult {
+			errCh <- NewClaudeError(ErrorValidation, "no result message found in JSON response")
 		}
 	}()
 
