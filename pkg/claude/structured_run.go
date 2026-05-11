@@ -37,7 +37,20 @@ func (c *ClaudeClient) runPromptWithStructuredHooks(ctx context.Context, prompt 
 	}
 
 	var result *ClaudeResult
+	var assistantText strings.Builder
 	err = c.executeStreamJSON(ctx, prompt, stdin, streamOpts, func(msg Message) error {
+		if text, ok := msg.AssistantText(); ok {
+			assistantText.WriteString(text)
+		}
+		if msg.Type == "result" {
+			normalized, err := normalizeResult(messageToResult(msg), assistantText.String())
+			if err != nil {
+				return err
+			}
+			msg.Result = normalized.Result
+			result = normalized
+		}
+
 		if err := applyMessageHooks(ctx, streamOpts, msg); err != nil {
 			return err
 		}
@@ -46,7 +59,6 @@ func (c *ClaudeClient) runPromptWithStructuredHooks(ctx context.Context, prompt 
 			return nil
 		}
 
-		result = messageToResult(msg)
 		return applyCompletionHooks(ctx, streamOpts, result)
 	})
 	if err != nil {

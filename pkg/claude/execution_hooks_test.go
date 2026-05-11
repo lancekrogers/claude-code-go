@@ -284,6 +284,34 @@ func TestRunPromptCtx_BudgetExceededReturnsResultAndError(t *testing.T) {
 	}
 }
 
+func TestRunPromptCtx_WithPluginManagerBackfillsEmptyResultFromAssistantText(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	jsonOutput := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"hook answer"}]},"session_id":"hook-session"}` + "\n" +
+		`{"type":"result","subtype":"success","total_cost_usd":0.01,"duration_ms":1,"duration_api_ms":1,"is_error":false,"num_turns":1,"result":"","session_id":"hook-session"}` + "\n"
+	execCommand = mockExecCommandContext(t, []string{"-p", "Hook answer", "--output-format", "stream-json", "--verbose"}, jsonOutput, 0)
+
+	pm := NewPluginManager()
+	if err := pm.Register(&BasePlugin{PluginName: "noop", PluginVersion: "test"}, nil); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	client := NewClient("claude")
+	result, err := client.RunPromptCtx(context.Background(), "Hook answer", &RunOptions{
+		Format:        JSONOutput,
+		PluginManager: pm,
+	})
+	if err != nil {
+		t.Fatalf("RunPromptCtx() error = %v", err)
+	}
+	if result.Result != "hook answer" {
+		t.Fatalf("Result = %q, want %q", result.Result, "hook answer")
+	}
+}
+
 func TestStreamPrompt_AppliesLifecycleHooks(t *testing.T) {
 	originalExecCommand := execCommand
 	defer func() {
@@ -417,6 +445,90 @@ func TestRunPromptCtx_HandlesLargeStreamJSONMessages(t *testing.T) {
 	}
 	if len(result.Result) != 128*1024 {
 		t.Fatalf("Result length = %d, want %d", len(result.Result), 128*1024)
+	}
+}
+
+func TestParseJSONTranscript_BackfillsEmptyResultFromAssistantText(t *testing.T) {
+	data := []byte(`[` +
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"final answer"}]},"session_id":"stream-session"},` +
+		`{"type":"result","subtype":"success","is_error":false,"result":"","session_id":"stream-session"}` +
+		`]`)
+
+	_, result, err := parseJSONTranscript(data)
+	if err != nil {
+		t.Fatalf("parseJSONTranscript() error = %v", err)
+	}
+	if result.Result != "final answer" {
+		t.Fatalf("Result = %q, want %q", result.Result, "final answer")
+	}
+}
+
+func TestParseJSONTranscript_RejectsEmptySuccessfulResult(t *testing.T) {
+	data := []byte(`{"type":"result","subtype":"success","is_error":false,"result":"","session_id":"stream-session"}`)
+
+	_, _, err := parseJSONTranscript(data)
+	if err == nil {
+		t.Fatal("parseJSONTranscript() error = nil, want error")
+	}
+	if !strings.Contains(err.Error(), "empty result message") {
+		t.Fatalf("parseJSONTranscript() error = %v, want empty result message", err)
+	}
+}
+
+func TestStreamPrompt_BackfillsEmptyResultFromAssistantMessage(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	jsonOutput := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"stream answer"}]},"session_id":"stream-session"}` + "\n" +
+		`{"type":"result","subtype":"success","total_cost_usd":0.01,"duration_ms":1,"duration_api_ms":1,"is_error":false,"num_turns":1,"result":"","session_id":"stream-session"}` + "\n"
+	execCommand = mockExecCommandContext(t, []string{"-p", "Stream answer", "--output-format", "stream-json", "--verbose"}, jsonOutput, 0)
+
+	client := NewClient("claude")
+	messageCh, errCh := client.StreamPrompt(context.Background(), "Stream answer", &RunOptions{})
+
+	var gotResult Message
+	for msg := range messageCh {
+		if msg.Type == "result" {
+			gotResult = msg
+		}
+	}
+	for err := range errCh {
+		if err != nil {
+			t.Fatalf("StreamPrompt() error = %v", err)
+		}
+	}
+	if gotResult.Result != "stream answer" {
+		t.Fatalf("result message Result = %q, want %q", gotResult.Result, "stream answer")
+	}
+}
+
+func TestStreamPrompt_NoResultReturnsValidationError(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	jsonOutput := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"orphan answer"}]},"session_id":"stream-session"}` + "\n"
+	execCommand = mockExecCommandContext(t, []string{"-p", "Stream answer", "--output-format", "stream-json", "--verbose"}, jsonOutput, 0)
+
+	client := NewClient("claude")
+	messageCh, errCh := client.StreamPrompt(context.Background(), "Stream answer", &RunOptions{})
+	for range messageCh {
+	}
+
+	var gotErr error
+	for err := range errCh {
+		if err != nil {
+			gotErr = err
+		}
+	}
+	if gotErr == nil {
+		t.Fatal("StreamPrompt() error = nil, want error")
+	}
+	if !strings.Contains(gotErr.Error(), "no result message") {
+		t.Fatalf("StreamPrompt() error = %v, want no result message", gotErr)
 	}
 }
 
