@@ -77,9 +77,9 @@ func main() {
 
 ## Prerequisites
 
-- **Claude Max Subscription**: Required for Claude Code CLI
-  - [Sign up for Claude Max](https://claude.ai/referral/UKHPp7nGJw)
 - **Claude Code CLI**: Installed and accessible in PATH
+- **Authentication**: A Claude subscription (Pro or Max) or an Anthropic API key
+  - [Get started with Claude](https://claude.ai/referral/UKHPp7nGJw)
 
 ## Interactive Demos
 
