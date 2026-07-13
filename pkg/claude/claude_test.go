@@ -3,6 +3,7 @@ package claude
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1546,6 +1547,91 @@ func TestStreamPrompt_ContextCancellation(t *testing.T) {
 			t.Errorf("Expected fast cancellation, but took %v", elapsed)
 		}
 	})
+}
+
+func TestPromptArgAndStdin(t *testing.T) {
+	t.Run("small prompt stays inline", func(t *testing.T) {
+		argPrompt, stdin := promptArgAndStdin("a short prompt")
+		if argPrompt != "a short prompt" {
+			t.Errorf("argPrompt = %q, want the original prompt", argPrompt)
+		}
+		if stdin != nil {
+			t.Error("stdin = non-nil, want nil for a small prompt")
+		}
+	})
+
+	t.Run("prompt at threshold routes to stdin", func(t *testing.T) {
+		big := strings.Repeat("x", maxInlinePromptBytes)
+		argPrompt, stdin := promptArgAndStdin(big)
+		if argPrompt != "" {
+			t.Errorf("argPrompt = %q, want empty so BuildArgs omits it from argv", argPrompt)
+		}
+		if stdin == nil {
+			t.Fatal("stdin = nil, want a reader for a prompt at maxInlinePromptBytes")
+		}
+		got, err := io.ReadAll(stdin)
+		if err != nil {
+			t.Fatalf("ReadAll(stdin): %v", err)
+		}
+		if string(got) != big {
+			t.Error("stdin content does not match the original prompt")
+		}
+	})
+
+	t.Run("prompt just under threshold stays inline", func(t *testing.T) {
+		small := strings.Repeat("x", maxInlinePromptBytes-1)
+		argPrompt, stdin := promptArgAndStdin(small)
+		if argPrompt != small {
+			t.Error("argPrompt should equal the prompt just under the threshold")
+		}
+		if stdin != nil {
+			t.Error("stdin = non-nil, want nil just under the threshold")
+		}
+	})
+}
+
+// TestStreamPrompt_LargePromptOmittedFromArgv guards against regressing to
+// passing an oversized prompt inline: on Linux, a single argv element at or
+// beyond MAX_ARG_STRLEN (128 KiB) makes the process fail to start
+// (fork/exec: argument list too long) with no usable error. See
+// promptArgAndStdin.
+func TestStreamPrompt_LargePromptOmittedFromArgv(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	bigPrompt := strings.Repeat("x", maxInlinePromptBytes+1)
+
+	var capturedArgs []string
+	execCommand = func(_ context.Context, name string, arg ...string) *exec.Cmd {
+		capturedArgs = append([]string(nil), arg...)
+		// `cat` echoes whatever stdin it's given back to stdout; the
+		// resulting output won't parse as stream-json, but this test only
+		// cares about what landed in argv.
+		return exec.Command("cat")
+	}
+
+	client := NewClient("claude")
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	msgCh, errCh := client.StreamPrompt(ctx, bigPrompt, &RunOptions{})
+	go func() {
+		for range msgCh {
+		}
+	}()
+	for range errCh {
+	}
+
+	for _, a := range capturedArgs {
+		if a == bigPrompt {
+			t.Fatal("large prompt was passed inline as an argv element; want it routed over stdin")
+		}
+	}
+	if len(capturedArgs) == 0 {
+		t.Fatal("execCommand was never invoked")
+	}
 }
 
 func TestStreamPrompt_ContextDeadline(t *testing.T) {

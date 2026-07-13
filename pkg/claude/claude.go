@@ -216,6 +216,27 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 	return result, nil
 }
 
+// maxInlinePromptBytes bounds how large a prompt may be before it is passed
+// as a literal argv element. Linux caps a single exec() argument at
+// MAX_ARG_STRLEN (128 KiB); a prompt at or beyond that makes the process
+// fail to start entirely (fork/exec: argument list too long), with no
+// output and no useful error surfaced to the model. Callers that stream a
+// prompt (see StreamPrompt) switch to piping it over stdin instead once it
+// crosses this threshold, leaving headroom for the other argv elements
+// (flags, model name, etc).
+const maxInlinePromptBytes = 100 * 1024
+
+// promptArgAndStdin decides how a prompt should reach the CLI: inline as an
+// argv element (the common case), or over stdin once it is large enough to
+// risk exceeding the OS's single-argv-element limit. The CLI reads the
+// prompt from stdin when none is given inline.
+func promptArgAndStdin(prompt string) (argPrompt string, stdin io.Reader) {
+	if len(prompt) >= maxInlinePromptBytes {
+		return "", strings.NewReader(prompt)
+	}
+	return prompt, nil
+}
+
 // BuildArgs constructs the command-line arguments for Claude Code
 // This is exported for use by the dangerous package
 func BuildArgs(prompt string, opts *RunOptions) []string {
