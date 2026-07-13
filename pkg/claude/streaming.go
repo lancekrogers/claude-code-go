@@ -56,7 +56,7 @@ func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *Ru
 		}
 		defer cancel()
 
-		argPrompt, stdin := promptArgAndStdin(prompt)
+		argPrompt, stdin := promptArgAndStdin(prompt, streamOpts.InputFormat)
 
 		var assistantText strings.Builder
 		seenResult := false

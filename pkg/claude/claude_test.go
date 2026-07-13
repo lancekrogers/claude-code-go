@@ -1551,7 +1551,7 @@ func TestStreamPrompt_ContextCancellation(t *testing.T) {
 
 func TestPromptArgAndStdin(t *testing.T) {
 	t.Run("small prompt stays inline", func(t *testing.T) {
-		argPrompt, stdin := promptArgAndStdin("a short prompt")
+		argPrompt, stdin := promptArgAndStdin("a short prompt", "")
 		if argPrompt != "a short prompt" {
 			t.Errorf("argPrompt = %q, want the original prompt", argPrompt)
 		}
@@ -1562,7 +1562,7 @@ func TestPromptArgAndStdin(t *testing.T) {
 
 	t.Run("prompt at threshold routes to stdin", func(t *testing.T) {
 		big := strings.Repeat("x", maxInlinePromptBytes)
-		argPrompt, stdin := promptArgAndStdin(big)
+		argPrompt, stdin := promptArgAndStdin(big, "")
 		if argPrompt != "" {
 			t.Errorf("argPrompt = %q, want empty so BuildArgs omits it from argv", argPrompt)
 		}
@@ -1580,12 +1580,30 @@ func TestPromptArgAndStdin(t *testing.T) {
 
 	t.Run("prompt just under threshold stays inline", func(t *testing.T) {
 		small := strings.Repeat("x", maxInlinePromptBytes-1)
-		argPrompt, stdin := promptArgAndStdin(small)
+		argPrompt, stdin := promptArgAndStdin(small, "")
 		if argPrompt != small {
 			t.Error("argPrompt should equal the prompt just under the threshold")
 		}
 		if stdin != nil {
 			t.Error("stdin = non-nil, want nil just under the threshold")
+		}
+	})
+
+	t.Run("stream-json input is encoded as a user event", func(t *testing.T) {
+		argPrompt, stdin := promptArgAndStdin("hello \"Claude\"", StreamJSONInput)
+		if argPrompt != "" {
+			t.Errorf("argPrompt = %q, want empty so the event is read from stdin", argPrompt)
+		}
+		if stdin == nil {
+			t.Fatal("stdin = nil, want a stream-json user event")
+		}
+		got, err := io.ReadAll(stdin)
+		if err != nil {
+			t.Fatalf("ReadAll(stdin): %v", err)
+		}
+		want := `{"type":"user","message":{"role":"user","content":"hello \"Claude\""},"parent_tool_use_id":null}` + "\n"
+		if string(got) != want {
+			t.Errorf("stdin = %q, want %q", got, want)
 		}
 	})
 }
