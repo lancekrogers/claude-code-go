@@ -56,9 +56,11 @@ func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *Ru
 		}
 		defer cancel()
 
+		argPrompt, stdin := promptArgAndStdin(prompt, streamOpts.InputFormat)
+
 		var assistantText strings.Builder
 		seenResult := false
-		if err := c.executeStreamJSON(runCtx, prompt, nil, streamOpts, func(msg Message) error {
+		if err := c.executeStreamJSON(runCtx, argPrompt, stdin, streamOpts, func(msg Message) error {
 			if text, ok := msg.AssistantText(); ok {
 				assistantText.WriteString(text)
 			}
