@@ -8,9 +8,9 @@ import (
 
 // Message represents a message from Claude Code in streaming mode
 type Message struct {
-	Type      string          `json:"type"`
-	Subtype   string          `json:"subtype,omitempty"`
-	Message   json.RawMessage `json:"message,omitempty"`
+	Type    string          `json:"type"`
+	Subtype string          `json:"subtype,omitempty"`
+	Message json.RawMessage `json:"message,omitempty"`
 	// Event carries the raw payload of a "stream_event" message, emitted only
 	// when RunOptions.IncludePartialMessages is set. It holds the underlying
 	// Anthropic streaming event (e.g. content_block_delta). Use PartialText to
