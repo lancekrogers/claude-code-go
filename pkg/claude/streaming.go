@@ -11,6 +11,11 @@ type Message struct {
 	Type      string          `json:"type"`
 	Subtype   string          `json:"subtype,omitempty"`
 	Message   json.RawMessage `json:"message,omitempty"`
+	// Event carries the raw payload of a "stream_event" message, emitted only
+	// when RunOptions.IncludePartialMessages is set. It holds the underlying
+	// Anthropic streaming event (e.g. content_block_delta). Use PartialText to
+	// extract incremental assistant text from it.
+	Event     json.RawMessage `json:"event,omitempty"`
 	SessionID string          `json:"session_id"`
 	// Additional fields for system/result messages
 	CostUSD       float64  `json:"total_cost_usd,omitempty"`
