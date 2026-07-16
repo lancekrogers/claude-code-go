@@ -212,6 +212,12 @@ func (c *DangerousClient) runWithDangerousFlags(ctx context.Context, prompt stri
 		fmt.Fprintf(os.Stderr, "🌍 ENV: Using custom environment with %d additional variables\n", len(c.envVars))
 	}
 
+	// Apply per-run RunOptions.Env last so it composes with the dangerous
+	// env mechanism above: ApplyEnv treats any environment already set on cmd
+	// as its base, so the SET_ENVIRONMENT_VARIABLES values are preserved and a
+	// per-run Env key supersedes both the inherited and dangerous values.
+	claude.ApplyEnv(cmd, opts.Env)
+
 	// Execute command with enhanced error handling
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout

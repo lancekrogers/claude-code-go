@@ -67,6 +67,22 @@ func TestHelperProcess(t *testing.T) {
 		return
 	}
 
+	// GO_HELPER_PRINT_ENV names an environment variable; the helper prints that
+	// variable's value as seen by the child process so a test can assert the
+	// value reached the subprocess.
+	if key := os.Getenv("GO_HELPER_PRINT_ENV"); key != "" {
+		os.Stdout.Write([]byte(os.Getenv(key)))
+		return
+	}
+
+	// GO_HELPER_STREAM_ENV is the stream-json variant of GO_HELPER_PRINT_ENV: it
+	// emits the named variable's value inside a result message so streaming
+	// entry points can assert the injected environment reached the child.
+	if key := os.Getenv("GO_HELPER_STREAM_ENV"); key != "" {
+		os.Stdout.Write([]byte(`{"type":"result","subtype":"success","total_cost_usd":0.0,"duration_ms":1,"duration_api_ms":1,"is_error":false,"num_turns":1,"result":"` + os.Getenv(key) + `","session_id":"test-session"}` + "\n"))
+		return
+	}
+
 	output := os.Getenv("GO_HELPER_OUTPUT")
 	exitCode := int(os.Getenv("GO_HELPER_EXIT_CODE")[0] - '0')
 
