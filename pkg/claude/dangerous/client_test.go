@@ -27,6 +27,14 @@ func TestHelperProcess(t *testing.T) {
 		os.Stdout.Write([]byte(`{"type":"result","subtype":"success","total_cost_usd":0.0,"duration_ms":1,"duration_api_ms":1,"is_error":false,"num_turns":1,"result":"` + wd + `","session_id":"test-session"}` + "\n"))
 		return
 	}
+
+	// GO_HELPER_PRINT_ENV names an environment variable; the helper emits its
+	// value inside a result message so a test can assert the value reached the
+	// child process.
+	if key := os.Getenv("GO_HELPER_PRINT_ENV"); key != "" {
+		os.Stdout.Write([]byte(`{"type":"result","subtype":"success","total_cost_usd":0.0,"duration_ms":1,"duration_api_ms":1,"is_error":false,"num_turns":1,"result":"` + os.Getenv(key) + `","session_id":"test-session"}` + "\n"))
+		return
+	}
 }
 
 func TestNewDangerousClient_RequiresEnvironmentVariable(t *testing.T) {
@@ -586,5 +594,43 @@ func TestBYPASS_ALL_PERMISSIONS_CTX_WorkingDirectory(t *testing.T) {
 	}
 	if gotDir != resolvedWantDir {
 		t.Fatalf("expected cwd %q, got %q", resolvedWantDir, gotDir)
+	}
+}
+
+func TestBYPASS_ALL_PERMISSIONS_CTX_RunOptionsEnv(t *testing.T) {
+	originalDangerous := os.Getenv("CLAUDE_ENABLE_DANGEROUS")
+	defer os.Setenv("CLAUDE_ENABLE_DANGEROUS", originalDangerous)
+	os.Setenv("CLAUDE_ENABLE_DANGEROUS", "i-accept-all-risks")
+
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	execCommand = func(_ context.Context, name string, arg ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestHelperProcess", "--", name}
+		cs = append(cs, arg...)
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Env = []string{
+			"GO_WANT_HELPER_PROCESS=1",
+			"GO_HELPER_PRINT_ENV=CCGO_ENV_TEST",
+		}
+		return cmd
+	}
+
+	client, err := NewDangerousClient("claude")
+	if err != nil {
+		t.Fatalf("NewDangerousClient() error = %v", err)
+	}
+
+	result, err := client.BYPASS_ALL_PERMISSIONS_CTX(context.Background(), "Hello", &claude.RunOptions{
+		Format: claude.JSONOutput,
+		Env:    map[string]string{"CCGO_ENV_TEST": "dangerous-value"},
+	})
+	if err != nil {
+		t.Fatalf("BYPASS_ALL_PERMISSIONS_CTX() error = %v", err)
+	}
+	if result.Result != "dangerous-value" {
+		t.Fatalf("child saw CCGO_ENV_TEST=%q, want %q", result.Result, "dangerous-value")
 	}
 }

@@ -454,8 +454,22 @@ func cloneRunOptions(opts *RunOptions) *RunOptions {
 	if opts.Agents != nil {
 		cloned.Agents = copySubagentConfigs(opts.Agents)
 	}
+	if opts.Env != nil {
+		cloned.Env = copyEnv(opts.Env)
+	}
 
 	return &cloned
+}
+
+func copyEnv(env map[string]string) map[string]string {
+	if env == nil {
+		return nil
+	}
+	copied := make(map[string]string, len(env))
+	for k, v := range env {
+		copied[k] = v
+	}
+	return copied
 }
 
 func copySubagentConfigs(agents map[string]*SubagentConfig) map[string]*SubagentConfig {

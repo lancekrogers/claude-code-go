@@ -88,6 +88,7 @@ func (c *ClaudeClient) executeStreamJSON(ctx context.Context, prompt string, std
 	if opts.WorkingDirectory != "" {
 		cmd.Dir = opts.WorkingDirectory
 	}
+	ApplyEnv(cmd, opts.Env)
 	if stdin != nil {
 		cmd.Stdin = stdin
 	}

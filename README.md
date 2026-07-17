@@ -413,6 +413,10 @@ type RunOptions struct {
     AllowDangerouslySkipPermissions bool
     Timeout                       time.Duration
 
+    // Process control
+    WorkingDirectory string            // Child process working directory (cmd.Dir)
+    Env              map[string]string // Per-run environment overrides for the child process
+
     // Lifecycle extensions
     BudgetTracker *BudgetTracker // Shared tracker
     PluginManager *PluginManager // Plugin hooks
@@ -420,6 +424,21 @@ type RunOptions struct {
 ```
 
 Deprecated compatibility fields remain in `RunOptions` for now, but the SDK no longer emits removed CLI flags such as `--max-turns`, `--config`, `--disable-autoupdate`, `--theme`, or `--permission-prompt-tool`.
+
+#### Per-run environment variables
+
+`Env` sets environment variables for the `claude` child process for a single run. Entries are merged over the inherited parent process environment: existing variables are passed through, and each key in `Env` is added or overrides the inherited value. A nil or empty map leaves the child environment untouched. The parent process environment is never modified, so this is safe for long-lived, multi-tenant hosts that run many concurrent invocations.
+
+```go
+result, err := cc.RunPrompt("Summarize the repo", &claude.RunOptions{
+    Env: map[string]string{
+        "ANTHROPIC_BASE_URL": "https://gateway.internal.example.com",
+        "HTTP_PROXY":         "http://proxy.internal.example.com:8080",
+    },
+})
+```
+
+When a client sets `DefaultOptions.Env`, the effective environment is the union of `DefaultOptions.Env` and the per-run `Env`, with the per-run map winning on any key conflict.
 
 ### Core Methods
 

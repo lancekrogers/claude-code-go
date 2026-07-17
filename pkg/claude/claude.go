@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +16,73 @@ import (
 
 // execCommand is a variable to allow mocking of exec.CommandContext for testing
 var execCommand = exec.CommandContext
+
+// ApplyEnv sets cmd.Env for a Claude CLI child process from a per-run
+// environment override. When env is empty it returns without touching cmd.Env,
+// so the child inherits the parent process environment exactly as it did before
+// RunOptions.Env existed. When env is non-empty, ApplyEnv starts from the
+// command's existing environment (cmd.Env when a caller already populated it,
+// otherwise the current process environment from os.Environ), drops any
+// inherited entry whose key is overridden, and appends the overrides in sorted
+// key order. The result contains exactly one entry per overridden key and is
+// deterministic across runs.
+//
+// Filtering the inherited entry, rather than relying on append order, matters
+// because os/exec passes the whole slice to the child and different consumers
+// resolve duplicate keys differently. ApplyEnv is exported so the dangerous
+// subpackage can reuse these semantics at its own exec site. Most callers set
+// RunOptions.Env and never call this directly.
+func ApplyEnv(cmd *exec.Cmd, env map[string]string) {
+	if len(env) == 0 {
+		return
+	}
+
+	base := cmd.Env
+	if base == nil {
+		base = os.Environ()
+	}
+
+	merged := make([]string, 0, len(base)+len(env))
+	for _, entry := range base {
+		key := entry
+		if i := strings.IndexByte(entry, '='); i >= 0 {
+			key = entry[:i]
+		}
+		if _, overridden := env[key]; overridden {
+			continue
+		}
+		merged = append(merged, entry)
+	}
+
+	keys := make([]string, 0, len(env))
+	for k := range env {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		merged = append(merged, k+"="+env[k])
+	}
+
+	cmd.Env = merged
+}
+
+// mergeEnv returns the union of base and override as a new map, with override
+// winning on key conflicts. It returns nil when both maps are empty so an unset
+// environment stays nil and leaves the child process environment untouched.
+// Neither input map is modified.
+func mergeEnv(base, override map[string]string) map[string]string {
+	if len(base) == 0 && len(override) == 0 {
+		return nil
+	}
+	merged := make(map[string]string, len(base)+len(override))
+	for k, v := range base {
+		merged[k] = v
+	}
+	for k, v := range override {
+		merged[k] = v
+	}
+	return merged
+}
 
 // ClaudeClient is the main client for interacting with Claude Code
 type ClaudeClient struct {
@@ -55,7 +124,22 @@ func (c *ClaudeClient) resolveRunOptions(opts *RunOptions) *RunOptions {
 	if opts == nil {
 		opts = c.DefaultOptions
 	}
-	return cloneRunOptions(opts)
+	resolved := cloneRunOptions(opts)
+
+	// Env is the one field that unions the client defaults with the per-run
+	// values instead of the per-run struct fully replacing the defaults. The
+	// union is DefaultOptions.Env overlaid by opts.Env, so a per-run key wins on
+	// conflict. mergeEnv allocates a fresh map, so neither source is mutated.
+	var defaultEnv, perRunEnv map[string]string
+	if c.DefaultOptions != nil {
+		defaultEnv = c.DefaultOptions.Env
+	}
+	if opts != nil {
+		perRunEnv = opts.Env
+	}
+	resolved.Env = mergeEnv(defaultEnv, perRunEnv)
+
+	return resolved
 }
 
 func (c *ClaudeClient) prepareRunOptions(opts *RunOptions) (*RunOptions, error) {
@@ -94,6 +178,7 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 	if preparedOpts.WorkingDirectory != "" {
 		cmd.Dir = preparedOpts.WorkingDirectory
 	}
+	ApplyEnv(cmd, preparedOpts.Env)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -174,6 +259,7 @@ func (c *ClaudeClient) RunFromStdinCtx(ctx context.Context, stdin io.Reader, pro
 	if preparedOpts.WorkingDirectory != "" {
 		cmd.Dir = preparedOpts.WorkingDirectory
 	}
+	ApplyEnv(cmd, preparedOpts.Env)
 	cmd.Stdin = stdin
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

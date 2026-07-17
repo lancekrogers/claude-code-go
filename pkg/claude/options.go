@@ -208,6 +208,22 @@ type RunOptions struct {
 	// exec will fail to start the subprocess. Set per call — no shared
 	// state across invocations.
 	WorkingDirectory string
+	// Env sets environment variables for the Claude CLI child process for this
+	// run only. Entries are merged over the inherited parent process
+	// environment: every variable the parent already has is passed through, and
+	// each key in Env is added or, on a key conflict, supersedes the inherited
+	// value so the child sees exactly one value per key. A nil or empty map
+	// leaves the child environment untouched, identical to the behavior before
+	// this field existed (the child inherits the parent environment wholesale).
+	// The parent process environment is never modified.
+	//
+	// When a ClaudeClient has DefaultOptions.Env set, the effective environment
+	// for a run is the union of DefaultOptions.Env and this map, with this
+	// per-run map winning on any key conflict. Env is the only RunOptions field
+	// that unions with the client defaults; every other field keeps the usual
+	// rule where a non-nil per-run RunOptions fully replaces DefaultOptions.
+	// Set per call, no shared state across invocations.
+	Env map[string]string
 	// PrintMode enables print mode output (required for some flags)
 	PrintMode bool
 
