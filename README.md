@@ -531,6 +531,14 @@ just lint
 
 See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
 
+## Related
+
+Go SDKs for other coding-agent CLIs:
+
+- [grok-go-sdk](https://github.com/lancekrogers/grok-go-sdk) wraps `grok`
+- [vercel-fx-go](https://github.com/Obedience-Corp/vercel-fx-go) wraps `fx`
+- [cursor-agent-go](https://github.com/Obedience-Corp/cursor-agent-go) wraps `cursor-agent`
+
 ## License
 
 MIT License - see LICENSE file.
