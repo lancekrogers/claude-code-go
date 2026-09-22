@@ -38,3 +38,10 @@ jobs:
 
       - name: Test dangerous package
         run: just test dangerous
+
+      - name: Upload coverage to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: coverage.out
+          format: golang

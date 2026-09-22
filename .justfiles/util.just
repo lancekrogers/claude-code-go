@@ -18,6 +18,7 @@ clean:
     @echo "Cleaning build artifacts..."
     rm -rf {{BIN_DIR}}
     rm -rf {{COVERAGE_DIR}}
+    rm -f {{PROJECT_DIR}}/coverage.out
     go clean -cache -testcache
     @echo "Clean complete"
 
