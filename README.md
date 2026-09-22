@@ -5,7 +5,6 @@
 <p align="center">
   <a href="https://github.com/lancekrogers/claude-code-go/actions/workflows/ci.yml"><img src="https://github.com/lancekrogers/claude-code-go/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="https://pkg.go.dev/github.com/lancekrogers/claude-code-go"><img src="https://pkg.go.dev/badge/github.com/lancekrogers/claude-code-go.svg" alt="Go Reference"></a>
-  <a href="https://goreportcard.com/report/github.com/lancekrogers/claude-code-go"><img src="https://goreportcard.com/badge/github.com/lancekrogers/claude-code-go" alt="Go Report Card"></a>
   <a href="https://coveralls.io/github/lancekrogers/claude-code-go"><img src="https://coveralls.io/repos/github/lancekrogers/claude-code-go/badge.svg?branch=main" alt="Coverage"></a>
 </p>
 
