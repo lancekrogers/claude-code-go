@@ -106,7 +106,7 @@ func displayStreamingMessage(msg claude.Message) {
 		if msg.IsError {
 			fmt.Printf("❌ Error: %s\n", msg.Result)
 		} else {
-			fmt.Printf("✅ Complete - Cost: $%.6f | Turns: %d\n", msg.CostUSD, msg.NumTurns)
+			fmt.Printf("✅ Complete - Session cost: $%.6f | Turns: %d\n", msg.CostUSD, msg.NumTurns)
 		}
 	}
 }

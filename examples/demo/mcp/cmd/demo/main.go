@@ -319,7 +319,7 @@ func displayStreamingMessage(msg claude.Message) {
 		if msg.IsError {
 			fmt.Printf("❌ Error: %s\n", msg.Result)
 		} else {
-			fmt.Printf("📊 Cost: $%.6f | Duration: %.1fs | Turns: %d\n",
+			fmt.Printf("📊 Session cost: $%.6f | Duration: %.1fs | Turns: %d\n",
 				msg.CostUSD, float64(msg.DurationMS)/1000.0, msg.NumTurns)
 		}
 	}

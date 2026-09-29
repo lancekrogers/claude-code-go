@@ -78,7 +78,7 @@ func displayStreamingMessage(msg claude.Message) {
 		if msg.IsError {
 			fmt.Printf("❌ Error: %s\n", msg.Result)
 		} else {
-			fmt.Printf("✅ [%s] Complete - Cost: $%.6f | Turns: %d\n",
+			fmt.Printf("✅ [%s] Complete - Session cost: $%.6f | Turns: %d\n",
 				currentAgent, msg.CostUSD, msg.NumTurns)
 			// Store session for potential resumption
 			agentManager.SetSession(currentAgent, msg.SessionID)
@@ -162,7 +162,7 @@ func main() {
 					fmt.Printf("❌ Resume error: %v\n", err)
 				} else {
 					fmt.Printf("💬 [%s]: %s\n", currentAgent, result.Result)
-					fmt.Printf("✅ Cost: $%.6f\n", result.CostUSD)
+					fmt.Printf("✅ Session cost: $%.6f\n", result.CostUSD)
 				}
 			} else {
 				fmt.Printf("⚠️  No previous session for %s\n", currentAgent)

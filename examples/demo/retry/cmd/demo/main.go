@@ -320,7 +320,7 @@ func displayStreamingMessage(msg claude.Message) {
 		if msg.IsError {
 			fmt.Printf("❌ Error: %s\n", msg.Result)
 		} else {
-			fmt.Printf("📊 Cost: $%.6f | Duration: %.1fs | Turns: %d\n",
+			fmt.Printf("📊 Session cost: $%.6f | Duration: %.1fs | Turns: %d\n",
 				msg.CostUSD, float64(msg.DurationMS)/1000.0, msg.NumTurns)
 		}
 	}
@@ -493,7 +493,7 @@ func main() {
 
 			if err == nil {
 				sessionID = result.SessionID
-				fmt.Printf("\n📊 Cost: $%.6f | Duration: %.1fs | Turns: %d\n",
+				fmt.Printf("\n📊 Session cost: $%.6f | Duration: %.1fs | Turns: %d\n",
 					result.CostUSD, float64(result.DurationMS)/1000.0, result.NumTurns)
 				if result.Result != "" {
 					// Truncate long results
