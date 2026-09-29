@@ -134,6 +134,9 @@ type MetricsPlugin struct {
 	MessageCount   int
 	TotalCost      float64
 	ExecutionCount int
+	// sessionCost holds the last cumulative cost reported per session, since
+	// the CLI's total_cost_usd includes earlier turns of a resumed session.
+	sessionCost map[string]float64
 }
 
 // NewMetricsPlugin creates a new metrics plugin
@@ -144,6 +147,7 @@ func NewMetricsPlugin() *MetricsPlugin {
 			PluginVersion: "1.0.0",
 		},
 		ToolCallCount: make(map[string]int),
+		sessionCost:   make(map[string]float64),
 	}
 }
 
@@ -163,11 +167,20 @@ func (mp *MetricsPlugin) OnMessage(ctx context.Context, msg Message) error {
 	return nil
 }
 
-// OnComplete records execution metrics
+// OnComplete records execution metrics. TotalCost adds only the increase in
+// each session's reported cumulative cost, so resuming a session does not
+// count its earlier turns again. A forked session reports its parent's cost
+// too; the plugin cannot see the parent, so a fork's first run counts it.
 func (mp *MetricsPlugin) OnComplete(ctx context.Context, result *ClaudeResult) error {
 	mp.mu.Lock()
 	defer mp.mu.Unlock()
-	mp.TotalCost += result.CostUSD
+	if mp.sessionCost == nil {
+		mp.sessionCost = make(map[string]float64)
+	}
+	if delta := result.CostUSD - mp.sessionCost[result.SessionID]; delta > 0 {
+		mp.TotalCost += delta
+	}
+	mp.sessionCost[result.SessionID] = result.CostUSD
 	mp.ExecutionCount++
 	return nil
 }

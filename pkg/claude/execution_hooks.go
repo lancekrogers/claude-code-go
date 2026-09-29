@@ -105,7 +105,9 @@ func applyCompletionHooks(ctx context.Context, opts *RunOptions, result *ClaudeR
 	}
 
 	if tracker := opts.BudgetTracker; tracker != nil && result.CostUSD > 0 {
-		if err := tracker.AddSpend(result.SessionID, result.CostUSD); err != nil {
+		// CostUSD is the session's cumulative total; a resumed or forked run
+		// reports its parent's spend as well, so record only the increase.
+		if err := tracker.RecordSessionTotal(result.SessionID, opts.ResumeID, result.CostUSD); err != nil {
 			return err
 		}
 	}

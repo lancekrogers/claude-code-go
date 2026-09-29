@@ -27,6 +27,10 @@ type BudgetTracker struct {
 	sessionSpent   map[string]float64
 	config         *BudgetConfig
 	warningEmitted bool
+	// sessionReported holds the last cumulative cost the CLI reported for
+	// each session. The CLI's total_cost_usd is a session's running total,
+	// so it is recorded as the increase over this value.
+	sessionReported map[string]float64
 }
 
 // NewBudgetTracker creates a new BudgetTracker with the given configuration
@@ -35,8 +39,9 @@ func NewBudgetTracker(config *BudgetConfig) *BudgetTracker {
 		config = &BudgetConfig{}
 	}
 	return &BudgetTracker{
-		sessionSpent: make(map[string]float64),
-		config:       config,
+		sessionSpent:    make(map[string]float64),
+		config:          config,
+		sessionReported: make(map[string]float64),
 	}
 }
 
@@ -122,7 +127,34 @@ func (bt *BudgetTracker) AddSpend(sessionID string, amount float64) error {
 	return resultErr
 }
 
-// Reset resets the tracker to zero spending
+// RecordSessionTotal records spend from a CLI-reported cumulative session
+// cost, such as ClaudeResult.CostUSD. The CLI reports a session's running
+// total across resumed runs, so only the increase since the last total seen
+// for sessionID is added. When sessionID has not been seen and
+// parentSessionID is set (the session it was resumed or forked from), the
+// parent's last total is the starting point, because a forked session's
+// total includes its parent's. A session first seen without a known parent
+// counts its whole reported total.
+//
+// It returns ErrBudgetExceeded under the same conditions as AddSpend.
+func (bt *BudgetTracker) RecordSessionTotal(sessionID, parentSessionID string, total float64) error {
+	bt.mu.Lock()
+	baseline, seen := bt.sessionReported[sessionID]
+	if !seen && parentSessionID != "" {
+		baseline = bt.sessionReported[parentSessionID]
+	}
+	bt.sessionReported[sessionID] = total
+	bt.mu.Unlock()
+
+	delta := total - baseline
+	if delta < 0 {
+		delta = 0
+	}
+	return bt.AddSpend(sessionID, delta)
+}
+
+// Reset resets the tracker to zero spending. Reported session totals are
+// kept so later resumed runs are not charged again for earlier turns.
 func (bt *BudgetTracker) Reset() {
 	bt.mu.Lock()
 	defer bt.mu.Unlock()
@@ -131,7 +163,8 @@ func (bt *BudgetTracker) Reset() {
 	bt.warningEmitted = false
 }
 
-// ResetSession resets spending for a specific session
+// ResetSession resets spending for a specific session. Its reported total is
+// kept so a later resumed run is not charged again for earlier turns.
 func (bt *BudgetTracker) ResetSession(sessionID string) {
 	bt.mu.Lock()
 	defer bt.mu.Unlock()
