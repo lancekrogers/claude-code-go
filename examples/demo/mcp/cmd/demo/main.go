@@ -36,7 +36,7 @@ func displayMCPStatus() {
 	// MCP Status
 	if configFile != "" {
 		fmt.Println("│ MCP Status: 🟢 Configured                                   │")
-		fmt.Printf("│ Config File: %-46s │\n", truncatePath(configFile))
+		fmt.Printf("│ Config File: %-46s │\n", truncatePath(displayPath(configFile)))
 	} else {
 		fmt.Println("│ MCP Status: ⚪ Not configured                               │")
 		fmt.Println("│ (Use /example to create sample config)                      │")
@@ -74,6 +74,16 @@ func displayMCPStatus() {
 	}
 
 	fmt.Println("└─────────────────────────────────────────────────────────────┘")
+}
+
+// displayPath shows paths under the system temp directory as $TMPDIR/...
+// instead of the long per-user directory the OS picks.
+func displayPath(path string) string {
+	rel, err := filepath.Rel(os.TempDir(), path)
+	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+		return path
+	}
+	return filepath.Join("$TMPDIR", rel)
 }
 
 func truncatePath(path string) string {
@@ -117,9 +127,7 @@ func checkPrerequisites() error {
 		fmt.Println("❌")
 		return fmt.Errorf("node not found")
 	}
-	fmt.Printf("✅ %s", strings.TrimSpace(string(output)))
-
-	fmt.Println("✅ Prerequisites met")
+	fmt.Printf("✅ %s\n", strings.TrimSpace(string(output)))
 	return nil
 }
 
@@ -197,7 +205,7 @@ func handleCommand(cmd string) bool {
 			"mcp__filesystem__list_directory",
 			"mcp__filesystem__read_file",
 		}
-		fmt.Printf("✓ Created example config at: %s\n", path)
+		fmt.Printf("✓ Created example config at: %s\n", displayPath(path))
 		fmt.Println("  📦 Server: filesystem (via npx)")
 		fmt.Println("  🔧 Command: npx -y @modelcontextprotocol/server-filesystem .")
 		fmt.Println("  🛠️  Configured tools:")
