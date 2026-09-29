@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -84,7 +85,6 @@ func displayStreamingMessage(msg claude.Message) {
 		} else {
 			fmt.Printf("📊 Cost: $%.6f | Duration: %.1fs | Turns: %d\n",
 				msg.CostUSD, float64(msg.DurationMS)/1000.0, msg.NumTurns)
-			displayBudgetStatus()
 		}
 	}
 }
@@ -124,8 +124,9 @@ func main() {
 	fmt.Println()
 
 	opts := &claude.RunOptions{
-		Format:       claude.StreamJSONOutput,
-		SystemPrompt: "You are a helpful assistant. Keep responses concise to minimize costs.",
+		Format:        claude.StreamJSONOutput,
+		BudgetTracker: budgetTracker,
+		SystemPrompt:  "You are a helpful assistant. Keep responses concise to minimize costs.",
 		AllowedTools: []string{
 			"Read(*)",
 			"Bash(ls*)",
@@ -162,32 +163,24 @@ func main() {
 
 		messageCh, errCh := cc.StreamPrompt(ctx, input, opts)
 
-		// Process streaming messages
-	processLoop:
-		for {
-			select {
-			case msg, ok := <-messageCh:
-				if !ok {
-					break processLoop
-				}
-				displayStreamingMessage(msg)
-				if msg.SessionID != "" {
-					sessionID = msg.SessionID
-				}
-				if msg.Type == "result" {
-					break processLoop
-				}
-			case err := <-errCh:
-				if err != nil {
-					if err == claude.ErrBudgetExceeded {
-						fmt.Println("\n🛑 Request blocked: Would exceed budget!")
-					} else {
-						log.Printf("Error: %v", err)
-					}
-					break processLoop
-				}
+		// Drain the stream to completion: the SDK records spend on the tracker
+		// after delivering the result message, so the budget is only current
+		// once the message channel closes.
+		for msg := range messageCh {
+			displayStreamingMessage(msg)
+			if msg.SessionID != "" {
+				sessionID = msg.SessionID
 			}
 		}
+
+		if err := <-errCh; err != nil {
+			if errors.Is(err, claude.ErrBudgetExceeded) {
+				fmt.Println("\n🛑 Budget exceeded by this request!")
+			} else {
+				log.Printf("Error: %v", err)
+			}
+		}
+		displayBudgetStatus()
 	}
 
 	// Final summary

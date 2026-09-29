@@ -38,7 +38,7 @@ func isExitCommand(input string) bool {
 
 func displaySessionInfo() {
 	fmt.Println("\n┌─────────────────────────────────────────────────────────────┐")
-	fmt.Printf("│ Mode: %-10s | Session: %-30s │\n", currentMode, truncateID(currentSessionID))
+	fmt.Printf("│ Mode: %-10s | Session: %-31s │\n", currentMode, truncateID(currentSessionID))
 	fmt.Println("└─────────────────────────────────────────────────────────────┘")
 }
 

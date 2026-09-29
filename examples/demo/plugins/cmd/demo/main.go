@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -33,11 +35,29 @@ func displayMetrics() {
 	metrics := metricsPlugin.GetMetrics()
 	fmt.Println("\n📊 Plugin Metrics Dashboard:")
 	fmt.Println("   ┌─────────────────────────────────────┐")
-	fmt.Printf("   │ Tool Calls:      %-18v │\n", metrics["tool_calls"])
+	fmt.Printf("   │ Tool Calls:      %-18s │\n", formatToolCalls(metrics["tool_calls"]))
 	fmt.Printf("   │ Messages:        %-18d │\n", metrics["message_count"])
 	fmt.Printf("   │ Executions:      %-18d │\n", metrics["execution_count"])
 	fmt.Printf("   │ Total Cost:      $%-17.6f │\n", metrics["total_cost"])
 	fmt.Println("   └─────────────────────────────────────┘")
+}
+
+// formatToolCalls renders per-tool counts as "Bash:1 Read:2", sorted by tool
+// name and truncated to fit the dashboard column.
+func formatToolCalls(v any) string {
+	counts, ok := v.(map[string]int)
+	if !ok || len(counts) == 0 {
+		return "none"
+	}
+	parts := make([]string, 0, len(counts))
+	for _, name := range slices.Sorted(maps.Keys(counts)) {
+		parts = append(parts, fmt.Sprintf("%s:%d", name, counts[name]))
+	}
+	s := strings.Join(parts, " ")
+	if len(s) > 18 {
+		s = s[:15] + "..."
+	}
+	return s
 }
 
 func displayAuditLog() {

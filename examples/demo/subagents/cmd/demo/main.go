@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/lancekrogers/claude-code-go/pkg/claude"
@@ -30,16 +32,19 @@ func isExitCommand(input string) bool {
 func displayAgents() {
 	fmt.Println("\n🤖 Available Agents:")
 	fmt.Println("   ┌─────────────────────────────────────────────────────────────┐")
-	for name, desc := range agentManager.GetAgentDescriptions() {
+	descriptions := agentManager.GetAgentDescriptions()
+	// Sort so the list keeps a stable order between displays
+	for _, name := range slices.Sorted(maps.Keys(descriptions)) {
+		desc := descriptions[name]
 		marker := "  "
 		if name == currentAgent {
 			marker = "→ "
 		}
 		// Truncate description to fit
-		if len(desc) > 50 {
-			desc = desc[:47] + "..."
+		if len(desc) > 42 {
+			desc = desc[:39] + "..."
 		}
-		fmt.Printf("   │ %s%-12s │ %-44s │\n", marker, name, desc)
+		fmt.Printf("   │ %s%-12s │ %-42s │\n", marker, name, desc)
 	}
 	fmt.Println("   └─────────────────────────────────────────────────────────────┘")
 }

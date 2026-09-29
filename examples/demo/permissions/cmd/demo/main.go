@@ -32,9 +32,9 @@ func isExitCommand(input string) bool {
 
 func displayPermissionStatus() {
 	fmt.Println("\n┌─────────────────────────────────────────────────────────────┐")
-	fmt.Printf("│ Mode: %-12s | Callback: %-6v | Decision: %-10s │\n",
+	fmt.Printf("│ Mode: %-17s | Callback: %-5v | Decision: %-5s │\n",
 		permissionMode, callbackEnabled, callbackDecision)
-	fmt.Printf("│ Allowed: %-9d | Disallowed: %-35d │\n",
+	fmt.Printf("│ Allowed: %-9d | Disallowed: %-26d │\n",
 		len(allowedTools), len(disallowedTools))
 	fmt.Println("└─────────────────────────────────────────────────────────────┘")
 }

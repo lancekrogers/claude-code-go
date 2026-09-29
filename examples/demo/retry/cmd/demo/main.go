@@ -37,11 +37,11 @@ func isExitCommand(input string) bool {
 
 func displayRetryStatus() {
 	fmt.Println("\n┌─────────────────────────────────────────────────────────────┐")
-	fmt.Printf("│ Max Retries: %-3d | Base Delay: %-8s | Max Delay: %-7s │\n",
+	fmt.Printf("│ Max Retries: %-3d | Base Delay: %-8s | Max Delay: %-6s │\n",
 		retryPolicy.MaxRetries,
 		retryPolicy.BaseDelay.String(),
 		retryPolicy.MaxDelay.String())
-	fmt.Printf("│ Backoff Factor: %-4.1f | Timeout: %-10s | Enhanced: %-5v │\n",
+	fmt.Printf("│ Backoff Factor: %-4.1f | Timeout: %-9s | Enhanced: %-5v │\n",
 		retryPolicy.BackoffFactor,
 		formatTimeout(timeout),
 		useEnhanced)
