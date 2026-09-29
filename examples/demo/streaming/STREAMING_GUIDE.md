@@ -10,8 +10,8 @@ This demo showcases the **real-time streaming capabilities** of the Claude Code 
 
 ```
 🔧 Running: mkdir it_works/
-📝 Creating file: it_works/keccac.go
-🔧 Running: cd it_works/ && go run keccac.go test-file.txt
+📝 Creating file: it_works/sha3sum.go
+🔧 Running: cd it_works/ && go run sha3sum.go test-file.txt
 ```
 
 ### 💬 Live Assistant Messages
@@ -32,10 +32,10 @@ This demo showcases the **real-time streaming capabilities** of the Claude Code 
 1. **Initialization**: Session setup with streaming enabled
 2. **Planning**: Claude explains approach (streamed live)
 3. **Execution**: Watch each file operation and command
-4. **Testing**: See Keccac hash calculations happen in real-time
+4. **Testing**: See SHA3-256 hash calculations happen in real-time
 5. **Completion**: Final metrics and success confirmation
 
-**Note**: The demo uses Keccac hashing via Go's `crypto/sha3.New256()`, which is the same algorithm used in Ethereum and other cryptocurrencies - not SHA-256.
+**Note**: The demo uses SHA3-256 from the standard library `crypto/sha3` package (Go 1.24+). SHA3-256 is not the legacy Keccak-256 used by Ethereum; the two pad input differently and produce different hashes.
 
 ## Key SDK Features Demonstrated
 

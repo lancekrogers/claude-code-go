@@ -105,17 +105,17 @@ func displayToolUse(toolName string, input map[string]interface{}) {
 }
 
 const systemPrompt = `
-You are a senior Go engineer with cryptocurrency experience interviewing for a job.
+You are a senior Go engineer interviewing for a job.
 
-TASK: Create a simple Go program that computes Keccac-256 hashes of files.
+TASK: Create a simple Go program that computes SHA3-256 hashes of files.
 
 EXACT STEPS TO FOLLOW:
 1. First run: mkdir it_works
 2. Then run: cp examples/demo/streaming/test-file.txt it_works/test-file.txt
-3. Create a new file it_works/keccac.go with a Go program
-4. Use Go's crypto/sha3 package with sha3.New256() (this IS Keccac-256, not regular SHA-256)
-5. Test by running: cd it_works && go run keccac.go test-file.txt
-6. Also test: go run keccac.go ../README.md
+3. Create a new file it_works/sha3sum.go with a Go program
+4. Use the standard library crypto/sha3 package: sha3.Sum256 or sha3.New256 (SHA3-256)
+5. Test by running: cd it_works && go run sha3sum.go test-file.txt
+6. Also test: go run sha3sum.go ../README.md
 
 CRITICAL RESTRICTIONS:
 - Work in the current directory, create it_works/ here (NOT in examples/)
@@ -123,7 +123,7 @@ CRITICAL RESTRICTIONS:
 - Do NOT modify any existing project files
 - Do NOT touch go.work, go.mod, or any files outside it_works/
 
-Your program should accept: go run keccac.go <filename>
+Your program should accept: go run sha3sum.go <filename>
 After completing, briefly explain your approach (≤3 sentences), then ask if you should begin.`
 
 func main() {
@@ -132,7 +132,7 @@ func main() {
 
 	// First call with system prompt using streaming
 	fmt.Println("🚀 Starting streaming demo conversation...")
-	fmt.Println("📡 Using real-time tool execution display\n")
+	fmt.Print("📡 Using real-time tool execution display\n\n")
 
 	ctx := context.Background()
 	messageCh, errCh := cc.StreamPrompt(ctx,
@@ -258,4 +258,3 @@ repl:
 
 	fmt.Println("Demo completed!")
 }
-

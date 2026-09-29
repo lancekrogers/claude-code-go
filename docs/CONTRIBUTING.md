@@ -193,14 +193,15 @@ We provide a mock Claude server for integration testing:
 
 ## 🎬 Demo GIF Generation
 
-Interactive demos showcase the SDK features. The GIFs are recordings of real Go demos running with actual Claude Code CLI interactions.
+Interactive demos showcase the SDK features. The GIFs are [VHS](https://github.com/charmbracelet/vhs) recordings of real Go demos running with actual Claude Code CLI interactions. Each demo is scripted as a tape in `scripts/demo-tapes/`; shared theme and window settings live in `scripts/demo-tapes/_settings.tape`.
 
 ### Prerequisites
 
 ```bash
-brew install expect asciinema just
-cargo install --git https://github.com/asciinema/agg
+brew install vhs just
 ```
+
+Recording also requires the `claude` CLI to be installed and logged in.
 
 ### Generating GIFs
 
@@ -220,9 +221,9 @@ just demo gif-list
 ### Adding a New Demo
 
 1. Create interactive demo: `examples/demo/<name>/cmd/demo/main.go`
-2. Create expect script: `scripts/demo-expect/<name>.exp`
+2. Create a VHS tape: `scripts/demo-tapes/<name>.tape` (copy an existing tape; steps that call Claude use `Hide`/`Wait`/`Show` to time-lapse the response)
 3. Add build targets to `.justfiles/demos.just`
-4. Add documentation section to `docs/DEMOS.md`
+4. Add the demo to `DEMOS` in `scripts/record-demo-gif.sh` and a section to `docs/DEMOS.md`
 5. Generate the GIF: `just demo gif <name>`
 
 ## 📂 Project Structure

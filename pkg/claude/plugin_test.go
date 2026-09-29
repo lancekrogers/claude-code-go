@@ -3,6 +3,7 @@ package claude
 import (
 	"context"
 	"errors"
+	"math"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -638,6 +639,24 @@ func TestPluginConcurrency(t *testing.T) {
 	}
 	if len(plugin.messages) != iterations {
 		t.Errorf("expected %d messages, got %d", iterations, len(plugin.messages))
+	}
+}
+
+func TestMetricsPlugin_ResumedSessionCost(t *testing.T) {
+	mp := NewMetricsPlugin()
+	ctx := context.Background()
+
+	// The CLI reports each session's cumulative cost on every resumed run.
+	_ = mp.OnComplete(ctx, &ClaudeResult{SessionID: "s1", CostUSD: 0.10})
+	_ = mp.OnComplete(ctx, &ClaudeResult{SessionID: "s1", CostUSD: 0.25})
+	_ = mp.OnComplete(ctx, &ClaudeResult{SessionID: "s2", CostUSD: 0.05})
+
+	metrics := mp.GetMetrics()
+	if got := metrics["total_cost"].(float64); math.Abs(got-0.30) > 1e-9 {
+		t.Errorf("expected total cost 0.30, got %f", got)
+	}
+	if got := metrics["execution_count"].(int); got != 3 {
+		t.Errorf("expected 3 executions, got %d", got)
 	}
 }
 

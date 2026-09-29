@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/lancekrogers/claude-code-go/pkg/claude"
@@ -30,16 +32,19 @@ func isExitCommand(input string) bool {
 func displayAgents() {
 	fmt.Println("\n🤖 Available Agents:")
 	fmt.Println("   ┌─────────────────────────────────────────────────────────────┐")
-	for name, desc := range agentManager.GetAgentDescriptions() {
+	descriptions := agentManager.GetAgentDescriptions()
+	// Sort so the list keeps a stable order between displays
+	for _, name := range slices.Sorted(maps.Keys(descriptions)) {
+		desc := descriptions[name]
 		marker := "  "
 		if name == currentAgent {
 			marker = "→ "
 		}
 		// Truncate description to fit
-		if len(desc) > 50 {
-			desc = desc[:47] + "..."
+		if len(desc) > 42 {
+			desc = desc[:39] + "..."
 		}
-		fmt.Printf("   │ %s%-12s │ %-44s │\n", marker, name, desc)
+		fmt.Printf("   │ %s%-12s │ %-42s │\n", marker, name, desc)
 	}
 	fmt.Println("   └─────────────────────────────────────────────────────────────┘")
 }
@@ -73,7 +78,7 @@ func displayStreamingMessage(msg claude.Message) {
 		if msg.IsError {
 			fmt.Printf("❌ Error: %s\n", msg.Result)
 		} else {
-			fmt.Printf("✅ [%s] Complete - Cost: $%.6f | Turns: %d\n",
+			fmt.Printf("✅ [%s] Complete - Session cost: $%.6f | Turns: %d\n",
 				currentAgent, msg.CostUSD, msg.NumTurns)
 			// Store session for potential resumption
 			agentManager.SetSession(currentAgent, msg.SessionID)
@@ -157,7 +162,7 @@ func main() {
 					fmt.Printf("❌ Resume error: %v\n", err)
 				} else {
 					fmt.Printf("💬 [%s]: %s\n", currentAgent, result.Result)
-					fmt.Printf("✅ Cost: $%.6f\n", result.CostUSD)
+					fmt.Printf("✅ Session cost: $%.6f\n", result.CostUSD)
 				}
 			} else {
 				fmt.Printf("⚠️  No previous session for %s\n", currentAgent)

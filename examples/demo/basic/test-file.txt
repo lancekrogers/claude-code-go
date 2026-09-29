@@ -1,13 +1,13 @@
 Claude Code Go SDK Demo Test File
 =====================================
 
-This file is used to test the Keccac hash functionality.
+This file is used to test the SHA3-256 hash functionality.
 The SDK allows Go applications to integrate Claude Code CLI.
 
 Expected workflow:
-1. Create keccac.go with crypto/sha3
+1. Create sha3sum.go with crypto/sha3
 2. Build the program with 'go build'  
-3. Test with 'go run keccac.go test-file.txt'
+3. Test with 'go run sha3sum.go test-file.txt'
 4. Verify hash output
 
 Demo completed successfully!

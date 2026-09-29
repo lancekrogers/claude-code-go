@@ -37,11 +37,11 @@ func isExitCommand(input string) bool {
 
 func displayRetryStatus() {
 	fmt.Println("\n┌─────────────────────────────────────────────────────────────┐")
-	fmt.Printf("│ Max Retries: %-3d | Base Delay: %-8s | Max Delay: %-7s │\n",
+	fmt.Printf("│ Max Retries: %-3d | Base Delay: %-8s | Max Delay: %-6s │\n",
 		retryPolicy.MaxRetries,
 		retryPolicy.BaseDelay.String(),
 		retryPolicy.MaxDelay.String())
-	fmt.Printf("│ Backoff Factor: %-4.1f | Timeout: %-10s | Enhanced: %-5v │\n",
+	fmt.Printf("│ Backoff Factor: %-4.1f | Timeout: %-9s | Enhanced: %-5v │\n",
 		retryPolicy.BackoffFactor,
 		formatTimeout(timeout),
 		useEnhanced)
@@ -249,7 +249,7 @@ func handleCommand(cmd string) bool {
 		}
 
 		testOpts := &claude.RunOptions{
-			Format:       claude.StreamJSONOutput,
+			Format:       claude.JSONOutput,
 			SystemPrompt: "You are a helpful assistant. Answer very briefly.",
 			AllowedTools: []string{},
 		}
@@ -320,7 +320,7 @@ func displayStreamingMessage(msg claude.Message) {
 		if msg.IsError {
 			fmt.Printf("❌ Error: %s\n", msg.Result)
 		} else {
-			fmt.Printf("📊 Cost: $%.6f | Duration: %.1fs | Turns: %d\n",
+			fmt.Printf("📊 Session cost: $%.6f | Duration: %.1fs | Turns: %d\n",
 				msg.CostUSD, float64(msg.DurationMS)/1000.0, msg.NumTurns)
 		}
 	}
@@ -344,6 +344,11 @@ func runWithRetry(ctx context.Context, cc *claude.ClaudeClient, prompt string, o
 	attemptNum := 0
 	retriesUsed := 0
 	retryStartTime := time.Now()
+
+	// RunPromptCtx blocks for the full result and only parses JSON output;
+	// stream-json would leave Result holding raw NDJSON and SessionID/cost empty.
+	runOpts := *opts
+	runOpts.Format = claude.JSONOutput
 
 	for attemptNum <= policy.MaxRetries {
 		attemptNum++
@@ -371,7 +376,7 @@ func runWithRetry(ctx context.Context, cc *claude.ClaudeClient, prompt string, o
 			fmt.Println("🔄 Attempting request...")
 		}
 
-		result, err := cc.RunPromptCtx(ctx, prompt, opts)
+		result, err := cc.RunPromptCtx(ctx, prompt, &runOpts)
 		if err == nil {
 			// Success!
 			if retriesUsed > 0 {
@@ -488,7 +493,7 @@ func main() {
 
 			if err == nil {
 				sessionID = result.SessionID
-				fmt.Printf("\n📊 Cost: $%.6f | Duration: %.1fs | Turns: %d\n",
+				fmt.Printf("\n📊 Session cost: $%.6f | Duration: %.1fs | Turns: %d\n",
 					result.CostUSD, float64(result.DurationMS)/1000.0, result.NumTurns)
 				if result.Result != "" {
 					// Truncate long results

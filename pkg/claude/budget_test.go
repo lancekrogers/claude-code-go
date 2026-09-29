@@ -1,6 +1,7 @@
 package claude
 
 import (
+	"math"
 	"sync"
 	"testing"
 )
@@ -208,4 +209,64 @@ func TestBudgetTracker_Concurrent(t *testing.T) {
 	if bt.TotalSpent() != 100.0 {
 		t.Errorf("TotalSpent() after concurrent adds = %v, want 100.0", bt.TotalSpent())
 	}
+}
+
+func TestBudgetTracker_RecordSessionTotal(t *testing.T) {
+	approx := func(got, want float64) bool { return math.Abs(got-want) < 1e-9 }
+
+	t.Run("resumed session records only the increase", func(t *testing.T) {
+		bt := NewBudgetTracker(&BudgetConfig{MaxBudgetUSD: 10.0})
+		// The CLI reports a session's running total on each resumed run.
+		for _, total := range []float64{0.10, 0.25, 0.30} {
+			if err := bt.RecordSessionTotal("s1", "s1", total); err != nil {
+				t.Fatalf("RecordSessionTotal(%v) error = %v", total, err)
+			}
+		}
+		if !approx(bt.TotalSpent(), 0.30) {
+			t.Errorf("TotalSpent() = %v, want 0.30", bt.TotalSpent())
+		}
+		if !approx(bt.SessionSpent("s1"), 0.30) {
+			t.Errorf("SessionSpent() = %v, want 0.30", bt.SessionSpent("s1"))
+		}
+	})
+
+	t.Run("fork starts from the parent's total", func(t *testing.T) {
+		bt := NewBudgetTracker(&BudgetConfig{MaxBudgetUSD: 10.0})
+		_ = bt.RecordSessionTotal("parent", "", 0.20)
+		// The forked session's first total includes the parent's 0.20.
+		_ = bt.RecordSessionTotal("fork", "parent", 0.25)
+		if !approx(bt.TotalSpent(), 0.25) {
+			t.Errorf("TotalSpent() = %v, want 0.25", bt.TotalSpent())
+		}
+		if !approx(bt.SessionSpent("fork"), 0.05) {
+			t.Errorf("SessionSpent(fork) = %v, want 0.05", bt.SessionSpent("fork"))
+		}
+	})
+
+	t.Run("unrelated sessions each count their total", func(t *testing.T) {
+		bt := NewBudgetTracker(&BudgetConfig{MaxBudgetUSD: 10.0})
+		_ = bt.RecordSessionTotal("a", "", 0.10)
+		_ = bt.RecordSessionTotal("b", "", 0.15)
+		if !approx(bt.TotalSpent(), 0.25) {
+			t.Errorf("TotalSpent() = %v, want 0.25", bt.TotalSpent())
+		}
+	})
+
+	t.Run("reset keeps reported totals", func(t *testing.T) {
+		bt := NewBudgetTracker(&BudgetConfig{MaxBudgetUSD: 10.0})
+		_ = bt.RecordSessionTotal("s1", "", 0.10)
+		bt.Reset()
+		_ = bt.RecordSessionTotal("s1", "s1", 0.12)
+		if !approx(bt.TotalSpent(), 0.02) {
+			t.Errorf("TotalSpent() = %v, want 0.02", bt.TotalSpent())
+		}
+	})
+
+	t.Run("exceeding the budget returns ErrBudgetExceeded", func(t *testing.T) {
+		bt := NewBudgetTracker(&BudgetConfig{MaxBudgetUSD: 0.20})
+		_ = bt.RecordSessionTotal("s1", "", 0.15)
+		if err := bt.RecordSessionTotal("s1", "s1", 0.25); err != ErrBudgetExceeded {
+			t.Errorf("RecordSessionTotal() error = %v, want ErrBudgetExceeded", err)
+		}
+	})
 }

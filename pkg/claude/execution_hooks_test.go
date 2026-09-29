@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -599,4 +600,32 @@ func main() {
 	}
 
 	return mockBinary
+}
+
+func TestRunPromptCtx_BudgetTrackerCountsResumedRunIncrease(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() {
+		execCommand = originalExecCommand
+	}()
+
+	tracker := NewBudgetTracker(&BudgetConfig{MaxBudgetUSD: 1.0})
+	client := NewClient("claude")
+	const sessionID = "0b7c9f9e-2a55-4a5f-9a39-1f2b8c6d4e10"
+
+	// First run reports 0.10; the resumed run reports the session total 0.25.
+	execCommand = mockExecCommandContext(t, []string{"-p", "first", "--output-format", "json"},
+		`{"type":"result","subtype":"success","total_cost_usd":0.10,"is_error":false,"num_turns":1,"result":"one","session_id":"`+sessionID+`"}`, 0)
+	if _, err := client.RunPromptCtx(context.Background(), "first", &RunOptions{Format: JSONOutput, BudgetTracker: tracker}); err != nil {
+		t.Fatalf("first RunPromptCtx() error = %v", err)
+	}
+
+	execCommand = mockExecCommandContext(t, []string{"-p", "second", "--output-format", "json", "--resume", sessionID},
+		`{"type":"result","subtype":"success","total_cost_usd":0.25,"is_error":false,"num_turns":1,"result":"two","session_id":"`+sessionID+`"}`, 0)
+	if _, err := client.RunPromptCtx(context.Background(), "second", &RunOptions{Format: JSONOutput, BudgetTracker: tracker, ResumeID: sessionID}); err != nil {
+		t.Fatalf("resumed RunPromptCtx() error = %v", err)
+	}
+
+	if got := tracker.TotalSpent(); math.Abs(got-0.25) > 1e-9 {
+		t.Fatalf("TotalSpent = %f, want 0.25 (resumed run must not re-add earlier spend)", got)
+	}
 }

@@ -38,7 +38,7 @@ func isExitCommand(input string) bool {
 
 func displaySessionInfo() {
 	fmt.Println("\n┌─────────────────────────────────────────────────────────────┐")
-	fmt.Printf("│ Mode: %-10s | Session: %-30s │\n", currentMode, truncateID(currentSessionID))
+	fmt.Printf("│ Mode: %-10s | Session: %-31s │\n", currentMode, truncateID(currentSessionID))
 	fmt.Println("└─────────────────────────────────────────────────────────────┘")
 }
 
@@ -149,7 +149,7 @@ func displayStreamingMessage(msg claude.Message) {
 		if msg.IsError {
 			fmt.Printf("❌ Error: %s\n", msg.Result)
 		} else {
-			fmt.Printf("📊 Cost: $%.6f | Duration: %.1fs | Turns: %d\n",
+			fmt.Printf("📊 Session cost: $%.6f | Duration: %.1fs | Turns: %d\n",
 				msg.CostUSD, float64(msg.DurationMS)/1000.0, msg.NumTurns)
 		}
 	}

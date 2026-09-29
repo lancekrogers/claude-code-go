@@ -36,9 +36,9 @@ func displayMCPStatus() {
 	// MCP Status
 	if configFile != "" {
 		fmt.Println("│ MCP Status: 🟢 Configured                                   │")
-		fmt.Printf("│ Config File: %-47s │\n", truncatePath(configFile))
+		fmt.Printf("│ Config File: %-46s │\n", truncatePath(displayPath(configFile)))
 	} else {
-		fmt.Println("│ MCP Status: ⚪ Not configured                                │")
+		fmt.Println("│ MCP Status: ⚪ Not configured                               │")
 		fmt.Println("│ (Use /example to create sample config)                      │")
 	}
 
@@ -49,17 +49,17 @@ func displayMCPStatus() {
 		strictIcon = "🔒"
 		strictDesc = "on (MCP servers only)"
 	}
-	fmt.Printf("│ Strict Mode: %s %-44s │\n", strictIcon, strictDesc)
+	fmt.Printf("│ Strict Mode: %s %-43s │\n", strictIcon, strictDesc)
 
 	// Tool Allowlist
 	if len(allowedTools) > 0 {
-		fmt.Printf("│ Allowed Tools: %-45d │\n", len(allowedTools))
+		fmt.Printf("│ Allowed Tools: %-44d │\n", len(allowedTools))
 		// Show first 3 tools
 		maxShow := 3
 		for i, tool := range allowedTools {
 			if i >= maxShow {
 				remaining := len(allowedTools) - maxShow
-				fmt.Printf("│   ... and %d more%-42s │\n", remaining, "")
+				fmt.Printf("│ %-59s │\n", fmt.Sprintf("  ... and %d more", remaining))
 				break
 			}
 			// Truncate long tool names
@@ -67,7 +67,7 @@ func displayMCPStatus() {
 			if len(displayTool) > 50 {
 				displayTool = displayTool[:47] + "..."
 			}
-			fmt.Printf("│   • %-56s │\n", displayTool)
+			fmt.Printf("│   • %-55s │\n", displayTool)
 		}
 	} else {
 		fmt.Println("│ Allowed Tools: All tools enabled                            │")
@@ -76,9 +76,19 @@ func displayMCPStatus() {
 	fmt.Println("└─────────────────────────────────────────────────────────────┘")
 }
 
+// displayPath shows paths under the system temp directory as $TMPDIR/...
+// instead of the long per-user directory the OS picks.
+func displayPath(path string) string {
+	rel, err := filepath.Rel(os.TempDir(), path)
+	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+		return path
+	}
+	return filepath.Join("$TMPDIR", rel)
+}
+
 func truncatePath(path string) string {
-	if len(path) > 48 {
-		return "..." + path[len(path)-45:]
+	if len(path) > 46 {
+		return "..." + path[len(path)-43:]
 	}
 	if path == "" {
 		return "(none)"
@@ -117,9 +127,7 @@ func checkPrerequisites() error {
 		fmt.Println("❌")
 		return fmt.Errorf("node not found")
 	}
-	fmt.Printf("✅ %s", strings.TrimSpace(string(output)))
-
-	fmt.Println("✅ Prerequisites met")
+	fmt.Printf("✅ %s\n", strings.TrimSpace(string(output)))
 	return nil
 }
 
@@ -197,7 +205,7 @@ func handleCommand(cmd string) bool {
 			"mcp__filesystem__list_directory",
 			"mcp__filesystem__read_file",
 		}
-		fmt.Printf("✓ Created example config at: %s\n", path)
+		fmt.Printf("✓ Created example config at: %s\n", displayPath(path))
 		fmt.Println("  📦 Server: filesystem (via npx)")
 		fmt.Println("  🔧 Command: npx -y @modelcontextprotocol/server-filesystem .")
 		fmt.Println("  🛠️  Configured tools:")
@@ -319,7 +327,7 @@ func displayStreamingMessage(msg claude.Message) {
 		if msg.IsError {
 			fmt.Printf("❌ Error: %s\n", msg.Result)
 		} else {
-			fmt.Printf("📊 Cost: $%.6f | Duration: %.1fs | Turns: %d\n",
+			fmt.Printf("📊 Session cost: $%.6f | Duration: %.1fs | Turns: %d\n",
 				msg.CostUSD, float64(msg.DurationMS)/1000.0, msg.NumTurns)
 		}
 	}
