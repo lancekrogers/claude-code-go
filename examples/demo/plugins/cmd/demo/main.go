@@ -248,8 +248,8 @@ func main() {
 		// Brief pause then show quick metrics
 		time.Sleep(100 * time.Millisecond)
 		metrics := metricsPlugin.GetMetrics()
-		fmt.Printf("   📈 Metrics: %v tool calls | %d messages\n",
-			metrics["tool_calls"], metrics["message_count"])
+		fmt.Printf("   📈 Metrics: tool calls %s | %d messages\n",
+			formatToolCalls(metrics["tool_calls"]), metrics["message_count"])
 		fmt.Println()
 	}
 
