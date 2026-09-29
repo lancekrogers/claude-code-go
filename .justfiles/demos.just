@@ -17,57 +17,57 @@ streaming: build-streaming
     @echo "Starting streaming demo..."
     @echo "Type 'exit' to quit"
     @echo ""
-    @{{BIN_DIR}}/demo
+    @cd {{PROJECT_DIR}} && {{BIN_DIR}}/demo
 
 # Build and run basic demo
 basic: build-basic
     @echo "Starting basic demo..."
-    @{{BIN_DIR}}/demo-basic
+    @cd {{PROJECT_DIR}} && {{BIN_DIR}}/demo-basic
 
 # Build and run budget tracking demo
 budget: build-budget
     @echo "Starting budget tracking demo..."
-    @{{BIN_DIR}}/demo-budget
+    @cd {{PROJECT_DIR}} && {{BIN_DIR}}/demo-budget
 
 # Build and run plugins demo
 plugins: build-plugins
     @echo "Starting plugins demo..."
-    @{{BIN_DIR}}/demo-plugins
+    @cd {{PROJECT_DIR}} && {{BIN_DIR}}/demo-plugins
 
 # Build and run subagents demo
 subagents: build-subagents
     @echo "Starting subagents demo..."
-    @{{BIN_DIR}}/demo-subagents
+    @cd {{PROJECT_DIR}} && {{BIN_DIR}}/demo-subagents
 
 # Build and run sessions demo
 sessions: build-sessions
     @echo "Starting sessions demo..."
-    @{{BIN_DIR}}/demo-sessions
+    @cd {{PROJECT_DIR}} && {{BIN_DIR}}/demo-sessions
 
 # Build and run MCP demo
 mcp: build-mcp
     @echo "Starting MCP demo..."
-    @{{BIN_DIR}}/demo-mcp
+    @cd {{PROJECT_DIR}} && {{BIN_DIR}}/demo-mcp
 
 # Build and run retry demo
 retry: build-retry
     @echo "Starting retry demo..."
-    @{{BIN_DIR}}/demo-retry
+    @cd {{PROJECT_DIR}} && {{BIN_DIR}}/demo-retry
 
 # Build and run permissions demo
 permissions: build-permissions
     @echo "Starting permissions demo..."
-    @{{BIN_DIR}}/demo-permissions
+    @cd {{PROJECT_DIR}} && {{BIN_DIR}}/demo-permissions
 
 # Build and run dangerous features example
 dangerous: _check-dangerous build-dangerous
     @echo "Starting dangerous features example..."
-    @{{BIN_DIR}}/dangerous-example
+    @cd {{PROJECT_DIR}} && {{BIN_DIR}}/dangerous-example
 
 # Build and run enhanced features example
 enhanced: build-enhanced
     @echo "Starting enhanced features example..."
-    @{{BIN_DIR}}/enhanced-example
+    @cd {{PROJECT_DIR}} && {{BIN_DIR}}/enhanced-example
 
 # Build streaming demo
 build-streaming:

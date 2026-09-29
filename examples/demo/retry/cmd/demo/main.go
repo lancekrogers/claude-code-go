@@ -249,7 +249,7 @@ func handleCommand(cmd string) bool {
 		}
 
 		testOpts := &claude.RunOptions{
-			Format:       claude.StreamJSONOutput,
+			Format:       claude.JSONOutput,
 			SystemPrompt: "You are a helpful assistant. Answer very briefly.",
 			AllowedTools: []string{},
 		}
@@ -345,6 +345,11 @@ func runWithRetry(ctx context.Context, cc *claude.ClaudeClient, prompt string, o
 	retriesUsed := 0
 	retryStartTime := time.Now()
 
+	// RunPromptCtx blocks for the full result and only parses JSON output;
+	// stream-json would leave Result holding raw NDJSON and SessionID/cost empty.
+	runOpts := *opts
+	runOpts.Format = claude.JSONOutput
+
 	for attemptNum <= policy.MaxRetries {
 		attemptNum++
 
@@ -371,7 +376,7 @@ func runWithRetry(ctx context.Context, cc *claude.ClaudeClient, prompt string, o
 			fmt.Println("🔄 Attempting request...")
 		}
 
-		result, err := cc.RunPromptCtx(ctx, prompt, opts)
+		result, err := cc.RunPromptCtx(ctx, prompt, &runOpts)
 		if err == nil {
 			// Success!
 			if retriesUsed > 0 {

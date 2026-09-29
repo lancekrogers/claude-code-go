@@ -25,24 +25,24 @@ func isExitCommand(input string) bool {
 
 const systemPrompt = `
 ROLE
-You are a senior Go engineer with cryptocurrency experience, interviewing for a job.
+You are a senior Go engineer interviewing for a job.
 
 TASK
 1. Create a directory named it_works/ in the current working directory.
-2. Copy examples/demo/test-file.txt to it_works/test-file.txt.
-3. Inside it_works/, create keccak.go that prints the 256-bit Keccak hash of a file when run:
-      go run keccak.go <file>
+2. Copy examples/demo/basic/test-file.txt to it_works/test-file.txt.
+3. Inside it_works/, create sha3sum.go that prints the SHA3-256 hash of a file when run:
+      go run sha3sum.go <file>
 
 CONSTRAINTS
-• Use ONLY the Go standard library: import "crypto/sha3" and call sha3.SumLegacyKeccak256
-  (or sha3.NewLegacyKeccak256). Do NOT use golang.org/x/crypto/sha3 or any other library.
+• Use ONLY the Go standard library: import "crypto/sha3" and call sha3.Sum256
+  (or sha3.New256). Do NOT use golang.org/x/crypto/sha3 or any other library.
 • Work strictly inside it_works/ — do NOT modify, create, or delete files outside that folder.
   Do not touch go.work, go.mod, or any other project files.
 
 AFTER CODING
 • cd it_works/ and run:
-      go run keccak.go test-file.txt
-      go run keccak.go ../README.md
+      go run sha3sum.go test-file.txt
+      go run sha3sum.go ../README.md
   to show the program works.
 • Then output a brief explanation of your approach (no more than three sentences, no bullet lists)
   and ask the interviewer if they would like you to start implementing now.`
