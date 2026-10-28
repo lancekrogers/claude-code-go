@@ -6,6 +6,8 @@
   <a href="https://github.com/lancekrogers/claude-code-go/actions/workflows/ci.yml"><img src="https://github.com/lancekrogers/claude-code-go/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="https://pkg.go.dev/github.com/lancekrogers/claude-code-go"><img src="https://pkg.go.dev/badge/github.com/lancekrogers/claude-code-go.svg" alt="Go Reference"></a>
   <a href="https://coveralls.io/github/lancekrogers/claude-code-go"><img src="https://coveralls.io/repos/github/lancekrogers/claude-code-go/badge.svg?branch=main" alt="Coverage"></a>
+  <a href="https://github.com/Obedience-Corp/festival"><img src="https://img.shields.io/badge/built%20with-Festival-7c3aed.svg" alt="Built with Festival"></a>
+
 </p>
 
 A comprehensive Go library for programmatically integrating the Claude Code CLI into Go applications. Build AI-powered coding assistants, automated workflows, and intelligent agents on top of Claude Code's non-interactive `-p/--print` surface.
