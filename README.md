@@ -536,11 +536,14 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
 
 ## Related
 
+- [obey-go-sdk](https://github.com/Obedience-Corp/obey-go-sdk) builds Go applications around the Obey daemon
+
 Go SDKs for other coding-agent CLIs:
 
 - [grok-go-sdk](https://github.com/lancekrogers/grok-go-sdk) wraps `grok`
 - [vercel-fx-go](https://github.com/Obedience-Corp/vercel-fx-go) wraps `fx`
 - [cursor-agent-go](https://github.com/Obedience-Corp/cursor-agent-go) wraps `cursor-agent`
+- [muse-spark-go](https://github.com/Obedience-Corp/muse-spark-go) wraps the Muse CLI and Muse Session Protocol
 
 ## License
 
