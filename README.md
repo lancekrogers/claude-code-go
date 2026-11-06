@@ -329,8 +329,12 @@ if err != nil {
 
 Retries wait once before each additional attempt, for the larger of the jittered
 backoff and the preceding rate-limit error's retry-after delay (60 seconds when
-no hint is parsed). `MaxDelay` caps backoff before jitter; it does not cap the
-rate-limit delay. Exhausted attempts return immediately without another wait.
+no hint is parsed). When the server delay dominates, it receives up to 20%
+positive jitter to spread retries while respecting that minimum (for example,
+the 60-second fallback becomes 60–72 seconds). `MaxDelay` caps backoff before
+jitter; it does not cap the rate-limit delay. Exhausted attempts return
+immediately without another wait. If the parent context cancels a failed CLI
+attempt, the retry method returns the context error, including on the final attempt.
 Use the context passed to `RunPromptWithRetryCtx` to bound the entire operation,
 including retry waits; `RunOptions.Timeout` applies to each CLI attempt.
 

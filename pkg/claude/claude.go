@@ -656,6 +656,11 @@ func (c *ClaudeClient) RunPromptWithRetry(prompt string, opts *RunOptions, retry
 
 // RunPromptWithRetryCtx executes a prompt with context support and intelligent retry logic
 func (c *ClaudeClient) RunPromptWithRetryCtx(ctx context.Context, prompt string, opts *RunOptions, retryPolicy *RetryPolicy) (*ClaudeResult, error) {
+	return c.runPromptWithRetryCtx(ctx, prompt, opts, retryPolicy, waitForRetry)
+}
+
+// The wait dependency lets tests exercise retry scheduling without wall-clock deadlines.
+func (c *ClaudeClient) runPromptWithRetryCtx(ctx context.Context, prompt string, opts *RunOptions, retryPolicy *RetryPolicy, wait func(context.Context, time.Duration) error) (*ClaudeResult, error) {
 	if retryPolicy == nil {
 		retryPolicy = DefaultRetryPolicy()
 	}
@@ -668,11 +673,8 @@ func (c *ClaudeClient) RunPromptWithRetryCtx(ctx context.Context, prompt string,
 			claudeErr, _ := lastErr.(*ClaudeError)
 			delay := retryPolicy.retryDelay(attempt, claudeErr)
 
-			select {
-			case <-time.After(delay):
-				// Continue with retry
-			case <-ctx.Done():
-				return nil, ctx.Err()
+			if err := wait(ctx, delay); err != nil {
+				return nil, err
 			}
 		}
 		// The timer and cancellation can become ready together. Do not launch
@@ -684,6 +686,11 @@ func (c *ClaudeClient) RunPromptWithRetryCtx(ctx context.Context, prompt string,
 		result, err := c.RunPromptCtx(ctx, prompt, opts)
 		if err == nil {
 			return result, nil
+		}
+		// A canceled CLI may leave retryable stderr behind. Preserve the parent
+		// context error even when this was the final allowed attempt.
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
 		}
 
 		lastErr = err
@@ -701,6 +708,16 @@ func (c *ClaudeClient) RunPromptWithRetryCtx(ctx context.Context, prompt string,
 
 	// All retries exhausted
 	return nil, fmt.Errorf("max retries (%d) exceeded, last error: %w", retryPolicy.MaxRetries, lastErr)
+}
+
+func waitForRetry(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+	case <-ctx.Done():
+	}
+	return ctx.Err()
 }
 
 // RunPromptEnhanced executes a prompt with all enhanced features: validation, timeout, and retry logic

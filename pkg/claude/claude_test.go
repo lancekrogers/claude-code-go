@@ -86,6 +86,12 @@ func TestHelperProcess(t *testing.T) {
 	output := os.Getenv("GO_HELPER_OUTPUT")
 	exitCode := int(os.Getenv("GO_HELPER_EXIT_CODE")[0] - '0')
 	os.Stderr.WriteString(os.Getenv("GO_HELPER_STDERR"))
+	if readyFile := os.Getenv("GO_HELPER_WAIT_AFTER_STDERR"); readyFile != "" {
+		if err := os.WriteFile(readyFile, nil, 0600); err != nil {
+			os.Exit(2)
+		}
+		time.Sleep(time.Minute) // The test cancels the context after stderr is written.
+	}
 
 	if output != "" {
 		os.Stdout.Write([]byte(output))
