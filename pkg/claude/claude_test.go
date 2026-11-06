@@ -85,6 +85,7 @@ func TestHelperProcess(t *testing.T) {
 
 	output := os.Getenv("GO_HELPER_OUTPUT")
 	exitCode := int(os.Getenv("GO_HELPER_EXIT_CODE")[0] - '0')
+	os.Stderr.WriteString(os.Getenv("GO_HELPER_STDERR"))
 
 	if output != "" {
 		os.Stdout.Write([]byte(output))

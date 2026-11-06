@@ -327,6 +327,13 @@ if err != nil {
 }
 ```
 
+Retries wait once before each additional attempt, for the larger of the jittered
+backoff and the preceding rate-limit error's retry-after delay (60 seconds when
+no hint is parsed). `MaxDelay` caps backoff before jitter; it does not cap the
+rate-limit delay. Exhausted attempts return immediately without another wait.
+Use the context passed to `RunPromptWithRetryCtx` to bound the entire operation,
+including retry waits; `RunOptions.Timeout` applies to each CLI attempt.
+
 ### Permission Control
 
 ```go

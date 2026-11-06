@@ -480,7 +480,7 @@ func ValidateOptions(opts *RunOptions) error {
 type RetryPolicy struct {
 	MaxRetries    int           // Maximum number of retry attempts
 	BaseDelay     time.Duration // Base delay between retries
-	MaxDelay      time.Duration // Maximum delay between retries
+	MaxDelay      time.Duration // Maximum backoff before jitter; does not cap rate-limit delays
 	BackoffFactor float64       // Exponential backoff factor
 }
 
@@ -543,4 +543,18 @@ func (rp *RetryPolicy) calculateBackoffWithJitter(attempt int) time.Duration {
 	}
 
 	return result
+}
+
+// retryDelay selects one wait for a retry (attempt >= 1). Jitter applies only
+// to backoff so it cannot shorten the preceding rate-limit error's minimum wait.
+func (rp *RetryPolicy) retryDelay(attempt int, lastErr *ClaudeError) time.Duration {
+	delay := rp.calculateBackoffWithJitter(attempt)
+	if lastErr != nil && lastErr.Type == ErrorRateLimit {
+		if seconds := lastErr.RetryDelay(); seconds > 0 {
+			if rateLimitDelay := time.Duration(seconds) * time.Second; rateLimitDelay > delay {
+				delay = rateLimitDelay
+			}
+		}
+	}
+	return delay
 }
