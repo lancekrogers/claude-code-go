@@ -480,7 +480,7 @@ func ValidateOptions(opts *RunOptions) error {
 type RetryPolicy struct {
 	MaxRetries    int           // Maximum number of retry attempts
 	BaseDelay     time.Duration // Base delay between retries
-	MaxDelay      time.Duration // Maximum delay between retries
+	MaxDelay      time.Duration // Maximum backoff before jitter; does not cap rate-limit delays
 	BackoffFactor float64       // Exponential backoff factor
 }
 
@@ -543,4 +543,29 @@ func (rp *RetryPolicy) calculateBackoffWithJitter(attempt int) time.Duration {
 	}
 
 	return result
+}
+
+// retryDelay selects one wait for a retry (attempt >= 1). Server-dominated
+// delays receive up to 20% positive jitter to spread retries without shortening
+// the server's minimum wait. Ordinary backoff retains its symmetric jitter.
+func (rp *RetryPolicy) retryDelay(attempt int, lastErr *ClaudeError) time.Duration {
+	delay := rp.calculateBackoffWithJitter(attempt)
+	if lastErr != nil && lastErr.Type == ErrorRateLimit {
+		if seconds := lastErr.RetryDelay(); seconds > 0 {
+			// Saturate both the seconds conversion and jitter addition rather
+			// than overflowing into a short or negative delay.
+			rateLimitDelay := time.Duration(math.MaxInt64)
+			if int64(seconds) <= math.MaxInt64/int64(time.Second) {
+				rateLimitDelay = time.Duration(seconds) * time.Second
+			}
+			if rateLimitDelay >= delay {
+				jitter := time.Duration(float64(rateLimitDelay/5) * cryptoRandFloat64())
+				if jitter > time.Duration(math.MaxInt64)-rateLimitDelay {
+					return time.Duration(math.MaxInt64)
+				}
+				return rateLimitDelay + jitter
+			}
+		}
+	}
+	return delay
 }
