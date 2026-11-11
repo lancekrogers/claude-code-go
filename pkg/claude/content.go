@@ -43,7 +43,9 @@ func TextBlock(text string) ContentBlock {
 	return ContentBlock{Type: ContentBlockText, Text: text}
 }
 
-// ImageBlock returns an image content block that base64-encodes data.
+// ImageBlock returns an image content block that base64-encodes data. It does
+// not resize or limit the image; Claude Code and the API apply their own image
+// size limits.
 func ImageBlock(mediaType string, data []byte) ContentBlock {
 	return ContentBlock{
 		Type: ContentBlockImage,
@@ -59,7 +61,8 @@ func ImageBlock(mediaType string, data []byte) ContentBlock {
 // and images, and streams the results like StreamPrompt. The message is
 // written to stdin as stream-json input, so InputFormat is always
 // StreamJSONInput for this call. All other options apply as they do for
-// StreamPrompt, including ResumeID.
+// StreamPrompt, including ResumeID. Like StreamPrompt, it uses opts as given
+// and does not merge DefaultOptions.Env into opts.Env; RunContentCtx does.
 func (c *ClaudeClient) StreamContent(ctx context.Context, blocks []ContentBlock, opts *RunOptions) (<-chan Message, <-chan error) {
 	stdin, err := contentStdin(blocks)
 	if err != nil {
@@ -169,6 +172,9 @@ func validateImageSource(field string, source *ImageSource) error {
 	}
 	if source.Data == "" {
 		return NewValidationError("Image content block requires data", field+".Source.Data", 0)
+	}
+	if _, err := base64.StdEncoding.DecodeString(source.Data); err != nil {
+		return NewValidationError("Image content block data must be standard base64", field+".Source.Data", len(source.Data))
 	}
 	return nil
 }

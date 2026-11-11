@@ -160,7 +160,7 @@ blocks := []claude.ContentBlock{
 messageCh, errCh := cc.StreamContent(ctx, blocks, &claude.RunOptions{ResumeID: sessionID})
 ```
 
-Blocks are validated before the CLI starts. An empty block list, an empty text block, or an image without a media type or data returns a validation `ClaudeError`.
+Blocks are validated before the CLI starts. An empty block list, an empty text block, or an image without a media type, or with missing or invalid base64 data, returns a validation `ClaudeError`.
 
 ### Session Management
 

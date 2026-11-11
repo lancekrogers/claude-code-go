@@ -182,6 +182,11 @@ func TestContentBlocksValidation(t *testing.T) {
 			blocks: []ContentBlock{{Type: ContentBlockImage, Source: &ImageSource{Type: "url", MediaType: "image/png", Data: "x"}}},
 			field:  "Blocks[0].Source.Type",
 		},
+		{
+			name:   "invalid base64 data",
+			blocks: []ContentBlock{{Type: ContentBlockImage, Source: &ImageSource{Type: ImageSourceBase64, MediaType: "image/png", Data: "not base64!"}}},
+			field:  "Blocks[0].Source.Data",
+		},
 		{name: "unknown block type", blocks: []ContentBlock{{Type: "document", Text: "x"}}, field: "Blocks[0].Type"},
 	}
 
