@@ -3,6 +3,7 @@ package claude
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"strings"
 )
 
@@ -33,20 +34,31 @@ type Message struct {
 
 // StreamPrompt executes a prompt with Claude Code and streams the results through a channel
 func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *RunOptions) (<-chan Message, <-chan error) {
-	messageCh := make(chan Message)
-	errCh := make(chan error, 1)
-
 	if opts == nil {
 		opts = c.DefaultOptions
 	}
 
 	streamOpts, err := buildStreamJSONRunOptions(opts)
 	if err != nil {
-		errCh <- err
-		close(messageCh)
-		close(errCh)
-		return messageCh, errCh
+		return failedStream(err)
 	}
+
+	argPrompt, stdin := promptArgAndStdin(prompt, streamOpts.InputFormat)
+	return c.streamMessages(ctx, argPrompt, stdin, streamOpts)
+}
+
+func failedStream(err error) (<-chan Message, <-chan error) {
+	messageCh := make(chan Message)
+	errCh := make(chan error, 1)
+	errCh <- err
+	close(messageCh)
+	close(errCh)
+	return messageCh, errCh
+}
+
+func (c *ClaudeClient) streamMessages(ctx context.Context, argPrompt string, stdin io.Reader, streamOpts *RunOptions) (<-chan Message, <-chan error) {
+	messageCh := make(chan Message)
+	errCh := make(chan error, 1)
 
 	go func() {
 		defer close(messageCh)
@@ -60,8 +72,6 @@ func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *Ru
 			runCtx, cancel = context.WithCancel(ctx)
 		}
 		defer cancel()
-
-		argPrompt, stdin := promptArgAndStdin(prompt, streamOpts.InputFormat)
 
 		var assistantText strings.Builder
 		seenResult := false
