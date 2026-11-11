@@ -83,6 +83,20 @@ func TestHelperProcess(t *testing.T) {
 		return
 	}
 
+	// GO_HELPER_CAPTURE_STDIN names a file; the helper writes everything it
+	// read from stdin there and emits a stream-json result message.
+	if path := os.Getenv("GO_HELPER_CAPTURE_STDIN"); path != "" {
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			os.Exit(2)
+		}
+		if err := os.WriteFile(path, data, 0600); err != nil {
+			os.Exit(2)
+		}
+		os.Stdout.Write([]byte(`{"type":"result","subtype":"success","total_cost_usd":0.0,"duration_ms":1,"duration_api_ms":1,"is_error":false,"num_turns":1,"result":"captured","session_id":"test-session"}` + "\n"))
+		return
+	}
+
 	output := os.Getenv("GO_HELPER_OUTPUT")
 	exitCode := int(os.Getenv("GO_HELPER_EXIT_CODE")[0] - '0')
 	os.Stderr.WriteString(os.Getenv("GO_HELPER_STDERR"))

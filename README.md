@@ -147,6 +147,21 @@ for msg := range messageCh {
 }
 ```
 
+### Images and Content Blocks
+
+`StreamContent` and `RunContentCtx` send one user message made of content blocks. Use them to attach images. The message goes to the CLI as stream-json input on stdin, and the other `RunOptions`, including `ResumeID`, apply as usual.
+
+```go
+png, _ := os.ReadFile("screenshot.png")
+blocks := []claude.ContentBlock{
+    claude.ImageBlock("image/png", png),
+    claude.TextBlock("What does this screenshot show?"),
+}
+messageCh, errCh := cc.StreamContent(ctx, blocks, &claude.RunOptions{ResumeID: sessionID})
+```
+
+Blocks are validated before the CLI starts. An empty block list, an empty text block, or an image without a media type or data returns a validation `ClaudeError`.
+
 ### Session Management
 
 ```go
@@ -463,6 +478,10 @@ func (c *ClaudeClient) RunPromptCtx(ctx context.Context, prompt string, opts *Ru
 
 // Streaming
 func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *RunOptions) (<-chan Message, <-chan error)
+
+// Content blocks (text and images)
+func (c *ClaudeClient) StreamContent(ctx context.Context, blocks []ContentBlock, opts *RunOptions) (<-chan Message, <-chan error)
+func (c *ClaudeClient) RunContentCtx(ctx context.Context, blocks []ContentBlock, opts *RunOptions) (*ClaudeResult, error)
 
 // Stdin processing
 func (c *ClaudeClient) RunFromStdin(stdin io.Reader, prompt string, opts *RunOptions) (*ClaudeResult, error)
