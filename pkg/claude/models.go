@@ -67,6 +67,15 @@ var controlExitGrace = 5 * time.Second
 // It starts the CLI in stream-json mode, sends only an initialize control
 // request, and closes stdin once the CLI answers. No user message is sent, so
 // no model call is made, and the run passes --no-session-persistence.
+//
+// The call starts no MCP servers. It passes --strict-mcp-config with no
+// --mcp-config. Claude Code 2.1.322 was measured with a stdio server that
+// records each launch. Without the flag, the CLI launched every configured
+// server within seconds of answering initialize, including a project
+// .mcp.json server that had never been approved. With the flag, none
+// launched, and the model list was unchanged. MCP servers do not affect
+// which models are offered.
+//
 // SessionStart hooks are disabled for the call; see Settings below.
 //
 // Only the RunOptions fields that change which models the CLI offers apply:
@@ -74,8 +83,9 @@ var controlExitGrace = 5 * time.Second
 // Settings, SettingSources, Bare, and Timeout. A nil opts uses DefaultOptions.
 // When Settings is empty the call passes --settings {"disableAllHooks":true}.
 // When Settings is inline JSON without a disableAllHooks key, that key is
-// added. A settings file path is passed through unchanged, so the hooks it
-// enables run.
+// added. Inline JSON that does not parse returns a validation error before
+// the CLI starts; other methods pass Settings to the CLI unchecked. A settings
+// file path is passed through unchanged, so the hooks it enables run.
 //
 // The call waits up to Timeout, or 60 seconds when Timeout is zero, and also
 // stops when ctx is done. The child process is always waited on before
@@ -110,7 +120,8 @@ func (c *ClaudeClient) SupportedModels(ctx context.Context, opts *RunOptions) ([
 }
 
 // initializeControl runs the CLI, sends one initialize control request, and
-// returns the response payload.
+// returns the response payload. The payload includes the signed-in account
+// (email, organization) and local paths, so do not log it.
 func (c *ClaudeClient) initializeControl(ctx context.Context, opts *RunOptions) (json.RawMessage, error) {
 	resolved := c.resolveRunOptions(opts)
 	args, err := controlArgs(resolved)
@@ -236,6 +247,9 @@ func controlArgs(opts *RunOptions) ([]string, error) {
 		"--output-format", string(StreamJSONOutput),
 		"--verbose",
 		"--no-session-persistence",
+		// With no --mcp-config, this loads no MCP servers. Without it the CLI
+		// starts every configured server, unapproved project ones included.
+		"--strict-mcp-config",
 		"--settings", settings,
 	}
 	if len(opts.SettingSources) > 0 {

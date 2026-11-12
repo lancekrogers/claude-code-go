@@ -181,7 +181,8 @@ func TestSupportedModelsSendsOnlyInitialize(t *testing.T) {
 
 	wantArgs := []string{
 		"-p", "--input-format", "stream-json", "--output-format", "stream-json",
-		"--verbose", "--no-session-persistence", "--settings", `{"disableAllHooks":true}`,
+		"--verbose", "--no-session-persistence", "--strict-mcp-config",
+		"--settings", `{"disableAllHooks":true}`,
 	}
 	if !slices.Equal(fake.args, wantArgs) {
 		t.Errorf("args = %q, want %q", fake.args, wantArgs)
@@ -254,6 +255,28 @@ func TestSupportedModelsSettingsArgs(t *testing.T) {
 				t.Errorf("args tail = %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+// Without --strict-mcp-config the CLI starts every configured MCP server
+// shortly after answering initialize, so the flag must always be present and
+// no caller MCP config may reach argv.
+func TestSupportedModelsStartsNoMCPServers(t *testing.T) {
+	fake := useControlFake(t, "CONTROL_HELPER_RESPONSE="+successResponse(twoModelsPayload))
+
+	_, err := NewClient("claude").SupportedModels(context.Background(), &RunOptions{
+		MCPConfigPath:   "/etc/claude/mcp.json",
+		MCPConfigs:      []string{`{"mcpServers":{}}`},
+		StrictMCPConfig: false,
+	})
+	if err != nil {
+		t.Fatalf("SupportedModels() error = %v", err)
+	}
+	if !slices.Contains(fake.args, "--strict-mcp-config") {
+		t.Errorf("args = %q, want --strict-mcp-config", fake.args)
+	}
+	if slices.Contains(fake.args, "--mcp-config") {
+		t.Errorf("args = %q, want no --mcp-config", fake.args)
 	}
 }
 

@@ -186,7 +186,11 @@ for _, m := range models {
 
 The list includes a `default` entry for the CLI's own default model. Leave `ModelAlias` and `Model` empty to use it.
 
-It starts the CLI in stream-json mode and sends only an `initialize` control request. The official Agent SDKs send this request when a session starts, and the TypeScript SDK's `supportedModels()` returns the `models` field of its response. No user message is sent, so no model call is made. The call passes `--no-session-persistence` and disables hooks with `--settings {"disableAllHooks":true}`. When you set `Settings` to inline JSON, `disableAllHooks` is merged into it. A settings file path is passed through unchanged, so any hooks it enables run.
+It starts the CLI in stream-json mode and sends only an `initialize` control request. The official Agent SDKs send this request when a session starts, and the TypeScript SDK's `supportedModels()` returns the `models` field of its response. No user message is sent, so no model call is made. The call passes `--no-session-persistence`.
+
+The call starts no MCP servers: it passes `--strict-mcp-config` with no `--mcp-config`. Claude Code 2.1.322 was tested with a stdio server that records each launch. Without the flag, the CLI launched every configured server within seconds of answering, including a project `.mcp.json` server that had never been approved. With the flag, no server launched and the model list was unchanged.
+
+Hooks are disabled with `--settings {"disableAllHooks":true}`. When you set `Settings` to inline JSON, `disableAllHooks` is merged into it. Inline JSON that does not parse returns a validation error before the CLI starts, whereas the run methods pass `Settings` through unchecked. A settings file path is passed through unchanged, so any hooks it enables run.
 
 Only `Env`, `WorkingDirectory`, `Settings`, `SettingSources`, `Bare`, and `Timeout` apply. `Timeout` defaults to 60 seconds. If the CLI exits without answering, for example because it predates the control protocol, the error wraps `claude.ErrNoControlResponse`. See [`examples/models`](examples/models/main.go).
 
