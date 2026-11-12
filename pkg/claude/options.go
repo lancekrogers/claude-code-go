@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 // OutputFormat defines the output format for Claude Code responses
@@ -88,7 +89,9 @@ type RunOptions struct {
 	Agent string
 
 	// Enhanced options for 100% CLI support
-	// ModelAlias specifies model using alias ("sonnet", "opus", "haiku")
+	// ModelAlias specifies the model by alias ("fable", "opus", "sonnet",
+	// "haiku") or full name. The CLI validates it; SupportedModels lists the
+	// values the installed CLI accepts.
 	ModelAlias string
 	// Effort specifies the reasoning effort level for the current session
 	Effort EffortLevel
@@ -416,15 +419,15 @@ func warnDeprecatedOption(field string) {
 	deprecatedOptionWarningf("claude: RunOptions.%s is deprecated, ignored by argv construction, and no longer supported by the current Claude CLI", field)
 }
 
-// isValidModelAlias checks if the model alias is supported
+// isValidModelAlias checks only that alias can be passed as one --model value.
+// The set of aliases and model IDs changes with each Claude CLI release (for
+// example "fable"), so the CLI decides whether the model exists. Use
+// ClaudeClient.SupportedModels to list the values the installed CLI accepts.
 func isValidModelAlias(alias string) bool {
-	validAliases := []string{"sonnet", "opus", "haiku"}
-	for _, valid := range validAliases {
-		if alias == valid {
-			return true
-		}
+	if alias == "" || strings.HasPrefix(alias, "-") {
+		return false
 	}
-	return false
+	return !strings.ContainsFunc(alias, unicode.IsSpace)
 }
 
 func isValidEffortLevel(level EffortLevel) bool {

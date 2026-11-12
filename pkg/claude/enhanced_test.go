@@ -41,7 +41,7 @@ func TestPreprocessOptions(t *testing.T) {
 		{
 			name: "Invalid model alias",
 			opts: &RunOptions{
-				ModelAlias: "invalid-model",
+				ModelAlias: "--dangerously-skip-permissions",
 			},
 			expectError: true,
 			errorType:   ErrorValidation,
@@ -220,9 +220,15 @@ func TestIsValidModelAlias(t *testing.T) {
 		{"sonnet", true},
 		{"opus", true},
 		{"haiku", true},
-		{"invalid", false},
+		{"fable", true},
+		{"default", true},
+		{"opus[1m]", true},
+		{"claude-opus-4-8", true},
 		{"", false},
-		{"SONNET", false}, // Case sensitive
+		{" ", false},
+		{"opus 5", false},
+		{"opus\n", false},
+		{"-p", false},
 	}
 
 	for _, tt := range tests {

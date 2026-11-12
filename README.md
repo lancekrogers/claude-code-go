@@ -162,6 +162,27 @@ messageCh, errCh := cc.StreamContent(ctx, blocks, &claude.RunOptions{ResumeID: s
 
 Blocks are validated before the CLI starts. An empty block list, an empty text block, or an image without a media type, or with missing or invalid base64 data, returns a validation `ClaudeError`.
 
+### Listing Models
+
+`SupportedModels` returns the models the installed `claude` CLI can use, as the CLI reports them. The list depends on the CLI version, the signed-in account, and settings such as `availableModels`, so use it instead of hard-coding aliases.
+
+```go
+models, err := cc.SupportedModels(ctx, nil)
+if err != nil {
+    log.Fatal(err)
+}
+for _, m := range models {
+    fmt.Printf("%s (%s): %s\n", m.Value, m.DisplayName, m.Description)
+}
+
+// Select one by passing its Value
+result, err := cc.RunPrompt("Hello", &claude.RunOptions{ModelAlias: models[0].Value})
+```
+
+It starts the CLI in stream-json mode and sends only an `initialize` control request, the same request the official Agent SDKs use for `supportedModels()`. No user message is sent, so no model call is made. The call passes `--no-session-persistence` and disables hooks with `--settings {"disableAllHooks":true}`. When you set `Settings` to inline JSON, `disableAllHooks` is merged into it. A settings file path is passed through unchanged, so any hooks it enables run.
+
+Only `Env`, `WorkingDirectory`, `Settings`, `SettingSources`, `Bare`, and `Timeout` apply. `Timeout` defaults to 60 seconds. If the CLI exits without answering, for example because it predates the control protocol, the error wraps `claude.ErrNoControlResponse`. See [`examples/models`](examples/models/main.go).
+
 ### Session Management
 
 ```go
@@ -419,7 +440,7 @@ type RunOptions struct {
 
     // Model selection
     Model      string      // Full model name
-    ModelAlias string      // sonnet, opus, haiku
+    ModelAlias string      // fable, opus, sonnet, haiku, or any value from SupportedModels
     Effort     EffortLevel // low, medium, high, xhigh, max
 
     // CLI prompt surface
@@ -482,6 +503,9 @@ func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *Ru
 // Content blocks (text and images)
 func (c *ClaudeClient) StreamContent(ctx context.Context, blocks []ContentBlock, opts *RunOptions) (<-chan Message, <-chan error)
 func (c *ClaudeClient) RunContentCtx(ctx context.Context, blocks []ContentBlock, opts *RunOptions) (*ClaudeResult, error)
+
+// Models the installed CLI can use (no model call)
+func (c *ClaudeClient) SupportedModels(ctx context.Context, opts *RunOptions) ([]ModelInfo, error)
 
 // Stdin processing
 func (c *ClaudeClient) RunFromStdin(stdin io.Reader, prompt string, opts *RunOptions) (*ClaudeResult, error)

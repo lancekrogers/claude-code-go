@@ -34,6 +34,8 @@
 //     Model Context Protocol servers and tools.
 //   - [ClaudeClient.RunPromptWithRetry]: configurable retry policies with
 //     exponential backoff.
+//   - [ClaudeClient.SupportedModels]: list the models the installed CLI can
+//     use as [ModelInfo] values, without making a model call.
 //
 // Behavior is configured through [RunOptions] (output format, model, allowed and
 // disallowed tools, permission mode, budget, and more).
