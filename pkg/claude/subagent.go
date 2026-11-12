@@ -43,7 +43,7 @@ func (sc *SubagentConfig) Validate() error {
 		return fmt.Errorf("subagent prompt is required")
 	}
 	if sc.Model != "" && !isValidModelAlias(sc.Model) {
-		return fmt.Errorf("invalid model alias: %q (must not contain whitespace or start with '-')", sc.Model)
+		return fmt.Errorf("invalid model alias: %q (must not contain whitespace or control characters, or start with '-')", sc.Model)
 	}
 	// Validate tool names if MCP tools are specified
 	for _, tool := range sc.Tools {

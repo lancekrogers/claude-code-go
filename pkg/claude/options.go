@@ -427,7 +427,9 @@ func isValidModelAlias(alias string) bool {
 	if alias == "" || strings.HasPrefix(alias, "-") {
 		return false
 	}
-	return !strings.ContainsFunc(alias, unicode.IsSpace)
+	return !strings.ContainsFunc(alias, func(r rune) bool {
+		return unicode.IsSpace(r) || unicode.IsControl(r)
+	})
 }
 
 func isValidEffortLevel(level EffortLevel) bool {

@@ -229,6 +229,10 @@ func TestIsValidModelAlias(t *testing.T) {
 		{"opus 5", false},
 		{"opus\n", false},
 		{"-p", false},
+		{"opus\x00", false},
+		{"opus\x1b[0m", false},
+		{"opus\x7f", false},
+		{"opus\u0085", false},
 	}
 
 	for _, tt := range tests {
