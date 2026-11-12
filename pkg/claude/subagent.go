@@ -20,7 +20,8 @@ type SubagentConfig struct {
 	// Supports both standard tools ("Read", "Bash") and MCP tools ("mcp__server__tool")
 	Tools []string `json:"tools,omitempty"`
 
-	// Model specifies the model alias to use (sonnet, opus, haiku)
+	// Model specifies the model alias or full name to use, such as "sonnet",
+	// "opus", "haiku", or "inherit". The CLI validates it.
 	// If empty, inherits from the parent query's model
 	Model string `json:"model,omitempty"`
 
@@ -42,7 +43,7 @@ func (sc *SubagentConfig) Validate() error {
 		return fmt.Errorf("subagent prompt is required")
 	}
 	if sc.Model != "" && !isValidModelAlias(sc.Model) {
-		return fmt.Errorf("invalid model alias: %s (must be sonnet, opus, or haiku)", sc.Model)
+		return fmt.Errorf("invalid model alias: %q (must not contain whitespace or control characters, or start with '-')", sc.Model)
 	}
 	// Validate tool names if MCP tools are specified
 	for _, tool := range sc.Tools {

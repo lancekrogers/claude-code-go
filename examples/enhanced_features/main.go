@@ -82,7 +82,7 @@ func main() {
 		AllowedTools: []string{
 			"InvalidTool()", // This will trigger validation error
 		},
-		ModelAlias: "invalid-model",  // This will also fail validation
+		ModelAlias: "not a model",    // Whitespace also fails validation
 		Timeout:    -5 * time.Second, // Negative timeout
 	}
 

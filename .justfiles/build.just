@@ -20,7 +20,7 @@ lib:
     @echo "Core library built successfully"
 
 # Build all example programs
-examples: basic advanced testing budget plugins subagents sessions mcp permissions retry streaming workflow
+examples: basic advanced testing budget plugins subagents sessions mcp permissions retry streaming workflow models
     @echo "All examples built"
 
 # Build basic example
@@ -106,6 +106,13 @@ workflow:
     @mkdir -p {{BIN_DIR}}
     cd {{PROJECT_DIR}} && go build -o {{BIN_DIR}}/workflow-example ./examples/workflow
     @echo "Built: {{BIN_DIR}}/workflow-example"
+
+# Build supported models example
+models:
+    @echo "Building models example..."
+    @mkdir -p {{BIN_DIR}}
+    cd {{PROJECT_DIR}} && go build -o {{BIN_DIR}}/models-example ./examples/models
+    @echo "Built: {{BIN_DIR}}/models-example"
 
 # ==== Interactive Demos ====
 

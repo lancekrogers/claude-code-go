@@ -162,6 +162,38 @@ messageCh, errCh := cc.StreamContent(ctx, blocks, &claude.RunOptions{ResumeID: s
 
 Blocks are validated before the CLI starts. An empty block list, an empty text block, or an image without a media type, or with missing or invalid base64 data, returns a validation `ClaudeError`.
 
+### Listing Models
+
+`SupportedModels` returns the models the installed `claude` CLI can use, as the CLI reports them. The list depends on the CLI version, the signed-in account, and settings such as `availableModels`, so use it instead of hard-coding aliases.
+
+```go
+models, err := cc.SupportedModels(ctx, nil)
+if err != nil {
+    log.Fatal(err)
+}
+for _, m := range models {
+    fmt.Printf("%s (%s): %s\n", m.Value, m.DisplayName, m.Description)
+}
+
+// Select one by passing its Value
+for _, m := range models {
+    if m.Value == "sonnet" {
+        result, err := cc.RunPrompt("Hello", &claude.RunOptions{ModelAlias: m.Value})
+        // ...
+    }
+}
+```
+
+The list includes a `default` entry for the CLI's own default model. Leave `ModelAlias` and `Model` empty to use it.
+
+It starts the CLI in stream-json mode and sends only an `initialize` control request. The official Agent SDKs send this request when a session starts, and the TypeScript SDK's `supportedModels()` returns the `models` field of its response. No user message is sent, so no model call is made. The call passes `--no-session-persistence`.
+
+The call starts no MCP servers: it passes `--strict-mcp-config` with no `--mcp-config`. Claude Code 2.1.322 was tested with a stdio server that records each launch. Without the flag, the CLI launched every configured server within seconds of answering, including a project `.mcp.json` server that had never been approved. With the flag, no server launched and the model list was unchanged.
+
+Hooks are disabled with `--settings {"disableAllHooks":true}`. When you set `Settings` to inline JSON, `disableAllHooks` is merged into it. Inline JSON that does not parse returns a validation error before the CLI starts, whereas the run methods pass `Settings` through unchecked. A settings file path is passed through unchanged, so any hooks it enables run.
+
+Only `Env`, `WorkingDirectory`, `Settings`, `SettingSources`, `Bare`, and `Timeout` apply. `Timeout` defaults to 60 seconds. If the CLI exits without answering, for example because it predates the control protocol, the error wraps `claude.ErrNoControlResponse`. See [`examples/models`](examples/models/main.go).
+
 ### Session Management
 
 ```go
@@ -419,7 +451,7 @@ type RunOptions struct {
 
     // Model selection
     Model      string      // Full model name
-    ModelAlias string      // sonnet, opus, haiku
+    ModelAlias string      // fable, opus, sonnet, haiku, or any value from SupportedModels
     Effort     EffortLevel // low, medium, high, xhigh, max
 
     // CLI prompt surface
@@ -482,6 +514,9 @@ func (c *ClaudeClient) StreamPrompt(ctx context.Context, prompt string, opts *Ru
 // Content blocks (text and images)
 func (c *ClaudeClient) StreamContent(ctx context.Context, blocks []ContentBlock, opts *RunOptions) (<-chan Message, <-chan error)
 func (c *ClaudeClient) RunContentCtx(ctx context.Context, blocks []ContentBlock, opts *RunOptions) (*ClaudeResult, error)
+
+// Models the installed CLI can use (no model call)
+func (c *ClaudeClient) SupportedModels(ctx context.Context, opts *RunOptions) ([]ModelInfo, error)
 
 // Stdin processing
 func (c *ClaudeClient) RunFromStdin(stdin io.Reader, prompt string, opts *RunOptions) (*ClaudeResult, error)

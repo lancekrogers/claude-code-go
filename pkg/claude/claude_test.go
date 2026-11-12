@@ -1376,14 +1376,20 @@ func TestBuildArgs_CLIFlags(t *testing.T) {
 
 // Test session ID validation in PreprocessOptions
 func TestPreprocessOptions_SessionValidation(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() { execCommand = originalExecCommand }()
+	execCommand = mockExecCommandContext(t,
+		[]string{"-p", "test", "--session-id", "550e8400-e29b-41d4-a716-446655440000"}, "ok", 0)
+
 	client := &ClaudeClient{BinPath: "claude"}
 
-	// Valid session ID should not error
+	// Valid session ID should pass validation and reach the (mocked) CLI
 	_, err := client.RunPromptCtx(context.Background(), "test", &RunOptions{
 		SessionID: "550e8400-e29b-41d4-a716-446655440000",
 	})
-	// This will fail because we don't have a mock, but it should fail after validation
-	// If it had failed validation, we'd get a different error
+	if err != nil {
+		t.Fatalf("Expected valid session ID to run, got: %v", err)
+	}
 
 	// Invalid session ID should error with validation message
 	_, err = client.RunPromptCtx(context.Background(), "test", &RunOptions{

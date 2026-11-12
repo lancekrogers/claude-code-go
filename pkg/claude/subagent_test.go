@@ -52,10 +52,19 @@ func TestSubagentConfig_Validate(t *testing.T) {
 			config: &SubagentConfig{
 				Description: "A test agent",
 				Prompt:      "You are a test agent",
-				Model:       "invalid-model",
+				Model:       "not a model",
 			},
 			wantErr: true,
 			errMsg:  "invalid model alias",
+		},
+		{
+			name: "model alias newer than the SDK",
+			config: &SubagentConfig{
+				Description: "A test agent",
+				Prompt:      "You are a test agent",
+				Model:       "fable",
+			},
+			wantErr: false,
 		},
 		{
 			name: "valid MCP tool",
