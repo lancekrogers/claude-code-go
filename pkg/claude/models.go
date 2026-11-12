@@ -19,7 +19,8 @@ import (
 // RunOptions.Model to select the model. Fields the CLI adds later are ignored.
 type ModelInfo struct {
 	// Value is the alias or model ID to pass to --model, such as "opus" or
-	// "claude-opus-4-8". The CLI also lists a "default" entry.
+	// "claude-opus-4-8". The CLI also lists a "default" entry for its own
+	// default model; leave ModelAlias and Model empty to use that one.
 	Value string `json:"value"`
 	// ResolvedModel is the model ID that Value resolves to. It is empty on CLIs
 	// older than 2.1.197.
@@ -48,8 +49,8 @@ type ModelInfo struct {
 var ErrNoControlResponse = errors.New("claude CLI exited without a control response")
 
 const (
-	// defaultControlTimeout matches the initialize timeout of the official
-	// Agent SDKs. It applies when RunOptions.Timeout is zero.
+	// defaultControlTimeout matches the Python Agent SDK's default initialize
+	// timeout. It applies when RunOptions.Timeout is zero.
 	defaultControlTimeout = 60 * time.Second
 	maxControlLineBytes   = 16 * 1024 * 1024
 	disableHooksSettings  = `{"disableAllHooks":true}`

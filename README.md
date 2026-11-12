@@ -176,10 +176,17 @@ for _, m := range models {
 }
 
 // Select one by passing its Value
-result, err := cc.RunPrompt("Hello", &claude.RunOptions{ModelAlias: models[0].Value})
+for _, m := range models {
+    if m.Value == "sonnet" {
+        result, err := cc.RunPrompt("Hello", &claude.RunOptions{ModelAlias: m.Value})
+        // ...
+    }
+}
 ```
 
-It starts the CLI in stream-json mode and sends only an `initialize` control request, the same request the official Agent SDKs use for `supportedModels()`. No user message is sent, so no model call is made. The call passes `--no-session-persistence` and disables hooks with `--settings {"disableAllHooks":true}`. When you set `Settings` to inline JSON, `disableAllHooks` is merged into it. A settings file path is passed through unchanged, so any hooks it enables run.
+The list includes a `default` entry for the CLI's own default model. Leave `ModelAlias` and `Model` empty to use it.
+
+It starts the CLI in stream-json mode and sends only an `initialize` control request. The official Agent SDKs send this request when a session starts, and the TypeScript SDK's `supportedModels()` returns the `models` field of its response. No user message is sent, so no model call is made. The call passes `--no-session-persistence` and disables hooks with `--settings {"disableAllHooks":true}`. When you set `Settings` to inline JSON, `disableAllHooks` is merged into it. A settings file path is passed through unchanged, so any hooks it enables run.
 
 Only `Env`, `WorkingDirectory`, `Settings`, `SettingSources`, `Bare`, and `Timeout` apply. `Timeout` defaults to 60 seconds. If the CLI exits without answering, for example because it predates the control protocol, the error wraps `claude.ErrNoControlResponse`. See [`examples/models`](examples/models/main.go).
 
