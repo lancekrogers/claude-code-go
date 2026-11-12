@@ -404,8 +404,10 @@ func TestSupportedModelsCLIExitsWithoutResponse(t *testing.T) {
 			if !errors.As(err, &claudeErr) || claudeErr.Code != tc.exitCode || !strings.Contains(claudeErr.Message, tc.message) {
 				t.Fatalf("error = %+v, want code %d and message containing %q", claudeErr, tc.exitCode, tc.message)
 			}
-			if tc.stderr != "" && claudeErr.Details["stderr"] != strings.TrimSpace(tc.stderr) {
-				t.Errorf("stderr detail = %v", claudeErr.Details["stderr"])
+			// Contains, not equality: a coverage-instrumented helper appends a
+			// GOCOVERDIR warning to stderr when it exits.
+			if stderr, _ := claudeErr.Details["stderr"].(string); !strings.Contains(stderr, strings.TrimSpace(tc.stderr)) {
+				t.Errorf("stderr detail = %q, want it to contain %q", stderr, tc.stderr)
 			}
 			fake.assertReaped(t)
 		})
